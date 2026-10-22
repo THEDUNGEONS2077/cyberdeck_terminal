@@ -100,6 +100,33 @@ export function sameLayout(a: LayoutDocument, b: LayoutDocument): boolean {
   return canonicalJson(a) === canonicalJson(b);
 }
 
+/**
+ * A short fingerprint of a text (cyrb53: a fast 53-bit hash). Two different
+ * texts get the same one only by vanishing chance.
+ */
+export function hashText(text: string): string {
+  let h1 = 0xdeadbeef;
+  let h2 = 0x41c6ce57;
+  for (let i = 0; i < text.length; i++) {
+    const ch = text.charCodeAt(i);
+    h1 = Math.imul(h1 ^ ch, 2654435761);
+    h2 = Math.imul(h2 ^ ch, 1597334677);
+  }
+  h1 = Math.imul(h1 ^ (h1 >>> 16), 2246822507) ^ Math.imul(h2 ^ (h2 >>> 13), 3266489909);
+  h2 = Math.imul(h2 ^ (h2 >>> 16), 2246822507) ^ Math.imul(h1 ^ (h1 >>> 13), 3266489909);
+  return (4294967296 * (2097151 & h2) + (h1 >>> 0)).toString(36);
+}
+
+/**
+ * A layout's content fingerprint (length + hash of its canonical JSON): the
+ * same for the same content whatever the key order. Snapshots store it, so
+ * "has the layout changed since the newest snapshot?" needs no copy of it.
+ */
+export function layoutFingerprint(doc: LayoutDocument): string {
+  const json = canonicalJson(doc);
+  return `${json.length.toString(36)}.${hashText(json)}`;
+}
+
 /** Does the layout differ from a brand-new one (is there anything worth backing up)? */
 export function hasCustomContent(doc: LayoutDocument): boolean {
   return !sameLayout(doc, defaultLayout());

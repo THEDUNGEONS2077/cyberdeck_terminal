@@ -1,5 +1,22 @@
 # Changelog
 
+## 0.3.1 (build 6)
+**Fixed: new bookmarks not showing up.** Bridge 1.2.0, so update it from SYSTEM ▸ BOOKMARKS.
+- **Both bookmarks bars.** When you're signed in to Chrome, it can keep two: one in your Google Account (where new bookmarks usually go) and one on this device. The bridge read only the first it found. It now shows both, account first, as Chrome's own bar does.
+- **Other and Mobile bookmarks.** Bookmarks Chrome saves outside the bar now show too: OTHER BOOKMARKS and MOBILE BOOKMARKS appear as folders at the end, as Chrome's bar ends with "All bookmarks". Hide them in edit mode if you don't want them.
+- **No more missed changes.** The dashboard keeps the bridge awake while you can see it, so every change arrives at once (Chrome put it to sleep after 30 s idle, and changes could then wait up to a minute). It also refreshes when its window gets the focus back.
+- **SYSTEM ▸ BOOKMARKS** shows what the bridge reads: items on the bar (and how many copies), in Other and in Mobile.
+
+**Fixed: SYSTEM could get stuck open.** Pressing S just after Esc (during the panel's fade-out) left it open without the keyboard: Esc did nothing and it blocked every click.
+
+**Optimization pass** (measured with the new `npm run e2e:perf`):
+- **Opening from the computer.** The page itself now comes from the service worker's copy, with no network round trip first. A repeat open shows rain in about 0.13 s (was 0.30 s) and the dashboard in about 0.23 s (was 0.34 s), with 120 ms network delay simulated. New versions still arrive: they install in the background and show from the next open.
+- **The rain appears sooner** on every open: bright glyphs are painted first and the canvas fades in while the faint rest fills in (first visit: 120 ms, was 167 ms).
+- **High-refresh screens:** the rain draws at most about 60–72 frames a second. With no frame limit, its script time fell from 75 to 19 ms per second (glyphs move at most about 22 rows a second, so faster showed nothing new).
+- **Startup with a lot stored:** snapshots have an index, so startup reads it instead of every snapshot. With 27 snapshots of a 2,000-link layout, loading took 58 ms (was 203) and 281 ms at 4× slower CPU (was 906).
+- **Dragging in edit mode** no longer re-renders every tile on each pointer move. The drag label and drop line move on their own layers outside NAV's scroller, and hover transitions pause while dragging. On a big bar at 4× slower CPU: median frame 16.7 ms (was 33), frames over 25 ms: 7 of 108 (was 88 of 93).
+- **Smaller pieces:** folders look up their own items (no scan of the whole bar); the clock re-renders alone, with its date formatters made once; the unused Medium font weight is gone (38 KB less to download and store).
+
 ## 0.3.0 (build 5)
 **Faster start.** The rain is on screen about 3× sooner: about 0.18 s after the page opens, where it was 0.5 s (0.7 s from 1.9 s on a slow CPU).
 - **Cheaper pre-warm:** the screen-filling pre-warm runs the simulation on numbers only and then paints each visible glyph once. It used to draw and fade the canvas hundreds of times.

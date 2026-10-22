@@ -19,6 +19,8 @@ export interface DeckApi {
   editing: boolean;
   /** Every item of the bar, by key. */
   all: Map<string, TreeItem>;
+  /** Each folder's own item keys, in Chrome's order. */
+  children: Map<string, string[]>;
   /** Keys shown elsewhere or hidden: folders leave these out. */
   excluded: ReadonlySet<string>;
   /** NAV's keys in order (hidden included), for moves into NAV. */

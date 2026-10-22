@@ -20,7 +20,7 @@ import { type BookmarkNode, sanitizeTree } from '@/lib/bookmarks';
 export const BRIDGE_ID = 'mbjnlinjocmaalhodjhpkadlpifnelic';
 
 /** The bridge version this page ships as a download (bridge/manifest.json `version`). */
-export const BRIDGE_VERSION = '1.1.0';
+export const BRIDGE_VERSION = '1.2.0';
 
 /** The bridge download, next to the page (built by vite.config.ts). */
 export const BRIDGE_ZIP = 'cyberdeck-bridge.zip';
@@ -32,6 +32,7 @@ const ANSWER_MS = 3000;
 interface Port {
   onMessage: { addListener(fn: (message: unknown) => void): void };
   onDisconnect: { addListener(fn: () => void): void };
+  postMessage(message: unknown): void;
   disconnect(): void;
 }
 interface Runtime {
@@ -112,18 +113,36 @@ export function faviconSrcSet(pageUrl: string): string {
   return `${base}&size=16 1x, ${base}&size=32 2x`;
 }
 
-/** The bookmarks bar from the bridge (checked), or null. */
-export async function fetchBar(): Promise<BookmarkNode | null> {
-  const r = await ask({ type: 'bar' });
-  return r?.ok ? sanitizeTree(r.bar) : null;
+/** What the bridge reports reading from Chrome (bridge 1.2+): copies of the bar, and items in each part. */
+export interface BridgeRoots {
+  /** How many bookmarks bars Chrome keeps (2 when signed in: your Google Account's and this device's). */
+  bars: number;
+  bar: number;
+  other: number;
+  mobile: number;
 }
+
+/** The bookmarks bar from the bridge (checked), and what it read; null if it didn't answer. */
+export async function fetchBar(): Promise<{ bar: BookmarkNode; roots: BridgeRoots | null } | null> {
+  const r = await ask({ type: 'bar' });
+  const bar = r?.ok ? sanitizeTree(r.bar) : null;
+  if (!bar) return null;
+  const raw = r?.roots as Partial<BridgeRoots> | undefined;
+  const n = (v: unknown) => (typeof v === 'number' && Number.isFinite(v) ? v : 0);
+  return { bar, roots: raw && typeof raw === 'object' ? { bars: n(raw.bars), bar: n(raw.bar), other: n(raw.other), mobile: n(raw.mobile) } : null };
+}
+
+/** While the page can be seen, it pings the bridge this often: it keeps the bridge's worker awake (Chrome stops idle ones after 30 s). */
+const PING_MS = 20_000;
 
 /**
  * Listens for bookmark changes: calls `onChange` when the bridge says
  * bookmarks changed, and after a lost connection comes back (anything may
- * have changed meanwhile). Chrome stops idle extension workers, which
- * closes the port; reconnecting starts the worker again. Retries back off
- * from 1 s to 30 s, and wait while the page is hidden. Returns a function
+ * have changed meanwhile). While the page can be seen it pings the bridge
+ * every PING_MS, so its worker stays awake and every change arrives at
+ * once; hidden, the pings stop and the worker may sleep. If the port
+ * closes anyway, reconnecting starts the worker again: retries back off
+ * from 1 s to 10 s, and wait while the page is hidden. Returns a function
  * that stops listening.
  */
 export function watchBridge(onChange: () => void): () => void {
@@ -133,6 +152,15 @@ export function watchBridge(onChange: () => void): () => void {
   let stopped = false;
   let retry: ReturnType<typeof setTimeout> | undefined;
   let delay = 1000;
+  // Pings while the page can be seen (they keep the bridge's worker awake).
+  const ping = setInterval(() => {
+    if (document.hidden || !port) return;
+    try {
+      port.postMessage({ type: 'ping' });
+    } catch {
+      // The port just closed: onDisconnect reconnects.
+    }
+  }, PING_MS);
 
   const open = (again: boolean) => {
     if (stopped) return;
@@ -167,13 +195,14 @@ export function watchBridge(onChange: () => void): () => void {
     if (stopped) return;
     clearTimeout(retry);
     retry = setTimeout(whenVisible, delay);
-    delay = Math.min(delay * 2, 30_000);
+    delay = Math.min(delay * 2, 10_000);
   };
 
   open(false);
   return () => {
     stopped = true;
     clearTimeout(retry);
+    clearInterval(ping);
     port?.disconnect();
   };
 }

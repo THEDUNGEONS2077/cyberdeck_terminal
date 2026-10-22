@@ -343,6 +343,17 @@ try {
     await page.getByRole('dialog').waitFor({ state: 'detached' });
   });
 
+  await path('S straight after Esc reopens SYSTEM with the keyboard in it, and Esc still closes it', async () => {
+    await page.keyboard.press('s');
+    await page.getByRole('dialog', { name: 'SYSTEM' }).waitFor();
+    await page.keyboard.press('Escape');
+    await page.keyboard.press('s'); // within the fade-out
+    await page.waitForTimeout(250);
+    expect(await page.evaluate(() => !!document.querySelector('.dialog')?.contains(document.activeElement)), 'the keyboard isn’t in the reopened panel');
+    await page.keyboard.press('Escape');
+    await page.getByRole('dialog').waitFor({ state: 'detached' });
+  });
+
   await path('EXPORT BACKUP downloads a valid backup and records it', async () => {
     await page.keyboard.press('s');
     const [download] = await Promise.all([page.waitForEvent('download'), page.getByRole('button', { name: 'EXPORT BACKUP' }).click()]);

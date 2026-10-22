@@ -81,8 +81,14 @@ async function frames(label, rate, ms) {
   });
 }
 
-// From the first moment: every frame gap until the rain is ready (the pre-warm runs then).
+// From the first moment: every frame gap until the rain is ready (the pre-warm runs then), and
+// the moment the rain is ready, stamped inside the page (a check from outside, through Playwright,
+// lands late exactly when the page is busiest).
 await page.addInitScript(() => {
+  window.__ready = -1;
+  new MutationObserver(() => {
+    if (window.__ready < 0 && document.querySelector('.wallpaper-canvas[data-ready]')) window.__ready = Math.round(performance.now());
+  }).observe(document, { subtree: true, attributes: true, childList: true });
   window.__loadGaps = [];
   let prev = 0;
   const tick = (t) => {
@@ -99,7 +105,7 @@ try {
   // Builds before the fade-in have no data-ready: give them time instead.
   const ready = await page
     .waitForSelector('.wallpaper-canvas[data-ready]', { state: 'attached', timeout: 10000 })
-    .then(() => page.evaluate(() => performance.now().toFixed(0)))
+    .then(() => page.evaluate(() => window.__ready))
     .catch(async () => {
       await page.waitForTimeout(1500);
       return 'n/a';

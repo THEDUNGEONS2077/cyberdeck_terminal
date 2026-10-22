@@ -28,8 +28,10 @@ export const KEYS = {
    * not part of the layout (nor of backups).
    */
   bookmarksCache: 'bookmarks.cache.v1',
-  /** Automatic snapshots: `snapshot.<epoch ms>` (lib/snapshots.ts). */
+  /** Automatic snapshots: `snapshot.<epoch ms>`, each a whole copy (lib/snapshots.ts). */
   snapshotPrefix: 'snapshot.',
+  /** The snapshots' index: when, why, summary and fingerprint of each, newest first. */
+  snapshotIndex: 'snapshots.index.v1',
   /** Unreadable data is kept under `corrupt.<epoch ms>` instead of being thrown away. */
   corruptPrefix: 'corrupt.',
 } as const;

@@ -20,8 +20,11 @@ UPDATE
   the old folder, then press the reload arrow on the bridge in chrome://extensions.
 
 WHAT IT CAN DO
-  - Read your bookmarks bar (only the bar), and share it with the dashboard
-    page only. It never changes your bookmarks.
+  - Read your bookmarks bar, plus Chrome's "Other bookmarks" and "Mobile
+    bookmarks" (shown as two folders at the end, as Chrome's bar ends with
+    "All bookmarks"), and share them with the dashboard page only. If you're
+    signed in to Chrome it reads both copies of each (your Google Account's
+    and this device's). It never changes your bookmarks.
   - Let the dashboard show your bookmarks' site icons (from Chrome's own
     icon cache).
   - Open Chrome's own New Tab page or Bookmark manager when you ask the

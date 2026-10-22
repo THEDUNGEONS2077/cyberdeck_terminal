@@ -12,7 +12,8 @@
  *
  * Messages (chrome.runtime.sendMessage(BRIDGE_ID, …) from the page):
  *   { type: 'hello' } → { ok: true, version, features }
- *   { type: 'bar' }   → { ok: true, bar }  (bridge/tree.js shape)
+ *   { type: 'bar' }   → { ok: true, bar, roots }  (bridge/tree.js: the bar,
+ *       then Other and Mobile bookmarks as folders; `roots` counts each part)
  *   { type: 'open', target: 'ntp' | 'bookmarks' } → { ok: true }
  *       opens Chrome's own New Tab page or Bookmark manager in a new tab
  *       next to the asking one (a webpage can't open chrome:// pages
@@ -23,10 +24,14 @@
  * permission plus web_accessible_resources in manifest.json).
  * A long-lived port (chrome.runtime.connect(BRIDGE_ID)) receives
  * { type: 'changed' } after any bookmark change; the page then asks for
- * the bar again. If Chrome stops this worker the port closes, and the
- * page reconnects (which starts the worker again).
+ * the bar again. While the dashboard can be seen it sends { type: 'ping' }
+ * every 20 s, which keeps this worker running (Chrome stops idle ones
+ * after 30 s, and a stopped worker can't pass changes on); hidden, it
+ * stops, the worker sleeps, and the page asks again when it's shown.
+ * If Chrome stops this worker anyway, the port closes and the page
+ * reconnects (which starts it again).
  */
-import { findBar, simplify } from './tree.js';
+import { dashboardBar, describeRoots, simplify } from './tree.js';
 
 const VERSION = chrome.runtime.getManifest().version;
 
@@ -61,7 +66,7 @@ chrome.runtime.onMessageExternal.addListener((message, sender, sendResponse) => 
   if (message?.type === 'bar') {
     chrome.bookmarks
       .getTree()
-      .then((roots) => sendResponse({ ok: true, bar: simplify(findBar(roots)) }))
+      .then((roots) => sendResponse({ ok: true, bar: simplify(dashboardBar(roots)), roots: describeRoots(roots) }))
       .catch((error) => sendResponse({ ok: false, error: String(error) }));
     // The answer comes later (asynchronously).
     return true;
@@ -73,6 +78,8 @@ chrome.runtime.onMessageExternal.addListener((message, sender, sendResponse) => 
 chrome.runtime.onConnectExternal.addListener((port) => {
   ports.add(port);
   port.onDisconnect.addListener(() => ports.delete(port));
+  // The dashboard's pings: receiving them is what keeps this worker awake (nothing to answer).
+  port.onMessage.addListener(() => {});
 });
 
 // One notice per burst: importing or syncing bookmarks fires many events at once.

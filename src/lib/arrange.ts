@@ -95,9 +95,11 @@ export function keyKind(key: string): 'link' | 'folder' {
  * Every item of the bar by key, in Chrome's order (depth first), plus the
  * keys of the top level. Links to the same URL get `#2`, `#3`… in that order.
  */
-export function indexTree(bar: BookmarkNode | null): { items: Map<string, TreeItem>; top: string[] } {
+export function indexTree(bar: BookmarkNode | null): { items: Map<string, TreeItem>; top: string[]; children: Map<string, string[]> } {
   const items = new Map<string, TreeItem>();
   const top: string[] = [];
+  // Each folder's own items, in Chrome's order (so a folder never has to search the whole bar).
+  const children = new Map<string, string[]>();
   const seen = new Map<string, number>();
   const walk = (node: BookmarkNode, path: string[], parent: string | null) => {
     for (const child of node.children ?? []) {
@@ -115,11 +117,16 @@ export function indexTree(bar: BookmarkNode | null): { items: Map<string, TreeIt
       }
       items.set(key, { key, node: child, path: childPath, parent });
       if (parent === null) top.push(key);
+      else {
+        const list = children.get(parent);
+        if (list) list.push(key);
+        else children.set(parent, [key]);
+      }
       if (child.children) walk(child, childPath, key);
     }
   };
   if (bar) walk(bar, [], null);
-  return { items, top };
+  return { items, top, children };
 }
 
 /**
@@ -145,8 +152,10 @@ export interface Arranged {
   main: TreeItem[];
   /** NAV's keys in order, hidden ones included (where moves are measured from, so hidden items keep their place). */
   mainKeys: string[];
-  /** Every item of the bar, by key (folders look their contents up here). */
+  /** Every item of the bar, by key. */
   all: Map<string, TreeItem>;
+  /** Each folder's own item keys, in Chrome's order. */
+  children: Map<string, string[]>;
   /** Each area and its items, in order. */
   areas: { area: Area; items: TreeItem[] }[];
   /** Hidden items that exist (the edit tray). */
@@ -157,7 +166,7 @@ export interface Arranged {
 
 /** Works out what shows where (see the file header). */
 export function arrange(bar: BookmarkNode | null, arr: Arrangement): Arranged {
-  const { items, top } = indexTree(bar);
+  const { items, top, children } = indexTree(bar);
   const hidden = new Set(arr.hidden.filter((k) => items.has(k)));
   const inAreas = new Set(arr.areas.flatMap((a) => a.items).filter((k) => items.has(k)));
   // Deeper items placed in NAV are those listed in its order.
@@ -181,6 +190,7 @@ export function arrange(bar: BookmarkNode | null, arr: Arrangement): Arranged {
     main: mainKeys.filter((k) => !hidden.has(k)).map((k) => items.get(k)!),
     mainKeys,
     all: items,
+    children,
     areas,
     hidden: [...hidden].map((k) => items.get(k)!),
     excluded,
@@ -188,9 +198,9 @@ export function arrange(bar: BookmarkNode | null, arr: Arrangement): Arranged {
 }
 
 /** A folder's contents as shown: Chrome's order, minus what's placed elsewhere or hidden. */
-export function folderContents(item: TreeItem, all: Map<string, TreeItem>, excluded: ReadonlySet<string>): TreeItem[] {
+export function folderContents(item: TreeItem, arranged: { all: Map<string, TreeItem>; children: Map<string, string[]>; excluded: ReadonlySet<string> }): TreeItem[] {
   const out: TreeItem[] = [];
-  for (const [key, it] of all) if (it.parent === item.key && !excluded.has(key)) out.push(it);
+  for (const key of arranged.children.get(item.key) ?? []) if (!arranged.excluded.has(key)) out.push(arranged.all.get(key)!);
   return out;
 }
 

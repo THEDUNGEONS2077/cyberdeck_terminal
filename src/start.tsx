@@ -20,6 +20,9 @@ import { type Boot, boot } from './store/persist';
 import { setBookmarksStore, setLayoutStore } from './store/instance';
 import { uiStore } from './store/ui';
 
+// Startup timing (read by e2e/perf.mjs): this chunk has arrived and run its imports.
+performance.mark('app:start');
+
 /** The notice when storage can't be used at all. */
 const NOTICE_NO_STORAGE = 'BROWSER STORAGE IS BLOCKED · CHANGES WON’T BE KEPT';
 
@@ -33,6 +36,8 @@ try {
   kv = memoryKV();
   booted = { ...(await boot(kv, Date.now())), notice: NOTICE_NO_STORAGE };
 }
+
+performance.mark('app:booted');
 
 const store = createLayoutStore(kv, booted, (e) => {
   console.error('save failed', e);

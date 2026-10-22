@@ -44,9 +44,11 @@ import {
   type LayerParams,
   MAX_DPR,
   MAX_FRAME_STEP,
+  MIN_FRAME_MS,
   MUTATIONS_PER_SECOND,
   PREWARM_BUDGET_MS,
   PREWARM_MIN_ALPHA,
+  PREWARM_REVEAL_ALPHA,
   PREWARM_SECONDS,
   PREWARM_STEP,
   RESPAWN_DELAY,
@@ -183,6 +185,7 @@ function createMatrixRain(canvas: HTMLCanvasElement, options: WallpaperOptions, 
   let simTime = 0;
   // The pre-warm in progress: seconds left to simulate, or null when done; then the cell painting is up to.
   let warmLeft: number | null = null;
+  let paintPass = 0;
   let paintLayer = 0;
   let paintCell = 0;
   let warmStarted = 0;
@@ -305,27 +308,40 @@ function createMatrixRain(canvas: HTMLCanvasElement, options: WallpaperOptions, 
     }
   };
 
+  /** The first full frame is on the canvas: say so, once (WallpaperLayer's host fades the canvas in). */
+  const announce = () => {
+    if (announced) return;
+    announced = true;
+    options.onReady?.();
+  };
+
   /**
    * Paints recorded cells from where the last slice stopped, until `until`
    * (performance.now ms). Each cell still visible is drawn once, at what the
-   * fades would have left: fadedAlpha(alpha, its age). True when all done.
+   * fades would have left: fadedAlpha(alpha, its age). Two passes: the
+   * bright cells (PREWARM_REVEAL_ALPHA and up), then, with the canvas
+   * already fading in, the faint rest. True when all done.
    */
   const paintRecorded = (until: number): boolean => {
     if (!recordings) return true;
-    for (; paintLayer < layers.length; paintLayer++, paintCell = 0) {
-      const l = layers[paintLayer]!;
-      const r = recordings[paintLayer];
-      if (!r) continue;
-      const n = r.cols * r.rows;
-      for (; paintCell < n; paintCell++) {
-        // Checking the clock every 256 cells keeps the check itself cheap.
-        if ((paintCell & 255) === 0 && performance.now() > until) return false;
-        const age = simTime - r.time[paintCell]!;
-        if (!(age < TRAIL_SECONDS)) continue;
-        const a = fadedAlpha(r.alpha[paintCell]!, age);
-        if (a < PREWARM_MIN_ALPHA) continue;
-        blit(l, paintCell % r.cols, Math.floor(paintCell / r.cols), r.glyph[paintCell]!, r.style[paintCell] as AtlasRow, a);
+    for (; paintPass < 2; paintPass++, paintLayer = 0, paintCell = 0) {
+      for (; paintLayer < layers.length; paintLayer++, paintCell = 0) {
+        const l = layers[paintLayer]!;
+        const r = recordings[paintLayer];
+        if (!r) continue;
+        const n = r.cols * r.rows;
+        for (; paintCell < n; paintCell++) {
+          // Checking the clock every 256 cells keeps the check itself cheap.
+          if ((paintCell & 255) === 0 && performance.now() > until) return false;
+          const age = simTime - r.time[paintCell]!;
+          if (!(age < TRAIL_SECONDS)) continue;
+          const a = fadedAlpha(r.alpha[paintCell]!, age);
+          if (a < PREWARM_MIN_ALPHA || a >= PREWARM_REVEAL_ALPHA !== (paintPass === 0)) continue;
+          blit(l, paintCell % r.cols, Math.floor(paintCell / r.cols), r.glyph[paintCell]!, r.style[paintCell] as AtlasRow, a);
+        }
       }
+      // The bright part is on the canvas: it can fade in while the faint rest is painted.
+      if (paintPass === 0) announce();
     }
     return true;
   };
@@ -352,10 +368,7 @@ function createMatrixRain(canvas: HTMLCanvasElement, options: WallpaperOptions, 
     warmLeft = null;
     // Recorded for e2e/motion.mjs: how long the screen took to fill (spread over frames).
     performance.measure('rain-prewarm', { start: warmStarted });
-    if (!announced) {
-      announced = true;
-      options.onReady?.();
-    }
+    announce();
     if (running && !still && !frame) {
       last = 0;
       frame = requestAnimationFrame(tick);
@@ -367,6 +380,7 @@ function createMatrixRain(canvas: HTMLCanvasElement, options: WallpaperOptions, 
     warmLeft = seconds;
     warmStarted = performance.now();
     simTime = 0;
+    paintPass = 0;
     paintLayer = 0;
     paintCell = 0;
     recordings = layers.map((l) => newRecording(l.drops.length, l.rows));
@@ -433,6 +447,11 @@ function createMatrixRain(canvas: HTMLCanvasElement, options: WallpaperOptions, 
     frame = 0;
     // Stopped, or still filling (warmSlice starts the animation when it's done).
     if (!running || warmLeft !== null) return;
+    // A fast screen's extra frames: skip them (MIN_FRAME_MS); the time carries over to the next drawn one.
+    if (last && now - last < MIN_FRAME_MS) {
+      frame = requestAnimationFrame(tick);
+      return;
+    }
     const dt = last ? Math.min((now - last) / 1000, MAX_FRAME_STEP) : 0;
     last = now;
     step(dt);

@@ -17,7 +17,8 @@
  * Every drag here has a keyboard way too: the ⋯ menus, and arrow keys on
  * the grips (app/Bookmarks.tsx, app/panels.tsx).
  */
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
+import { createStore } from 'zustand/vanilla';
 
 import { type PanelId, type PanelPlace, clampPlace, hideItem, keyKind, moveArea, moveItem } from '@/lib/arrange';
 import { editStore } from '@/store/edit';
@@ -54,6 +55,15 @@ export interface DragView {
   y: number;
   line: Line | null;
 }
+
+/**
+ * The drag's picture (the label at the pointer, the drop line), in a store
+ * of its own: only app/Bookmarks.tsx's DragOverlay listens, so moving the
+ * pointer redraws those two small elements and nothing else
+ * (optimization pass, 2026-10-22: it used to redraw every tile, every frame).
+ */
+export const dragViewStore = createStore<{ view: DragView | null }>(() => ({ view: null }));
+const setView = (view: DragView | null) => dragViewStore.setState({ view });
 
 /** The item wrappers that are drop positions in a section: its own top-level items of one kind, in page order. */
 function sectionItems(section: Element, sectionId: string, kind: string): HTMLElement[] {
@@ -123,17 +133,17 @@ function drop(payload: DragPayload, target: Target | null): void {
 }
 
 /**
- * The drag controller for the deck: `start` on a pointerdown; `view` is
- * what to draw (the label and the drop line) while a drag is on.
+ * The drag controller: `start` on a pointerdown. `start` keeps the same
+ * identity for the component's life, so passing it down never re-renders
+ * anything. What's drawn while dragging lives in dragViewStore.
  */
 export function useArrangeDrag(scroller: React.RefObject<HTMLElement | null>) {
-  const [view, setView] = useState<DragView | null>(null);
   const active = useRef<(() => void) | null>(null);
 
   // Leaving edit mode (or unmounting) ends any drag.
   useEffect(() => () => active.current?.(), []);
 
-  const start = (e: React.PointerEvent, payload: DragPayload) => {
+  const start = useCallback((e: React.PointerEvent, payload: DragPayload) => {
     if (e.button !== 0 || active.current) return;
     const sx = e.clientX;
     const sy = e.clientY;
@@ -231,7 +241,7 @@ export function useArrangeDrag(scroller: React.RefObject<HTMLElement | null>) {
     window.addEventListener('pointercancel', onCancel);
     window.addEventListener('keydown', onKey, true);
     active.current = () => finish(false);
-  };
+  }, [scroller]);
 
-  return { start, view };
+  return { start };
 }

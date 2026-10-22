@@ -5,7 +5,9 @@
  * Layer: UI (a React hook around src/bridge/client.ts). On open it asks
  * the bridge for its version and the bookmarks bar; after that it asks
  * again whenever the bridge says bookmarks changed, when its connection
- * comes back, and when the page is shown again (another tab was in front).
+ * comes back, when the page is shown again (another tab was in front), and
+ * when its window gets the focus back (it may have been open, unfocused,
+ * in another window while bookmarks changed).
  * No bridge on the page → the store says `absent` straight away.
  */
 import { useEffect } from 'react';
@@ -31,15 +33,19 @@ export function useBridge(): void {
         return;
       }
       busy = true;
-      do {
-        again = false;
-        const info = await bridgeInfo();
-        const bar = info ? await fetchBar() : null;
-        if (!alive) return;
-        if (info && bar) store.getState().setLive(bar, info.version, info.features);
-        else store.getState().setAbsent();
-      } while (again && alive);
-      busy = false;
+      // `finally`: whatever happens, the next change can ask again (a stuck `busy` would ignore every later change).
+      try {
+        do {
+          again = false;
+          const info = await bridgeInfo();
+          const got = info ? await fetchBar() : null;
+          if (!alive) return;
+          if (info && got) store.getState().setLive(got.bar, info.version, info.features, got.roots);
+          else store.getState().setAbsent();
+        } while (again && alive);
+      } finally {
+        busy = false;
+      }
     };
     void refresh();
     const stop = watchBridge(() => void refresh());
@@ -47,10 +53,12 @@ export function useBridge(): void {
       if (!document.hidden) void refresh();
     };
     document.addEventListener('visibilitychange', onShow);
+    window.addEventListener('focus', onShow);
     return () => {
       alive = false;
       stop();
       document.removeEventListener('visibilitychange', onShow);
+      window.removeEventListener('focus', onShow);
     };
   }, []);
 }

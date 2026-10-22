@@ -53,6 +53,9 @@ export function App() {
   // The wallpaper runs outside React (wallpaper/host.ts, started by main.tsx): only its choice is passed on.
   useEffect(() => showWallpaper(wallpaper), [wallpaper]);
 
+  // Startup timing (read by e2e/perf.mjs): the dashboard is on screen.
+  useEffect(() => void performance.mark('app:ui'), []);
+
   useFullscreenSync();
   useIdleCursor(immersive);
   useShortcuts(panelOpen);

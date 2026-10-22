@@ -7,7 +7,7 @@ import { defaultLayout, type LayoutDocument } from '@/lib/layout';
 import { CHANGE_DEBOUNCE_MS, SNAPSHOT_KEEP } from '@/lib/snapshots';
 import { KEYS, memoryKV } from '@/store/kv';
 import { createLayoutStore } from '@/store/layout';
-import { boot, NOTICE_DAMAGED, NOTICE_NEWER, storeSnapshot } from '@/store/persist';
+import { boot, loadSnapshot, NOTICE_DAMAGED, NOTICE_NEWER, readSnapshotIndex, storeSnapshot } from '@/store/persist';
 
 const NOW = new Date(2026, 9, 22, 14, 30).getTime();
 const custom: LayoutDocument = { ...defaultLayout(), prefs: { backupReminderDays: 30 } };
@@ -73,6 +73,50 @@ describe('storeSnapshot', () => {
   });
 });
 
+describe('the snapshot index', () => {
+  it('startup reads the index, not the snapshots themselves', async () => {
+    const kv = memoryKV();
+    await boot(kv, NOW);
+    const get = vi.spyOn(kv, 'get');
+    await boot(kv, NOW + 1000);
+    expect(get.mock.calls.map(([k]) => k).filter((k) => k.startsWith(KEYS.snapshotPrefix))).toEqual([]);
+  });
+
+  it('is rebuilt from the stored copies when missing (snapshots from before the index)', async () => {
+    const kv = memoryKV();
+    let list = await storeSnapshot(kv, [], defaultLayout(), 'startup', NOW);
+    list = await storeSnapshot(kv, list, custom, 'change', NOW + 1);
+    await kv.del(KEYS.snapshotIndex);
+    const rebuilt = await readSnapshotIndex(kv);
+    expect(rebuilt).toEqual(list);
+    expect(kv.data.get(KEYS.snapshotIndex)).toEqual(list);
+  });
+
+  it('drops entries whose copy is gone, and adds copies it didn’t list', async () => {
+    const kv = memoryKV();
+    let list = await storeSnapshot(kv, [], defaultLayout(), 'startup', NOW);
+    list = await storeSnapshot(kv, list, custom, 'change', NOW + 1);
+    // The older copy vanishes, and a copy appears that the index doesn't list.
+    await kv.del(KEYS.snapshotPrefix + list[1]!.at);
+    await kv.set(KEYS.snapshotPrefix + (NOW + 5), { at: NOW + 5, reason: 'change', summary: 'x', layout: { ...defaultLayout(), prefs: { backupReminderDays: 90 } } });
+    const index = await readSnapshotIndex(kv);
+    expect(index.map((i) => i.at)).toEqual([NOW + 5, NOW + 1]);
+  });
+
+  it('restoring reads the chosen snapshot in full, after snapshotting the current layout', async () => {
+    vi.useFakeTimers();
+    const kv = memoryKV();
+    const store = createLayoutStore(kv, await boot(kv, NOW), undefined, () => NOW + 10);
+    const first = store.getState().snapshots[0]!.at;
+    store.getState().setReminderDays(30);
+    expect(await store.getState().restoreSnapshot(first)).toBe(true);
+    expect(store.getState().layout).toEqual(defaultLayout());
+    expect(store.getState().snapshots[0]!.reason).toBe('before-restore');
+    expect(await store.getState().restoreSnapshot(12345)).toBe(false);
+    vi.useRealTimers();
+  });
+});
+
 describe('layout store', () => {
   beforeEach(() => vi.useFakeTimers());
   afterEach(() => vi.useRealTimers());
@@ -97,18 +141,18 @@ describe('layout store', () => {
     await store.getState().settled();
     expect(store.getState().snapshots).toHaveLength(2);
     expect(store.getState().snapshots[0]!.reason).toBe('change');
-    expect(store.getState().snapshots[0]!.layout).toEqual(custom);
+    expect((await loadSnapshot(kv, store.getState().snapshots[0]!.at))!.layout).toEqual(custom);
   });
 
   it('a burst of changes gives one snapshot, of the last state', async () => {
-    const { store } = await setup();
+    const { kv, store } = await setup();
     store.getState().setReminderDays(7);
     await vi.advanceTimersByTimeAsync(CHANGE_DEBOUNCE_MS / 2);
     store.getState().setReminderDays(90);
     await vi.advanceTimersByTimeAsync(CHANGE_DEBOUNCE_MS);
     await store.getState().settled();
     expect(store.getState().snapshots).toHaveLength(2);
-    expect(store.getState().snapshots[0]!.layout.prefs.backupReminderDays).toBe(90);
+    expect((await loadSnapshot(kv, store.getState().snapshots[0]!.at))!.layout.prefs.backupReminderDays).toBe(90);
   });
 
   it('replacing the layout snapshots the current one first (so it can be undone)', async () => {
@@ -118,7 +162,7 @@ describe('layout store', () => {
     await store.getState().replaceLayout(custom, 'before-import');
     const [newest] = store.getState().snapshots;
     expect(newest!.reason).toBe('before-import');
-    expect(newest!.layout.prefs.backupReminderDays).toBe(7);
+    expect((await loadSnapshot(kv, newest!.at))!.layout.prefs.backupReminderDays).toBe(7);
     expect(store.getState().layout).toEqual(custom);
     expect(kv.data.get(KEYS.layout)).toEqual(custom);
   });

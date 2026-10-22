@@ -7,11 +7,11 @@ import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { inflateRawSync } from 'node:zlib';
 
-import { findBar, simplify } from '../../bridge/tree.js';
+import { dashboardBar, describeRoots, permanentFolders, simplify } from '../../bridge/tree.js';
 import { makeZip } from '../../scripts/zip.ts';
 
 import { BRIDGE_ID, BRIDGE_VERSION, faviconSrcSet } from '@/bridge/client';
-import { BookmarksFileError, countLinks, folderKey, hostOf, isOpenable, MAX_NODES, parseBookmarksHtml, sanitizeTree } from '@/lib/bookmarks';
+import { type BookmarkNode, BookmarksFileError, countLinks, folderKey, hostOf, isOpenable, MAX_NODES, parseBookmarksHtml, sanitizeTree } from '@/lib/bookmarks';
 import { defaultLayout, summarizeLayout } from '@/lib/layout';
 import { migrateLayout } from '@/lib/migrations';
 import { compareVersions } from '@/lib/versions';
@@ -207,6 +207,7 @@ describe('the bridge extension', () => {
 
   it('the page ships the manifest’s version, and lists only the dashboard as a caller', () => {
     expect(manifest.version).toBe(BRIDGE_VERSION);
+    expect(BRIDGE_VERSION).toBe('1.2.0');
     expect(manifest.permissions).toEqual(['bookmarks', 'favicon']);
     // Only the dashboard's tabs are visible to it (to switch to an open one on New Tab).
     expect(manifest.host_permissions).toEqual(['https://thedungeons2077.github.io/cyberdeck_terminal/*']);
@@ -215,19 +216,43 @@ describe('the bridge extension', () => {
     expect((manifest.externally_connectable as { matches: string[] }).matches).toEqual(['https://thedungeons2077.github.io/cyberdeck_terminal/*', 'http://127.0.0.1/*']);
   });
 
-  it('finds the bar among Chrome’s roots and passes on only id, title, url, children', () => {
-    const roots = [
-      {
-        id: '0',
-        title: '',
-        children: [
-          { id: '1', title: 'Bookmarks bar', folderType: 'bookmarks-bar', children: [{ id: '5', title: 'A', url: 'https://a/', dateAdded: 1, syncing: true }] },
-          { id: '2', title: 'Other bookmarks', children: [] },
-        ],
-      },
-    ];
-    expect(simplify(findBar(roots))).toEqual({ id: '1', title: 'Bookmarks bar', children: [{ id: '5', title: 'A', url: 'https://a/' }] });
-    expect(findBar([{ id: '0', title: '', children: [{ id: '9', title: 'x', children: [] }, { id: '1', title: 'bar', children: [] }] }])!.id).toBe('1');
+  it('passes on only id, title, url and children', () => {
+    expect(simplify({ id: 1, title: 'A', url: 'https://a/', dateAdded: 1, syncing: true } as never)).toEqual({ id: '1', title: 'A', url: 'https://a/' });
+  });
+
+  /** Chrome's roots as getTree() gives them, signed in: a bar, Other and Mobile on this device, and in the account. */
+  const SIGNED_IN = [
+    {
+      id: '0',
+      title: '',
+      children: [
+        { id: '1', title: 'Bookmarks bar', folderType: 'bookmarks-bar', syncing: false, children: [{ id: '10', title: 'Old', url: 'https://old/' }] },
+        { id: '2', title: 'Other bookmarks', folderType: 'other', syncing: false, children: [] },
+        { id: '3', title: 'Mobile bookmarks', folderType: 'mobile', syncing: false, children: [] },
+        { id: '4', title: 'Bookmarks bar', folderType: 'bookmarks-bar', syncing: true, children: [{ id: '40', title: 'New', url: 'https://new/' }] },
+        { id: '5', title: 'Other bookmarks', folderType: 'other', syncing: true, children: [{ id: '50', title: 'Starred', url: 'https://starred/' }] },
+        { id: '6', title: 'Mobile bookmarks', folderType: 'mobile', syncing: true, children: [] },
+      ],
+    },
+  ];
+
+  /** What the bridge sends for these roots, typed as the page reads it. */
+  const sent = (roots: unknown) => simplify(dashboardBar(roots as never)) as unknown as BookmarkNode & { children: BookmarkNode[] };
+
+  it('joins both bookmarks bars (account first), then Other bookmarks as a folder: a new bookmark always shows up', () => {
+    const bar = sent(SIGNED_IN);
+    expect(bar.children.map((c) => c.title)).toEqual(['New', 'Old', 'Other bookmarks']);
+    expect(bar.children[2]!.children!.map((c) => c.title)).toEqual(['Starred']);
+    // Mobile bookmarks is empty: no folder for it.
+    expect(bar.children.some((c) => c.title === 'Mobile bookmarks')).toBe(false);
+    expect(describeRoots(SIGNED_IN as never)).toEqual({ bars: 2, bar: 2, other: 1, mobile: 0 });
+  });
+
+  it('finds the permanent folders by their old ids on a Chrome without folderType', () => {
+    const old = [{ id: '0', title: '', children: [{ id: '1', title: 'Bar', children: [] }, { id: '2', title: 'Other', children: [{ id: '9', title: 'x', url: 'https://x/' }] }] }];
+    expect(permanentFolders(old as never, 'bar').map((n: { id: string }) => n.id)).toEqual(['1']);
+    expect(sent(old).children.map((c) => c.title)).toEqual(['Other bookmarks']);
+    expect(dashboardBar([{ id: '0', title: '', children: [] }] as never)).toBeNull();
   });
 });
 

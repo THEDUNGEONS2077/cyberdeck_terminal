@@ -17,10 +17,14 @@ import { G } from './glyphs';
 import { useEdit, useLayout } from './hooks';
 import { MoveGrip, placeStyle } from './panels';
 
+// The clock's formatters, made once: toLocale…String with options builds a new one on every
+// call, every second (optimization pass, 2026-10-22).
+const TIME = new Intl.DateTimeFormat('en-GB', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+const DATE = new Intl.DateTimeFormat('en-GB', { weekday: 'short', day: '2-digit', month: 'short', year: 'numeric' });
 /** `14:07:33`. */
-const timeText = (d: Date) => d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+const timeText = (d: Date) => TIME.format(d);
 /** `THU 22 OCT 2026`. */
-const dateText = (d: Date) => d.toLocaleDateString('en-GB', { weekday: 'short', day: '2-digit', month: 'short', year: 'numeric' }).replace(/,/g, '').toUpperCase();
+const dateText = (d: Date) => DATE.format(d).replace(/,/g, '').toUpperCase();
 
 /** The current time, updated every second. */
 function useNow(): Date {
@@ -32,9 +36,21 @@ function useNow(): Date {
   return now;
 }
 
+/** The clock and date: the only part of the HUD that changes every second (so only it re-renders). */
+function Clock() {
+  const now = useNow();
+  return (
+    <>
+      <time className="hud-clock" dateTime={now.toISOString()}>
+        {timeText(now)}
+      </time>
+      <span>{dateText(now)}</span>
+    </>
+  );
+}
+
 /** The HUD. */
 export function Hud() {
-  const now = useNow();
   const place = useLayout((s) => s.layout.panels.brand);
   const editing = useEdit((s) => s.editing);
   const brand = useRef<HTMLElement>(null);
@@ -54,10 +70,7 @@ export function Hud() {
           </span>
         </h1>
         <p className="hud-status">
-          <time className="hud-clock" dateTime={now.toISOString()}>
-            {timeText(now)}
-          </time>
-          <span>{dateText(now)}</span>
+          <Clock />
           <span>· LINK OK</span>
         </p>
       </header>

@@ -33,6 +33,7 @@ npm run check                       # typecheck + lint + Vitest (must pass befor
 npm run build && npm run e2e        # the browser walk; screenshots in e2e/screenshots/
 npm run e2e:bridge                  # Pages build + Chromium with the real bridge loaded (needs `npx playwright install chromium`)
 npm run build && npm run e2e:motion # smoothness: frame gaps, script time, load stalls
+npm run build && npm run e2e:perf   # opening (first and repeat visits, 120 ms network delay), uncapped rain, big layout, drag on a big bar
 CYBERDECK_BASE=/cyberdeck_terminal/ npm run build && CYBERDECK_BASE=/cyberdeck_terminal/ npm run e2e   # the Pages build at its sub-path
 npm run deploy                      # all of the above, then publish to GitHub Pages (ask first)
 ```

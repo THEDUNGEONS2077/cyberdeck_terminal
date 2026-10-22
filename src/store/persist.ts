@@ -5,6 +5,9 @@
  * Layer: store. Works through the KV interface (store/kv.ts), so tests run
  * it against memory.
  *
+ * Startup reads only what it needs: the layout, the backup bookkeeping,
+ * and the snapshots' index (not the snapshots themselves).
+ *
  * Startup never loses data:
  *   - an older layout is migrated and saved back in the new shape;
  *   - a layout that can't be read is copied to `corrupt.<time>` first, and
@@ -14,10 +17,10 @@
  *     it until the layout is changed here;
  *   - a snapshot is taken if the layout differs from the newest one.
  */
-import { type LayoutDocument, defaultLayout } from '@/lib/layout';
+import { type LayoutDocument, defaultLayout, layoutFingerprint, summarizeLayout } from '@/lib/layout';
 import { FutureSchemaError, migrateLayout } from '@/lib/migrations';
 import { type BackupMeta, freshMeta } from '@/lib/reminder';
-import { type Snapshot, type SnapshotReason, makeSnapshot, pruneSnapshots, shouldSnapshot } from '@/lib/snapshots';
+import { type Snapshot, type SnapshotInfo, type SnapshotReason, SNAPSHOT_REASONS, infoOf, makeSnapshot, pruneSnapshots, shouldSnapshot } from '@/lib/snapshots';
 
 import { type KV, KEYS } from './kv';
 
@@ -25,8 +28,8 @@ import { type KV, KEYS } from './kv';
 export interface Boot {
   layout: LayoutDocument;
   meta: BackupMeta;
-  /** Newest first. */
-  snapshots: Snapshot[];
+  /** The snapshots' index, newest first (the copies themselves stay in storage until restored). */
+  snapshots: SnapshotInfo[];
   /** A message for the user about the load (damaged data), or null. */
   notice: string | null;
 }
@@ -44,24 +47,57 @@ function isMeta(v: unknown): v is BackupMeta {
   return typeof m.firstRunAt === 'number' && timeOrNull(m.lastExportAt) && timeOrNull(m.snoozedUntil);
 }
 
-/**
- * Reads every stored snapshot, newest first. A snapshot whose layout no
- * longer reads (damaged) is skipped, not deleted: it's left for inspection.
- */
-export async function readSnapshots(kv: KV): Promise<Snapshot[]> {
-  const out: Snapshot[] = [];
-  for (const key of await kv.keys()) {
-    if (!key.startsWith(KEYS.snapshotPrefix)) continue;
-    const raw = (await kv.get(key)) as Partial<Snapshot> | undefined;
-    if (!raw || typeof raw.at !== 'number') continue;
-    try {
-      const layout = migrateLayout(raw.layout).doc;
-      out.push({ at: raw.at, reason: raw.reason ?? 'change', summary: String(raw.summary ?? ''), layout });
-    } catch {
-      // Unreadable snapshot: leave it in storage, don't offer it.
-    }
+/** Is this a usable snapshot index entry? */
+function isInfo(v: unknown): v is SnapshotInfo {
+  if (!v || typeof v !== 'object') return false;
+  const i = v as Record<string, unknown>;
+  return typeof i.at === 'number' && SNAPSHOT_REASONS.includes(i.reason as SnapshotReason) && typeof i.summary === 'string' && typeof i.fingerprint === 'string';
+}
+
+/** Reads one stored snapshot whole, checked and brought up to the current schema; null if it's gone or can't be read. */
+async function readSnapshotAt(kv: KV, key: string): Promise<Snapshot | null> {
+  const raw = (await kv.get(key)) as Partial<Snapshot> | undefined;
+  if (!raw || typeof raw.at !== 'number') return null;
+  try {
+    const layout = migrateLayout(raw.layout).doc;
+    const reason = SNAPSHOT_REASONS.includes(raw.reason as SnapshotReason) ? (raw.reason as SnapshotReason) : 'change';
+    return { at: raw.at, reason, summary: typeof raw.summary === 'string' ? raw.summary : summarizeLayout(layout), fingerprint: layoutFingerprint(layout), layout };
+  } catch {
+    return null;
   }
-  return out.sort((a, b) => b.at - a.at);
+}
+
+/** Reads the snapshot taken at `at`, whole (to restore it); null if it's gone or can't be read. */
+export function loadSnapshot(kv: KV, at: number): Promise<Snapshot | null> {
+  return readSnapshotAt(kv, KEYS.snapshotPrefix + at);
+}
+
+/**
+ * The snapshots' index, newest first, kept in step with what's stored
+ * (`keys`: every storage key, if already read):
+ *   - entries whose copy is gone are dropped;
+ *   - copies the index doesn't list (snapshots from before the index
+ *     existed, or a write cut short) are read once, checked, and added;
+ *     a copy that can't be read is left in storage, not offered.
+ * Only in those cases are copies read, and the index written back.
+ */
+export async function readSnapshotIndex(kv: KV, keys?: readonly string[]): Promise<SnapshotInfo[]> {
+  const [allKeys, raw] = await Promise.all([keys ?? kv.keys(), kv.get(KEYS.snapshotIndex)]);
+  const stored = new Set(allKeys.filter((k) => k.startsWith(KEYS.snapshotPrefix)));
+  const listed = Array.isArray(raw) ? raw.filter(isInfo) : [];
+  const index = listed.filter((i) => stored.has(KEYS.snapshotPrefix + i.at));
+  let changed = !Array.isArray(raw) || index.length !== raw.length;
+  const known = new Set(index.map((i) => KEYS.snapshotPrefix + i.at));
+  for (const key of stored) {
+    if (known.has(key)) continue;
+    const snap = await readSnapshotAt(kv, key);
+    if (!snap) continue;
+    index.push(infoOf(snap));
+    changed = true;
+  }
+  index.sort((a, b) => b.at - a.at);
+  if (changed) await kv.set(KEYS.snapshotIndex, index);
+  return index;
 }
 
 /** Saves the layout document. */
@@ -75,33 +111,36 @@ export function saveMeta(kv: KV, meta: BackupMeta): Promise<void> {
 }
 
 /**
- * Stores a snapshot of `layout` if it differs from the newest in `list`,
- * then deletes the ones pruning drops. Returns the new list (newest first);
- * `list` itself is returned unchanged when nothing was stored.
+ * Stores a snapshot of `layout` if its content differs from the newest in
+ * `index`, then deletes the copies pruning drops, and saves the index.
+ * Returns the new index (newest first); a copy of `index` when nothing was stored.
  */
-export async function storeSnapshot(kv: KV, list: readonly Snapshot[], layout: LayoutDocument, reason: SnapshotReason, now: number): Promise<Snapshot[]> {
-  if (!shouldSnapshot(list[0], layout)) return [...list];
+export async function storeSnapshot(kv: KV, index: readonly SnapshotInfo[], layout: LayoutDocument, reason: SnapshotReason, now: number): Promise<SnapshotInfo[]> {
+  const fingerprint = layoutFingerprint(layout);
+  if (!shouldSnapshot(index[0], fingerprint)) return [...index];
   // Never reuse a key: two snapshots in the same millisecond get the next free one.
-  const at = Math.max(now, (list[0]?.at ?? 0) + 1);
-  const snap = makeSnapshot(layout, reason, at);
+  const at = Math.max(now, (index[0]?.at ?? 0) + 1);
+  const snap = makeSnapshot(layout, reason, at, fingerprint);
   await kv.set(KEYS.snapshotPrefix + at, snap);
-  const { keep, drop } = pruneSnapshots([snap, ...list], now);
+  const { keep, drop } = pruneSnapshots([infoOf(snap), ...index], now);
   await Promise.all(drop.map((s) => kv.del(KEYS.snapshotPrefix + s.at)));
+  await kv.set(KEYS.snapshotIndex, keep);
   return keep;
 }
 
 /** Loads (or creates) everything the app needs to start. See the file header for the rules. */
 export async function boot(kv: KV, now: number): Promise<Boot> {
+  // Everything startup reads, asked for at once (one round of storage reads, not one after another).
+  const [rawMeta, keys, raw] = await Promise.all([kv.get(KEYS.meta), kv.keys(), kv.get(KEYS.layout)]);
+
   // Backup bookkeeping: created on the first run.
-  const rawMeta = await kv.get(KEYS.meta);
   const meta = isMeta(rawMeta) ? rawMeta : freshMeta(now);
   if (meta !== rawMeta) await saveMeta(kv, meta);
 
-  let snapshots = await readSnapshots(kv);
+  let snapshots = await readSnapshotIndex(kv, keys);
   let notice: string | null = null;
   let layout = defaultLayout();
 
-  const raw = await kv.get(KEYS.layout);
   if (raw !== undefined) {
     try {
       const { doc, migrated } = migrateLayout(raw);

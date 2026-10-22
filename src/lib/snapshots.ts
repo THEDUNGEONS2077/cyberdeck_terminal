@@ -11,22 +11,37 @@
  *     replacing can itself be undone;
  *   - when edit mode starts, so a whole editing session can be undone.
  * A snapshot identical to the newest one is never stored twice.
+ *
+ * Each snapshot is stored whole (Snapshot), and described in an index
+ * (SnapshotInfo: when, why, a summary, a fingerprint of its content). The
+ * page only ever reads the index (the RESTORE list, the "has anything
+ * changed?" check, pruning); a full copy is read only to restore it
+ * (optimization pass, 2026-10-22: startup read every copy in full).
  */
 import { formatStamp } from './backup';
-import { type LayoutDocument, sameLayout, summarizeLayout } from './layout';
+import { type LayoutDocument, layoutFingerprint, summarizeLayout } from './layout';
 
 /** Why a snapshot was taken (shown in the RESTORE list). */
 export type SnapshotReason = 'change' | 'startup' | 'before-import' | 'before-restore' | 'before-edit';
 
-/** One saved copy of the layout. */
-export interface Snapshot {
+/** What the index says about one snapshot. */
+export interface SnapshotInfo {
   /** When it was taken (epoch ms); also its identity. */
   at: number;
   reason: SnapshotReason;
   /** A one-line description of the layout (lib/layout.ts summarizeLayout). */
   summary: string;
+  /** Its layout's content fingerprint (lib/layout.ts layoutFingerprint). */
+  fingerprint: string;
+}
+
+/** One saved copy of the layout, as stored. */
+export interface Snapshot extends SnapshotInfo {
   layout: LayoutDocument;
 }
+
+/** The reasons a snapshot can have (for checking stored ones). */
+export const SNAPSHOT_REASONS: readonly SnapshotReason[] = ['change', 'startup', 'before-import', 'before-restore', 'before-edit'];
 
 /** How long the layout must be still before a change is snapshotted. */
 export const CHANGE_DEBOUNCE_MS = 30_000;
@@ -37,14 +52,19 @@ export const DAILY_KEEP_DAYS = 7;
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
-/** Builds a snapshot of `layout`. */
-export function makeSnapshot(layout: LayoutDocument, reason: SnapshotReason, at: number): Snapshot {
-  return { at, reason, summary: summarizeLayout(layout), layout };
+/** Builds a snapshot of `layout` (`fingerprint` if already worked out). */
+export function makeSnapshot(layout: LayoutDocument, reason: SnapshotReason, at: number, fingerprint = layoutFingerprint(layout)): Snapshot {
+  return { at, reason, summary: summarizeLayout(layout), fingerprint, layout };
 }
 
-/** Is `layout` worth a new snapshot, given the newest one (if any)? Only if it differs. */
-export function shouldSnapshot(newest: Snapshot | undefined, layout: LayoutDocument): boolean {
-  return !newest || !sameLayout(newest.layout, layout);
+/** A snapshot's index entry. */
+export function infoOf(snap: SnapshotInfo): SnapshotInfo {
+  return { at: snap.at, reason: snap.reason, summary: snap.summary, fingerprint: snap.fingerprint };
+}
+
+/** Is a layout with this fingerprint worth a new snapshot, given the newest one (if any)? Only if it differs. */
+export function shouldSnapshot(newest: SnapshotInfo | undefined, fingerprint: string): boolean {
+  return !newest || newest.fingerprint !== fingerprint;
 }
 
 /** The local calendar day of a time, as `YYYY-MM-DD`. */
@@ -60,7 +80,7 @@ function dayOf(at: number): string {
  *     in the week.
  * Both lists come back newest first.
  */
-export function pruneSnapshots(snapshots: readonly Snapshot[], now: number): { keep: Snapshot[]; drop: Snapshot[] } {
+export function pruneSnapshots<T extends { at: number }>(snapshots: readonly T[], now: number): { keep: T[]; drop: T[] } {
   const sorted = [...snapshots].sort((a, b) => b.at - a.at);
   const keep = new Set(sorted.slice(0, SNAPSHOT_KEEP));
   // The newest of each recent day (sorted is newest first, so the first seen per day wins).

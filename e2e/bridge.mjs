@@ -119,9 +119,24 @@ try {
     await page.locator('.deck-source', { hasText: '5 LINKS' }).waitFor();
   });
 
+  await path('a bookmark saved outside the bar (Other bookmarks) shows up too, in an OTHER BOOKMARKS folder', async () => {
+    await inBridge(async (site) => {
+      const other = (await chrome.bookmarks.getTree())[0].children.find((n) => n.folderType === 'other' || n.id === '2');
+      await chrome.bookmarks.create({ parentId: other.id, title: 'Starred elsewhere', url: `${site}starred` });
+    }, SITE);
+    const folder = page.locator('.folder.card', { hasText: 'Other bookmarks' });
+    await folder.waitFor({ timeout: 5000 });
+    await folder.getByRole('button', { name: /Other bookmarks/i }).click();
+    await page.getByRole('link', { name: /Starred elsewhere/ }).waitFor();
+    // SYSTEM says what the bridge reads.
+    await page.keyboard.press('s');
+    await page.locator('.setting', { hasText: 'CHROME HAS' }).getByText(/BAR \d+ · OTHER 1 · MOBILE 0/).waitFor();
+    await page.keyboard.press('Escape');
+  });
+
   await path('SYSTEM shows the live source and the bridge version', async () => {
     await page.keyboard.press('s');
-    await page.locator('.setting', { hasText: 'SOURCE' }).getByText('LIVE · BRIDGE v1.1.0').waitFor();
+    await page.locator('.setting', { hasText: 'SOURCE' }).getByText('LIVE · BRIDGE v1.2.0').waitFor();
     await page.keyboard.press('Escape');
   });
 

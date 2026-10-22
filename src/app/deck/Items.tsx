@@ -155,7 +155,8 @@ export const LinkItem = memo(function LinkItem({ item, section, className }: { i
  * contents in Chrome's order, minus anything placed elsewhere or hidden.
  */
 export const FolderItem = memo(function FolderItem({ item, section, card = false }: { item: TreeItem; section: SectionId; card?: boolean }) {
-  const { editing, all, excluded } = useDeck();
+  const deck = useDeck();
+  const { editing } = deck;
   const onDrag = useItemDrag(item);
   const key = folderKey(item.path);
   const open = useLayout((s) => s.layout.bookmarks.open.includes(key));
@@ -163,7 +164,7 @@ export const FolderItem = memo(function FolderItem({ item, section, card = false
   // Drawn once opened, and kept while it folds shut (the previous-props pattern).
   const [drawn, setDrawn] = useState(open);
   if (open && !drawn) setDrawn(true);
-  const children = drawn ? folderContents(item, all, excluded) : [];
+  const children = drawn ? folderContents(item, deck) : [];
   return (
     <section className={cx('folder', card && 'card', !open && 'collapsed')}>
       <div className={cx('folder-head-row', editing && 'editable')} onPointerDown={onDrag}>

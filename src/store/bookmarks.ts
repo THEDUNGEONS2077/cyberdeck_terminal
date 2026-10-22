@@ -14,6 +14,7 @@
 import { createStore } from 'zustand/vanilla';
 
 import { canonicalJson } from '@/lib/layout';
+import type { BridgeRoots } from '@/bridge/client';
 import type { BookmarkNode } from '@/lib/bookmarks';
 
 import { type KV, KEYS } from './kv';
@@ -30,8 +31,10 @@ export interface BookmarksState {
   bridgeVersion: string | null;
   /** What the installed bridge can do ('favicons', 'open'), when live. */
   features: string[];
+  /** What the bridge read from Chrome (bridge 1.2+), when live: shown in SYSTEM. */
+  roots: BridgeRoots | null;
   /** The bridge answered: shows `bar` and caches it (only when it changed). */
-  setLive(bar: BookmarkNode, version: string, features?: string[]): void;
+  setLive(bar: BookmarkNode, version: string, features?: string[], roots?: BridgeRoots | null): void;
   /** No bridge: the cached bar is no longer shown. */
   setAbsent(): void;
 }
@@ -43,16 +46,18 @@ export function createBookmarksStore(kv: KV, cached: BookmarkNode | null) {
     bar: cached,
     bridgeVersion: null,
     features: [],
-    setLive(bar, version, features = []) {
+    roots: null,
+    setLive(bar, version, features = [], roots = null) {
       const same = get().bar !== null && canonicalJson(get().bar) === canonicalJson(bar);
       // The same features keep the same array, so components reading it don't re-render.
       const sameFeatures = features.join() === get().features.join();
-      set({ status: 'live', bar: same ? get().bar : bar, bridgeVersion: version, features: sameFeatures ? get().features : features });
+      const sameRoots = JSON.stringify(roots) === JSON.stringify(get().roots);
+      set({ status: 'live', bar: same ? get().bar : bar, bridgeVersion: version, features: sameFeatures ? get().features : features, roots: sameRoots ? get().roots : roots });
       // The cache is only for drawing the next open quickly: a failed write costs nothing.
       if (!same) kv.set(KEYS.bookmarksCache, bar).catch(() => {});
     },
     setAbsent() {
-      set({ status: 'absent', bar: null, bridgeVersion: null, features: [] });
+      set({ status: 'absent', bar: null, bridgeVersion: null, features: [], roots: null });
     },
   }));
 }

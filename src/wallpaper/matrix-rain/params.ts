@@ -98,6 +98,14 @@ export const PREWARM_SECONDS = 18;
  */
 export const PREWARM_MIN_ALPHA = 0.05;
 
+/**
+ * The pre-warm paints glyphs at least this bright first, and lets the
+ * canvas fade in as soon as they're done; the fainter rest (most of the
+ * cells, all near-invisible) is painted during the fade-in
+ * (optimization pass, 2026-10-22: the rain appears sooner).
+ */
+export const PREWARM_REVEAL_ALPHA = 0.25;
+
 /** The simulation step while pre-warming (seconds): coarser than a frame, it only moves numbers. */
 export const PREWARM_STEP = 1 / 20;
 
@@ -107,6 +115,17 @@ export const PREWARM_STEP = 1 / 20;
  * fades in when it's done.
  */
 export const PREWARM_BUDGET_MS = 16;
+
+/**
+ * The shortest time between drawn frames (ms). On a 60 Hz screen every
+ * frame is drawn; on faster ones (120–240 Hz) the rain draws at about 60–72
+ * frames a second and skips the rest. Glyphs move at most ~22 rows a
+ * second, so the extra frames showed nothing new, and each one cost a
+ * canvas upload and a full-screen composite (optimization pass,
+ * 2026-10-22: uncapped, script time ran 4× higher for no visible gain).
+ * 1000/72 leaves room for a 60 Hz frame that arrives a little early.
+ */
+export const MIN_FRAME_MS = 1000 / 72;
 
 /** The longest real time step taken in one frame (s): after a stall the rain resumes instead of jumping. */
 export const MAX_FRAME_STEP = 0.1;

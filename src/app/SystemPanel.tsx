@@ -21,7 +21,7 @@ import { BackupError, type ParsedBackup, formatStamp } from '@/lib/backup';
 import { countLinks } from '@/lib/bookmarks';
 import { REMINDER_DAY_CHOICES, summarizeLayout } from '@/lib/layout';
 import { exportAge } from '@/lib/reminder';
-import { reasonLabel, type Snapshot } from '@/lib/snapshots';
+import { reasonLabel, type SnapshotInfo } from '@/lib/snapshots';
 import { compareVersions } from '@/lib/versions';
 import { layoutStore } from '@/store/instance';
 import { uiStore } from '@/store/ui';
@@ -56,6 +56,7 @@ export function SystemPanel({ leaving }: { leaving: boolean }) {
 function BookmarksSection() {
   const status = useBookmarks((s) => s.status);
   const version = useBookmarks((s) => s.bridgeVersion);
+  const roots = useBookmarks((s) => s.roots);
   const imported = useLayout((s) => s.layout.bookmarks.imported);
   const importedAt = useLayout((s) => s.layout.bookmarks.importedAt);
   const outdated = status === 'live' && version !== null && compareVersions(version, BRIDGE_VERSION) < 0;
@@ -76,6 +77,15 @@ function BookmarksSection() {
         <span>SOURCE</span>
         <span className={status === 'live' ? 'accent' : 'bright'}>{source}</span>
       </div>
+      {status === 'live' && roots && (
+        <div className="setting">
+          <span>CHROME HAS</span>
+          <span className="bright">
+            BAR {roots.bar}
+            {roots.bars > 1 ? ` (${roots.bars} COPIES: ACCOUNT + DEVICE)` : ''} · OTHER {roots.other} · MOBILE {roots.mobile}
+          </span>
+        </div>
+      )}
       <div className="setting">
         <span>IMPORTED COPY</span>
         <span className="bright">{imported ? `${countLinks(imported)} LINKS · ${importedAt ? formatStamp(importedAt) : 'NO DATE'}` : 'NONE'}</span>
@@ -198,12 +208,12 @@ function RestoreSection() {
   const [confirming, setConfirming] = useState<number | null>(null);
   const [busy, setBusy] = useState(false);
 
-  const restore = async (snap: Snapshot) => {
+  const restore = async (snap: SnapshotInfo) => {
     setBusy(true);
-    await layoutStore().getState().replaceLayout(snap.layout, 'before-restore');
+    const ok = await layoutStore().getState().restoreSnapshot(snap.at);
     setBusy(false);
     setConfirming(null);
-    uiStore.getState().showToast(`RESTORED ${formatStamp(snap.at)} · PREVIOUS LAYOUT SAVED`);
+    uiStore.getState().showToast(ok ? `RESTORED ${formatStamp(snap.at)} · PREVIOUS LAYOUT SAVED` : 'THAT SNAPSHOT COULDN’T BE READ · NOTHING CHANGED');
   };
 
   return (

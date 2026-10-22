@@ -72,7 +72,7 @@ describe('arrange', () => {
     const r = arrange(BAR, emptyArrangement());
     expect(keys(r.main)).toEqual(['l:https://a/', 'l:https://b/', 'f:Dev', 'l:https://f/', 'l:https://a/#2']);
     expect(r.areas).toEqual([]);
-    expect(keys(folderContents(r.all.get('f:Dev')!, r.all, r.excluded))).toEqual(['l:https://c/', 'l:https://d/', 'f:Dev/Deep']);
+    expect(keys(folderContents(r.all.get('f:Dev')!, r))).toEqual(['l:https://c/', 'l:https://d/', 'f:Dev/Deep']);
   });
 
   it('areas take their items out of NAV, and deeper items out of their folders', () => {
@@ -84,7 +84,7 @@ describe('arrange', () => {
     expect(r.areas[0]!.area.title).toBe('WORK');
     expect(keys(r.areas[0]!.items)).toEqual(['l:https://b/', 'l:https://c/']);
     expect(keys(r.main)).not.toContain('l:https://b/');
-    expect(keys(folderContents(r.all.get('f:Dev')!, r.all, r.excluded))).toEqual(['l:https://d/', 'f:Dev/Deep']);
+    expect(keys(folderContents(r.all.get('f:Dev')!, r))).toEqual(['l:https://d/', 'f:Dev/Deep']);
   });
 
   it('reorders NAV, and a deeper item can be placed in NAV', () => {
@@ -93,7 +93,7 @@ describe('arrange', () => {
     arr = moveItem(arr, 'l:https://e/', { section: 'main', before: null }, arrange(BAR, arr).mainKeys);
     const r = arrange(BAR, arr);
     expect(keys(r.main)).toEqual(['l:https://f/', 'l:https://a/', 'l:https://b/', 'f:Dev', 'l:https://a/#2', 'l:https://e/']);
-    expect(folderContents(r.all.get('f:Dev/Deep')!, r.all, r.excluded)).toEqual([]);
+    expect(folderContents(r.all.get('f:Dev/Deep')!, r)).toEqual([]);
   });
 
   it('a new bookmark from Chrome shows up where Chrome has it, even in a custom order', () => {
@@ -121,7 +121,7 @@ describe('arrange', () => {
     arr = moveItem(arr, 'l:https://c/', { section: 'w', before: null }, arrange(BAR, arr).mainKeys);
     expect(isPlaced(arr, 'l:https://c/')).toBe(true);
     const back = arrange(BAR, unplaceItem(arr, 'l:https://c/'));
-    expect(keys(folderContents(back.all.get('f:Dev')!, back.all, back.excluded))).toContain('l:https://c/');
+    expect(keys(folderContents(back.all.get('f:Dev')!, back))).toContain('l:https://c/');
     expect(arrange(BAR, deleteArea(arr, 'w')).areas).toEqual([]);
     const hidden = hideItem(arr, 'l:https://f/');
     const reset = chromeOrder(hidden);

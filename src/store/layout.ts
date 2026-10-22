@@ -16,17 +16,17 @@ import type { Arrangement, Panels } from '@/lib/arrange';
 import type { BookmarkNode } from '@/lib/bookmarks';
 import type { LayoutDocument } from '@/lib/layout';
 import { type BackupMeta, SNOOZE_MS } from '@/lib/reminder';
-import { CHANGE_DEBOUNCE_MS, type Snapshot } from '@/lib/snapshots';
+import { CHANGE_DEBOUNCE_MS, type SnapshotInfo, type SnapshotReason } from '@/lib/snapshots';
 
 import type { KV } from './kv';
-import { type Boot, saveLayout, saveMeta, storeSnapshot } from './persist';
+import { type Boot, loadSnapshot, saveLayout, saveMeta, storeSnapshot } from './persist';
 
 /** The layout store's state and actions. */
 export interface LayoutState {
   layout: LayoutDocument;
   meta: BackupMeta;
-  /** Newest first. */
-  snapshots: Snapshot[];
+  /** The snapshots' index, newest first. */
+  snapshots: SnapshotInfo[];
   /** Shows a different wallpaper. */
   setWallpaper(id: string): void;
   /** Sets the backup reminder's interval in days (0 = off). */
@@ -42,7 +42,12 @@ export interface LayoutState {
   /** Sets where the panels sit. */
   setPanels(panels: Panels): void;
   /** Takes a snapshot of the layout now (if it differs from the newest), e.g. as edit mode starts. */
-  snapshotNow(reason: Snapshot['reason']): Promise<void>;
+  snapshotNow(reason: SnapshotReason): Promise<void>;
+  /**
+   * Restores the snapshot taken at `at` (read in full now), after
+   * snapshotting the current layout. False if it can't be read.
+   */
+  restoreSnapshot(at: number): Promise<boolean>;
   /**
    * Replaces the whole layout (an import or a restore), after snapshotting
    * the current one with `reason`. Resolves once both are stored.
@@ -77,7 +82,7 @@ export function createLayoutStore(kv: KV, boot: Boot, onSaveError: SaveErrorHand
 
   return createStore<LayoutState>((set, get) => {
     /** Snapshots the current layout (if it differs from the newest snapshot). */
-    const snapshot = (reason: Snapshot['reason']) =>
+    const snapshot = (reason: SnapshotReason) =>
       enqueue(async () => {
         const snapshots = await storeSnapshot(kv, get().snapshots, get().layout, reason, now());
         set({ snapshots });
@@ -144,6 +149,13 @@ export function createLayoutStore(kv: KV, boot: Boot, onSaveError: SaveErrorHand
 
       async snapshotNow(reason) {
         await snapshot(reason);
+      },
+
+      async restoreSnapshot(at) {
+        const snap = await loadSnapshot(kv, at);
+        if (!snap) return false;
+        await get().replaceLayout(snap.layout, 'before-restore');
+        return true;
       },
 
       async replaceLayout(next, reason) {

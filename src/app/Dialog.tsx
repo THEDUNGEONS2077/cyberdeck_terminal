@@ -5,12 +5,15 @@
  * Layer: UI. Trimmed from quest_log_desktop's src/app/Dialog.tsx to a
  * general container (the SYSTEM panel is its first user). Keyboard rules
  * carried over:
- *   - focus moves into the dialog as it opens (its first control);
+ *   - focus moves into the dialog as it opens (its first control), and
+ *     again if it's reopened while still fading out (S straight after Esc);
  *   - Tab and Shift+Tab cycle inside it (it's modal);
- *   - Esc, ✕ or a click on the backdrop closes it;
+ *   - Esc, ✕ or a click on the backdrop closes it; Esc works wherever the
+ *     focus is (a dialog reopened mid-fade once ignored Esc, and blocked
+ *     every click behind it);
  *   - while it fades out (`leaving`) it gives the keyboard back at once.
  */
-import { type KeyboardEvent, type ReactNode, useId, useLayoutEffect, useRef } from 'react';
+import { type KeyboardEvent, type ReactNode, useEffect, useId, useLayoutEffect, useRef } from 'react';
 
 import { cx } from './cx';
 import { G } from './glyphs';
@@ -27,11 +30,24 @@ export function Dialog({ title, onClose, leaving = false, wide = false, children
   const titleId = useId();
   useReleaseFocus(layer, leaving);
 
-  // Into the dialog as it opens: its first control after the ✕ (or the ✕).
+  // Into the dialog as it opens, or comes back before it finished fading out: its first control after the ✕ (or the ✕).
   useLayoutEffect(() => {
+    if (leaving || box.current?.contains(document.activeElement)) return;
     const items = box.current?.querySelectorAll<HTMLElement>(FOCUSABLE);
     (items?.[1] ?? items?.[0])?.focus();
-  }, []);
+  }, [leaving]);
+
+  // Esc closes it even when the focus is somewhere else (the dialog's own handler covers focus inside it).
+  useEffect(() => {
+    if (leaving) return;
+    const onKey = (e: globalThis.KeyboardEvent) => {
+      if (e.key !== 'Escape' || box.current?.contains(document.activeElement)) return;
+      e.preventDefault();
+      onClose();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [leaving, onClose]);
 
   const onKeyDown = (e: KeyboardEvent<HTMLDivElement>) => {
     if (leaving) return; // closing: keys belong to the page again

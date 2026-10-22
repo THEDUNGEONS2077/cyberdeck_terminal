@@ -23,6 +23,7 @@ Bookmarks open in a new tab, so the dashboard stays put. With the bridge, links 
   4. Reload the dashboard.
 
   From then on, NAV mirrors your bookmarks bar live, with site icons, and every new tab opens the dashboard. If the dashboard is already open in the window, a new tab switches back to it instead. The bridge is read-only and shares only the bookmarks bar, with this page only.
+- **What NAV shows:** everything on your bookmarks bar (both copies, if you're signed in to Chrome), then **Other bookmarks** and **Mobile bookmarks** as folders when they hold anything. Wherever Chrome saves a new bookmark, it shows up.
 - **Updating the bridge:** when SYSTEM ▸ BOOKMARKS offers an update, download it, unzip it over the old folder, and press ↻ on CYBERDECK BRIDGE in `chrome://extensions`.
 - **Without the bridge:** export your bookmarks (Bookmark manager ▸ ⋮ ▸ Export bookmarks), then choose **IMPORT BOOKMARKS.HTML…**. You get a copy of the bar, kept in your layout and its backups.
 

@@ -27,6 +27,7 @@
  * an UPDATE BRIDGE chip instead.
  */
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 
 import { type ChromePage, openChromePage } from '@/bridge/client';
 import { arrange } from '@/lib/arrange';
@@ -35,7 +36,9 @@ import { type BookmarkNode, countLinks } from '@/lib/bookmarks';
 import { editStore } from '@/store/edit';
 import { uiStore } from '@/store/ui';
 
-import { useArrangeDrag } from './arrangeDrag';
+import { useStore } from 'zustand';
+
+import { dragViewStore, useArrangeDrag } from './arrangeDrag';
 import { cx } from './cx';
 import { ArrangeMenu, type MenuState } from './deck/ArrangeMenu';
 import { AreaSection } from './deck/Areas';
@@ -82,7 +85,7 @@ function Deck({ bar, source, importedAt, area }: { bar: BookmarkNode; source: So
   const arrangement = useLayout((s) => s.layout.bookmarks.arrangement);
   const editing = useEdit((s) => s.editing);
   const arranged = useMemo(() => arrange(bar, arrangement), [bar, arrangement]);
-  const { start, view } = useArrangeDrag(area);
+  const { start } = useArrangeDrag(area);
   const [menu, setMenu] = useState<MenuState | null>(null);
   // A just-made area whose name field takes the cursor.
   const [newArea, setNewArea] = useState<string | null>(null);
@@ -115,6 +118,7 @@ function Deck({ bar, source, importedAt, area }: { bar: BookmarkNode; source: So
     () => ({
       editing,
       all: arranged.all,
+      children: arranged.children,
       excluded: arranged.excluded,
       mainKeys: arranged.mainKeys,
       startDrag: start,
@@ -180,15 +184,30 @@ function Deck({ bar, source, importedAt, area }: { bar: BookmarkNode; source: So
       </section>
       {editing && <ResizeGrip target={() => area.current} startDrag={start} />}
       {menu && <ArrangeMenu menu={menu} arranged={arranged} onClose={closeMenu} onNewArea={setNewArea} />}
-      {view && (
-        <>
-          {view.line && <div className="drop-line" style={{ left: view.line.left, top: view.line.top, width: view.line.width, height: view.line.height }} aria-hidden />}
-          <div className="drag-label" style={{ left: view.x + 14, top: view.y + 10 }} aria-hidden>
-            {view.label}
-          </div>
-        </>
-      )}
+      <DragOverlay />
     </DeckProvider>
+  );
+}
+
+/**
+ * While dragging: the label at the pointer and the line where the drop
+ * lands (the only things redrawn as the pointer moves). Drawn straight into
+ * <body>, outside NAV's scrolling box, and moved with transforms on their
+ * own layers: following the pointer repaints nothing else (optimization
+ * pass, 2026-10-22). Whole pixels, so the label's text stays crisp.
+ */
+function DragOverlay() {
+  const view = useStore(dragViewStore, (s) => s.view);
+  if (!view) return null;
+  const at = (x: number, y: number) => `translate3d(${Math.round(x)}px, ${Math.round(y)}px, 0)`;
+  return createPortal(
+    <>
+      {view.line && <div className="drop-line" style={{ transform: at(view.line.left, view.line.top), width: view.line.width, height: view.line.height }} aria-hidden />}
+      <div className="drag-label" style={{ transform: at(view.x + 14, view.y + 10) }} aria-hidden>
+        {view.label}
+      </div>
+    </>,
+    document.body,
   );
 }
 

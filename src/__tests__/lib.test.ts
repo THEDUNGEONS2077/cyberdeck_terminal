@@ -3,7 +3,7 @@
  * validation, backup files, snapshot keeping, and the backup reminder.
  */
 import { BACKUP_FORMAT, BACKUP_MAX_BYTES, BackupError, backupFileName, makeBackup, parseBackup } from '@/lib/backup';
-import { canonicalJson, defaultLayout, hasCustomContent, LAYOUT_SCHEMA_VERSION, sameLayout, summarizeLayout } from '@/lib/layout';
+import { canonicalJson, defaultLayout, hasCustomContent, LAYOUT_SCHEMA_VERSION, layoutFingerprint, sameLayout, summarizeLayout } from '@/lib/layout';
 import { FutureSchemaError, InvalidLayoutError, migrateLayout } from '@/lib/migrations';
 import { backupDue, exportAge, freshMeta, SNOOZE_MS } from '@/lib/reminder';
 import { DAILY_KEEP_DAYS, makeSnapshot, pruneSnapshots, SNAPSHOT_KEEP, shouldSnapshot } from '@/lib/snapshots';
@@ -100,11 +100,18 @@ describe('backup files', () => {
 describe('snapshots', () => {
   const layoutWith = (days: number) => ({ ...defaultLayout(), prefs: { backupReminderDays: days } });
 
-  it('skips a copy identical to the newest', () => {
+  it('skips a copy identical to the newest (by content fingerprint)', () => {
     const newest = makeSnapshot(defaultLayout(), 'startup', NOW);
-    expect(shouldSnapshot(undefined, defaultLayout())).toBe(true);
-    expect(shouldSnapshot(newest, defaultLayout())).toBe(false);
-    expect(shouldSnapshot(newest, layoutWith(7))).toBe(true);
+    expect(shouldSnapshot(undefined, layoutFingerprint(defaultLayout()))).toBe(true);
+    expect(shouldSnapshot(newest, layoutFingerprint(defaultLayout()))).toBe(false);
+    expect(shouldSnapshot(newest, layoutFingerprint(layoutWith(7)))).toBe(true);
+  });
+
+  it('fingerprints content, not key order', () => {
+    const a = defaultLayout();
+    const reordered = JSON.parse(JSON.stringify({ panels: a.panels, bookmarks: a.bookmarks, prefs: a.prefs, wallpaper: a.wallpaper, schemaVersion: a.schemaVersion }));
+    expect(layoutFingerprint(reordered)).toBe(layoutFingerprint(a));
+    expect(layoutFingerprint(layoutWith(30))).not.toBe(layoutFingerprint(a));
   });
 
   it(`keeps the ${SNAPSHOT_KEEP} newest`, () => {

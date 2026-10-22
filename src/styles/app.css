@@ -1284,16 +1284,26 @@ a.text-btn {
   border-color: var(--accent-35);
   box-shadow: var(--glow-faint);
 }
-/* While dragging: no text selection, the grabbing hand everywhere. */
+/* While dragging: no text selection, the grabbing hand everywhere, and no hover
+   transitions on what the pointer crosses (they'd repaint tile after tile). */
 :root[data-dragging],
 :root[data-dragging] * {
   cursor: grabbing !important;
   user-select: none !important;
 }
-/* Where a drop lands: a glowing accent line (or a lit outline, for an empty section or the tray). */
+:root[data-dragging] .tile,
+:root[data-dragging] .folder-head,
+:root[data-dragging] .row-link {
+  transition: none;
+}
+/* Where a drop lands: a glowing accent line (or a lit outline, for an empty section or the tray).
+   Placed by transform from the top-left corner, on its own layer (it moves every frame). */
 .drop-line {
   position: fixed;
+  top: 0;
+  left: 0;
   z-index: 60;
+  will-change: transform;
   border-radius: 1px;
   background: var(--accent);
   box-shadow: var(--glow-bright);
@@ -1301,7 +1311,10 @@ a.text-btn {
 }
 .drag-label {
   position: fixed;
+  top: 0;
+  left: 0;
   z-index: 61;
+  will-change: transform;
   max-width: 240px;
   padding: 2px var(--s-sm);
   overflow: hidden;
