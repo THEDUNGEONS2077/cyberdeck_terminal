@@ -1,0 +1,76 @@
+# Architecture
+
+## Layers
+| Folder | What | May import |
+|---|---|---|
+| `src/lib/` | Pure rules: the layout document, migrations, backup files, snapshot keeping, the reminder | nothing outside `lib` |
+| `src/store/` | State and storage: `persist.ts` (startup), `layout.ts` (layout store), `ui.ts` (screen state), `idbKV.ts` / `kv.ts` (storage) | `lib` |
+| `src/wallpaper/` | Animated wallpapers on a canvas, plus `WallpaperLayer.tsx`, which owns the canvas | `lib` (ids only) |
+| `src/app/` | React UI: `App`, `Hud`, `SystemPanel`, `Dialog`, `Toast`, shortcuts, fullscreen | everything |
+
+## The page
+```
+<WallpaperLayer>   fixed, z 0: haze · canvas · fade to black at the bottom
+<main.ui-layer>    fixed, z 1: HUD, toast. Fades out and goes inert in immersive mode
+<SystemPanel>      modal dialog (S)
+```
+**Immersive mode (F):**
+- `toggleFullscreen()` calls the Fullscreen API.
+- `useFullscreenSync()` copies `document.fullscreenElement` into `ui.immersive` on every `fullscreenchange`. Esc and the browser's own controls therefore stay in sync.
+- While immersive, `useIdleCursor` hides a still pointer.
+
+## Storage and recovery
+IndexedDB, database `cyberdeck_terminal`, store `kv`. quest_log_desktop shares the origin, so the name is this app's own. The keys:
+
+| Key | Holds |
+|---|---|
+| `layout.v1` | The layout document (`lib/layout.ts`) |
+| `meta.backup.v1` | Last export, reminder snooze, first run |
+| `snapshot.<ms>` | Automatic snapshots: `{ at, reason, summary, layout }` |
+| `corrupt.<ms>` | Data that couldn't be read, kept rather than overwritten |
+
+**Startup (`store/persist.ts` `boot`):**
+1. Load the layout.
+2. Migrate and validate it.
+3. If it can't be read, copy it to `corrupt.*`, start fresh, and show a notice.
+   - A layout from a newer version is copied but left in place.
+4. Take a startup snapshot if the layout differs from the newest snapshot.
+
+**Saving and snapshots (`store/layout.ts`):**
+- Every change is saved at once.
+- A snapshot follows once the layout has been still for 30 s.
+- Import and restore snapshot the current layout first, so they can be undone.
+
+**Keeping snapshots (`lib/snapshots.ts`):**
+- The newest 20 are kept.
+- So is the newest of each of the last 7 days.
+- A copy identical to the newest snapshot is never stored.
+
+**Backup files (`lib/backup.ts`):**
+- Shape: `{ format: 'cyberdeck_terminal-backup', version: 1, exportedAt, app, layout }`.
+- Import parses, migrates and validates, then shows a preview before anything is replaced.
+- The reminder (`lib/reminder.ts`) offers EXPORT / LATER once the last export is older than the interval. It stays quiet while the layout still has nothing of its own.
+
+## Wallpapers
+The contract is `src/wallpaper/types.ts`: `create(canvas, { palette, still })` → `{ resize, start, stop, setStill, destroy }`.
+
+- The palette is read from theme.css tokens, so a wallpaper uses the UI's colours.
+- `WallpaperLayer` handles three things:
+  - resizing, debounced by 150 ms;
+  - the device pixel ratio;
+  - visibility (stopped while the tab is hidden) and Reduce Motion (a still frame).
+
+**To add a wallpaper:** create a folder under `src/wallpaper/`, export a `Wallpaper` from it, and add it to `WALLPAPERS` in `registry.ts`. Its `id` is stored in layouts and backups, so it must never change once released.
+
+### Matrix rain (`src/wallpaper/matrix-rain/`)
+- **`params.ts`** holds every tunable number, matched to the reference wallpaper.
+- **`glyphAtlas.ts`** pre-draws every glyph, with its glow, once per layer into a sprite sheet.
+  - Its rows are HEAD, BODY and DIM.
+  - Katakana are used only if a system font can draw them (`canDraw`).
+- **`engine.ts`** never repaints the whole canvas. Each frame it does three things:
+  1. fades all pixels one step, on a 0.2 s clock;
+  2. copies in the glyphs that drops moved onto;
+  3. re-rolls a few glyphs inside trails (the flicker).
+- **Drops:** each column of each layer has one drop slot. A drop falls to a random depth, then waits at the top. The wait sets the layer's occupancy.
+- **Startup:** 18 s of rain are simulated before the first frame, so the screen opens full.
+- **Resize:** the drawn pixels are copied across and columns are added or removed, so entering fullscreen doesn't restart the rain.

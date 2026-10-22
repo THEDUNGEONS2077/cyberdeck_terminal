@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#000000" />
+    <meta name="color-scheme" content="dark" />
+    <meta name="description" content="cyberdeck_terminal: a terminal-style start page. Your layout never leaves this browser." />
+    <link rel="icon" type="image/svg+xml" href="./icon.svg" />
+    <title>CYBERDECK</title>
+    <!-- Black before the app's CSS arrives, so a new page never flashes white. -->
+    <style>
+      html { background: #000; }
+    </style>
+  </head>
+  <body>
+    <noscript>
+      <p style="font-family: monospace; color: #2fb344; background: #000; padding: 24px">&gt; cyberdeck_terminal needs JavaScript to run.</p>
+    </noscript>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

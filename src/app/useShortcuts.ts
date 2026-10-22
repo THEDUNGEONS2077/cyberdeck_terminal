@@ -1,0 +1,58 @@
+/**
+ * src/app/useShortcuts.ts: the page's keyboard shortcuts.
+ *
+ * Layer: UI. One window listener, following quest_log_desktop's
+ * src/app/useShortcuts.ts: keys typed into a field never trigger anything,
+ * and keys with Ctrl, Alt or Meta are left to the browser (Ctrl+F still
+ * finds in the page). While a dialog is open it keeps the keyboard
+ * (`blocked`), and its own Esc closes it.
+ *
+ *   F  immersive fullscreen on / off (fullscreen.ts)
+ *   S  SYSTEM panel (backups, restore, wallpaper)
+ */
+import { useEffect } from 'react';
+
+import { uiStore } from '@/store/ui';
+
+import { toggleFullscreen } from './fullscreen';
+
+/** Is the key event aimed at somewhere you type? */
+export function typing(e: Pick<KeyboardEvent, 'target'>): boolean {
+  const t = e.target as HTMLElement | null;
+  return !!t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT' || t.isContentEditable);
+}
+
+/** Does the key event carry a modifier that makes it the browser's (Ctrl, Alt, Meta)? */
+export function modified(e: Pick<KeyboardEvent, 'ctrlKey' | 'altKey' | 'metaKey'>): boolean {
+  return e.ctrlKey || e.altKey || e.metaKey;
+}
+
+/** The action for a key press, or null when the page should leave it alone. */
+export function shortcutFor(e: Pick<KeyboardEvent, 'key' | 'target' | 'ctrlKey' | 'altKey' | 'metaKey' | 'repeat'>): 'fullscreen' | 'system' | null {
+  if (e.repeat || typing(e) || modified(e)) return null;
+  switch (e.key.toLowerCase()) {
+    case 'f':
+      return 'fullscreen';
+    case 's':
+      return 'system';
+    default:
+      return null;
+  }
+}
+
+/** Installs the shortcuts while mounted; `blocked` while a dialog has the keyboard. */
+export function useShortcuts(blocked: boolean): void {
+  useEffect(() => {
+    if (blocked) return;
+    const onKey = (e: KeyboardEvent) => {
+      const action = shortcutFor(e);
+      if (!action) return;
+      e.preventDefault();
+      if (action === 'fullscreen') void toggleFullscreen();
+      // SYSTEM only opens outside immersive mode: there the UI is hidden.
+      else if (!uiStore.getState().immersive) uiStore.getState().setPanelOpen(true);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [blocked]);
+}

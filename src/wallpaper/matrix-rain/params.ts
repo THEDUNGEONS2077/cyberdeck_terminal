@@ -1,0 +1,90 @@
+/**
+ * src/wallpaper/matrix-rain/params.ts: the tunable numbers of the matrix
+ * rain, matched to the reference wallpaper (wallhaven-01ye3v2.jpg).
+ *
+ * Layer: wallpaper (data only).
+ *
+ * What the reference shows, and how it maps here:
+ *   - about 280 columns across 1920 px (≈ 7 px each), in several depths:
+ *     small dim columns behind larger, brighter, sparser ones → three
+ *     LAYERS, far to near;
+ *   - long trails, brightest at the top, ending at different heights so
+ *     the lower part of the screen is darker → each drop dies at a random
+ *     depth (`endBias` pushes those depths up the screen);
+ *   - pale, nearly white glyphs at a few stream heads, dim desaturated
+ *     green bodies → heads drawn in --text-bright with a glow, bodies in
+ *     --text-dim/--text at reduced alpha;
+ *   - a faint green haze in the upper half → CSS behind the canvas
+ *     (app.css .wallpaper-haze), plus the very faint residue fading leaves.
+ */
+
+/** One depth layer of rain. */
+export interface LayerParams {
+  /** Glyph size (CSS px). */
+  font: number;
+  /** Column pitch (CSS px). */
+  colW: number;
+  /** Row pitch (CSS px): one glyph per row. */
+  rowH: number;
+  /** Drop speed range, in rows per second. */
+  speed: [number, number];
+  /** Share of columns with a drop falling at any moment (0–1). */
+  occupancy: number;
+  /** Body glyph opacity range (0–1); each drop gets one value. */
+  alpha: [number, number];
+  /** Chance a drop's head is drawn pale and glowing instead of body green. */
+  headChance: number;
+}
+
+/** The three layers, back to front. Drawn in this order each frame. */
+export const LAYERS: readonly LayerParams[] = [
+  // Far: the dense dim mesh that fills the reference.
+  { font: 8, colW: 7, rowH: 8, speed: [8, 14], occupancy: 0.95, alpha: [0.45, 0.8], headChance: 0.15 },
+  // Mid: the main visible streams.
+  { font: 10, colW: 10, rowH: 10, speed: [10, 18], occupancy: 0.6, alpha: [0.6, 0.95], headChance: 0.35 },
+  // Near: a few larger, brighter, faster streams.
+  { font: 13, colW: 14, rowH: 13, speed: [12, 22], occupancy: 0.2, alpha: [0.8, 1], headChance: 0.6 },
+];
+
+/** How long a glyph takes to fade to about 2% (seconds). Sets trail length with each drop's speed. */
+export const TRAIL_SECONDS = 12;
+
+/**
+ * How often the fade is applied (seconds). Fading in fewer, bigger steps
+ * avoids 8-bit rounding leaving permanent ghosts: a step of strength f
+ * can't remove alpha below 0.5/f, so f must not get too small.
+ */
+export const FADE_INTERVAL = 0.2;
+
+/**
+ * Where drops die, as a share of the screen height: depth = h * (1 - r^endBias)
+ * with r uniform in 0..1. Above 1 favours long drops; the occasional
+ * drop runs off the bottom. Reference: brightness is nearly even down to
+ * three quarters of the height, then thins out.
+ */
+export const END_BIAS = 5;
+
+/**
+ * How far body glyphs are pulled toward grey (0 = the token colour, 1 =
+ * grey). The reference's bodies are a muted green (about rgb(70,101,70)),
+ * duller than the UI's --text; the pale heads keep their full colour.
+ */
+export const BODY_DESATURATE = 0.5;
+
+/** Share of a drop's trail cells re-rolled to a new glyph per second (the flicker). */
+export const MUTATIONS_PER_SECOND = 1.2;
+
+/** A drop waits this long (seconds, range) at the top before falling again. */
+export const RESPAWN_DELAY: [number, number] = [0.2, 4];
+
+/** Seconds simulated before the first frame, so the screen opens full. */
+export const PREWARM_SECONDS = 18;
+
+/** The simulation step while pre-warming (seconds). */
+export const PREWARM_STEP = 1 / 30;
+
+/** The longest real time step taken in one frame (s): after a stall the rain resumes instead of jumping. */
+export const MAX_FRAME_STEP = 0.1;
+
+/** Device pixel ratio cap: sharper than 2 costs fill rate for no visible gain on 7 px glyphs. */
+export const MAX_DPR = 2;
