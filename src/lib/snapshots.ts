@@ -8,14 +8,15 @@
  *   - after the layout changes (once it has been still for CHANGE_DEBOUNCE_MS),
  *   - at startup (so each day the page is used has one),
  *   - right before an import or a restore replaces the layout, so that
- *     replacing can itself be undone.
+ *     replacing can itself be undone;
+ *   - when edit mode starts, so a whole editing session can be undone.
  * A snapshot identical to the newest one is never stored twice.
  */
 import { formatStamp } from './backup';
 import { type LayoutDocument, sameLayout, summarizeLayout } from './layout';
 
 /** Why a snapshot was taken (shown in the RESTORE list). */
-export type SnapshotReason = 'change' | 'startup' | 'before-import' | 'before-restore';
+export type SnapshotReason = 'change' | 'startup' | 'before-import' | 'before-restore' | 'before-edit';
 
 /** One saved copy of the layout. */
 export interface Snapshot {
@@ -85,5 +86,7 @@ export function reasonLabel(reason: SnapshotReason): string {
       return 'BEFORE IMPORT';
     case 'before-restore':
       return 'BEFORE RESTORE';
+    case 'before-edit':
+      return 'BEFORE EDIT';
   }
 }

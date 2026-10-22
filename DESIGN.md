@@ -33,6 +33,12 @@ To re-measure, screenshot the page at 1920×1080 with the UI hidden. Then compar
 - **Un-openable links** (chrome://, bookmarklets) use `--text-dim`, with a dashed frame on tiles. They're never dimmed with opacity, so text still passes AA.
 - **Surfaces are solid.** The rain shows only in the gaps between pieces, and there's no backdrop blur, which would re-blur the animating canvas every frame.
 
+## Edit mode
+- **Unlocked:** the header and edit bar frames turn dashed and lit (`--accent-35`), and the edit bar carries a breathing `●`. Tiles and cards get dashed frames, a grab cursor and a `⋯` button.
+- **Areas** are section bars with scanlines. In edit mode the title becomes a field, with a `⠿` grip and `✕`.
+- **Drops:** a 2 px `--accent` line with `--glow-bright` marks the gap, or a lit outline marks an empty section or the tray. A small label follows the pointer.
+- **Destructive actions** (delete area, CHROME ORDER) confirm inline with a `danger` button, and are undoable.
+
 ## The UI over the wallpaper
 - **The HUD.** The brand panel (the desktop's `.masthead`: scanlines, corner brackets) sits top left. The key hints (`[F] FULLSCREEN`, `[S] SYSTEM`) sit bottom right, and both are buttons.
 - **Panels** sit on solid `--surface` / `--surface-raised`, so text never sits directly on the rain.

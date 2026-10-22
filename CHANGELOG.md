@@ -1,5 +1,22 @@
 # Changelog
 
+## 0.3.0 (build 5)
+**Faster start.** The rain is on screen about 3× sooner: about 0.18 s after the page opens, where it was 0.5 s (0.7 s from 1.9 s on a slow CPU).
+- **Cheaper pre-warm:** the screen-filling pre-warm runs the simulation on numbers only and then paints each visible glyph once. It used to draw and fade the canvas hundreds of times.
+- **Earlier start:** the wallpaper is plain HTML, started by a tiny first script before storage, React and the dashboard load (in parallel). Its font is preloaded.
+- **Quicker fade-in:** the rain fades in over 200 ms.
+
+**An editable layout.** EDIT in NAV's header unlocks it; DONE (or Esc) locks it again.
+- **Areas:** your own named sections. Rename them in place; they fold, move up and down, and can be deleted (their bookmarks go back where Chrome has them).
+- **Drag** bookmarks and folders into areas, reorder them, or pull a bookmark out of a folder. A glowing line shows where it lands.
+- **Every item has a ⋯ menu** that does the same from the keyboard: move earlier or later, move to NAV or an area (or a new one), back to Chrome's place, hide.
+- **A HIDDEN tray** holds what you've hidden: drop things on it, and SHOW brings them back.
+- **Panels:** move NAV and the brand panel (drag the grip, or arrow keys), and resize NAV's width. RESET PANELS puts them back.
+- **CHROME ORDER** reloads Chrome's own order, removing your custom order and areas (it asks first).
+- **UNDO** (Ctrl+Z) and **REVERT** (back to how it was when editing started). Changes save as you go, a snapshot is taken when editing starts, and another when you lock it.
+- **New bookmarks** from Chrome show up where Chrome has them.
+- **Layout schema 3:** older layouts and backups migrate automatically.
+
 ## 0.2.1 (build 4)
 - **Links open in a new tab.** The dashboard stays where it is, and sites aren't told where you came from (`noreferrer`). With the dashboard staying put, the rain no longer sits frozen while the next site loads.
 - **Site icons:** each link shows its site's icon from Chrome's own icon cache, through the bridge, sharp on high-density screens.

@@ -2,16 +2,20 @@
  * src/app/Hud.tsx: the heads-up display over the wallpaper: the brand
  * panel with a clock (top left) and the key hints (bottom right).
  *
- * Layer: UI. Phase 1's whole dashboard: the bookmarks and modules of later
- * phases go between these. Each hint is also a button that does what its
- * key does, so everything works with the mouse too.
+ * Layer: UI. Each hint is also a button that does what its key does, so
+ * everything works with the mouse too. The brand panel sits where you put
+ * it (layout.panels.brand); in edit mode it has a grip to move it.
  */
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 import { uiStore } from '@/store/ui';
 
+import { useArrangeDrag } from './arrangeDrag';
+import { cx } from './cx';
 import { toggleFullscreen } from './fullscreen';
 import { G } from './glyphs';
+import { useEdit, useLayout } from './hooks';
+import { MoveGrip, placeStyle } from './panels';
 
 /** `14:07:33`. */
 const timeText = (d: Date) => d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
@@ -31,9 +35,15 @@ function useNow(): Date {
 /** The HUD. */
 export function Hud() {
   const now = useNow();
+  const place = useLayout((s) => s.layout.panels.brand);
+  const editing = useEdit((s) => s.editing);
+  const brand = useRef<HTMLElement>(null);
+  const noScroll = useRef<HTMLElement>(null);
+  const { start } = useArrangeDrag(noScroll);
   return (
     <>
-      <header className="masthead hud-brand">
+      <header ref={brand} className={cx('masthead hud-brand', editing && 'editing')} data-placed={place ? '' : undefined} style={placeStyle(place)}>
+        {editing && <MoveGrip id="brand" label="the brand panel" target={() => brand.current} startDrag={start} />}
         <div className="masthead-scan" />
         <h1 className="brand">
           <span className="brand-bracket">&lt;</span>

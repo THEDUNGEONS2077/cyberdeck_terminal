@@ -12,7 +12,7 @@ import { hasCustomContent } from '@/lib/layout';
 import { backupDue, exportAge } from '@/lib/reminder';
 import { layoutStore } from '@/store/instance';
 import { uiStore } from '@/store/ui';
-import { WallpaperLayer } from '@/wallpaper/WallpaperLayer';
+import { showWallpaper } from '@/wallpaper/host';
 
 import { useFullscreenSync, useIdleCursor } from './fullscreen';
 import { useLayout, useUi } from './hooks';
@@ -50,6 +50,9 @@ export function App() {
   const panelOpen = useUi((s) => s.panelOpen);
   const panel = usePresence(panelOpen ? true : null, PANEL_EXIT_MS);
 
+  // The wallpaper runs outside React (wallpaper/host.ts, started by main.tsx): only its choice is passed on.
+  useEffect(() => showWallpaper(wallpaper), [wallpaper]);
+
   useFullscreenSync();
   useIdleCursor(immersive);
   useShortcuts(panelOpen);
@@ -58,7 +61,6 @@ export function App() {
 
   return (
     <>
-      <WallpaperLayer id={wallpaper} />
       {/* The page's main landmark: everything that isn't the wallpaper. */}
       <main className="ui-layer" data-hidden={immersive || undefined} inert={immersive}>
         <Hud />

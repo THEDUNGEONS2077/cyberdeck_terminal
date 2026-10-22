@@ -12,6 +12,7 @@
  */
 import { createStore, type StoreApi } from 'zustand/vanilla';
 
+import type { Arrangement, Panels } from '@/lib/arrange';
 import type { BookmarkNode } from '@/lib/bookmarks';
 import type { LayoutDocument } from '@/lib/layout';
 import { type BackupMeta, SNOOZE_MS } from '@/lib/reminder';
@@ -36,6 +37,12 @@ export interface LayoutState {
   importBookmarks(bar: BookmarkNode): void;
   /** Forgets the imported copy (snapshots still hold it). */
   removeImported(): void;
+  /** Sets your arrangement of the bookmarks (areas, order, hidden). */
+  setArrangement(arrangement: Arrangement): void;
+  /** Sets where the panels sit. */
+  setPanels(panels: Panels): void;
+  /** Takes a snapshot of the layout now (if it differs from the newest), e.g. as edit mode starts. */
+  snapshotNow(reason: Snapshot['reason']): Promise<void>;
   /**
    * Replaces the whole layout (an import or a restore), after snapshotting
    * the current one with `reason`. Resolves once both are stored.
@@ -123,6 +130,20 @@ export function createLayoutStore(kv: KV, boot: Boot, onSaveError: SaveErrorHand
       removeImported() {
         const layout = get().layout;
         if (layout.bookmarks.imported) commit({ ...layout, bookmarks: { ...layout.bookmarks, imported: null, importedAt: null } });
+      },
+
+      setArrangement(arrangement) {
+        const layout = get().layout;
+        if (layout.bookmarks.arrangement !== arrangement) commit({ ...layout, bookmarks: { ...layout.bookmarks, arrangement } });
+      },
+
+      setPanels(panels) {
+        const layout = get().layout;
+        if (layout.panels !== panels) commit({ ...layout, panels });
+      },
+
+      async snapshotNow(reason) {
+        await snapshot(reason);
       },
 
       async replaceLayout(next, reason) {

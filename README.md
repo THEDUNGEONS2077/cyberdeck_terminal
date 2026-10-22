@@ -26,6 +26,16 @@ Bookmarks open in a new tab, so the dashboard stays put. With the bridge, links 
 - **Updating the bridge:** when SYSTEM ▸ BOOKMARKS offers an update, download it, unzip it over the old folder, and press ↻ on CYBERDECK BRIDGE in `chrome://extensions`.
 - **Without the bridge:** export your bookmarks (Bookmark manager ▸ ⋮ ▸ Export bookmarks), then choose **IMPORT BOOKMARKS.HTML…**. You get a copy of the bar, kept in your layout and its backups.
 
+## Arrange it
+Press **EDIT** in NAV's header to unlock the layout:
+- Make **areas** (+ AREA), name them, and drag bookmarks or whole folders into them.
+- Drag to reorder, or pull a bookmark out of a folder. Every item's **⋯** menu does the same from the keyboard.
+- Drop anything on **HIDDEN** to hide it (it stays in Chrome).
+- Drag the **⠿** grips to move NAV or the brand panel, and NAV's right edge to resize it.
+- **CHROME ORDER** goes back to Chrome's own order. **UNDO** (Ctrl+Z) steps back. **REVERT** returns to how it was when you started.
+
+Press **DONE** (or Esc) to lock it again. Changes save as you go.
+
 ## Your layout is recoverable
 - **Automatic snapshots** are kept in this browser: when the page opens, after changes, and before any import or restore. Restore any of them from **SYSTEM ▸ RESTORE**.
 - **Backup files:** **SYSTEM ▸ EXPORT BACKUP** saves a `.json` file wherever you like, and **IMPORT BACKUP…** brings one back after showing what it holds.

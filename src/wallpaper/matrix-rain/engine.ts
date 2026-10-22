@@ -22,8 +22,13 @@
  * How long it waits sets how many columns are busy (LayerParams.occupancy).
  *
  * The screen opens full: PREWARM_SECONDS of rain are simulated before the
- * first frame, in slices of PREWARM_BUDGET_MS per frame so the page never
- * stalls; `onReady` then lets the canvas fade in. A resize keeps what's
+ * first frame, without touching the canvas: the simulation only records,
+ * per cell, the last glyph drawn there and when. Then every cell still
+ * visible is painted once, at the brightness the fades would have left it.
+ * Same picture as drawing and fading for 18 s, at a fraction of the cost
+ * (no full-screen fades at all). Both phases run in slices of
+ * PREWARM_BUDGET_MS per frame so the page never stalls; `onReady` then lets
+ * the canvas fade in. A resize keeps what's
  * drawn (copied across), sizes the canvas's CSS box with its pixels (never
  * stretched), and only adds or removes columns, so going fullscreen
  * doesn't restart the rain.
@@ -41,7 +46,7 @@ import {
   MAX_FRAME_STEP,
   MUTATIONS_PER_SECOND,
   PREWARM_BUDGET_MS,
-  PREWARM_DRAWN,
+  PREWARM_MIN_ALPHA,
   PREWARM_SECONDS,
   PREWARM_STEP,
   RESPAWN_DELAY,
@@ -127,6 +132,8 @@ export function withAlpha(hex: string, a: number): string {
 
 /** A layer at the current canvas size. */
 interface Layer {
+  /** Its place in LAYERS (back to front). */
+  index: number;
   p: LayerParams;
   atlas: Atlas;
   /** Pitch in device pixels. */
@@ -134,6 +141,26 @@ interface Layer {
   rowH: number;
   rows: number;
   drops: Drop[];
+}
+
+/**
+ * The pre-warm's record of one layer: per cell (row × cols + col), the last
+ * glyph drawn there, in which style, at what opacity, and when (simulated
+ * seconds; -Infinity = never).
+ */
+interface Recording {
+  cols: number;
+  rows: number;
+  time: Float32Array;
+  glyph: Uint16Array;
+  style: Uint8Array;
+  alpha: Float32Array;
+}
+
+/** An empty recording for a layer. */
+function newRecording(cols: number, rows: number): Recording {
+  const n = cols * rows;
+  return { cols, rows, time: new Float32Array(n).fill(-Infinity), glyph: new Uint16Array(n), style: new Uint8Array(n), alpha: new Float32Array(n) };
 }
 
 /** Creates the matrix-rain engine on a canvas (the `create` of the Wallpaper). */
@@ -151,10 +178,13 @@ function createMatrixRain(canvas: HTMLCanvasElement, options: WallpaperOptions, 
   // Stripe sets owed a fade (fractional), and the next one in FADE_ORDER.
   let fadeDebt = 0;
   let fadePhase = 0;
-  // While true, steps move the drops but draw and fade nothing (the early pre-warm).
-  let drawing = true;
-  // The pre-warm in progress: seconds left to simulate, or null when done.
+  // While pre-warming, steps record into these instead of drawing (one per layer), on this clock.
+  let recordings: Recording[] | null = null;
+  let simTime = 0;
+  // The pre-warm in progress: seconds left to simulate, or null when done; then the cell painting is up to.
   let warmLeft: number | null = null;
+  let paintLayer = 0;
+  let paintCell = 0;
   let warmStarted = 0;
   let warmFrame = 0;
   let announced = false;
@@ -180,9 +210,24 @@ function createMatrixRain(canvas: HTMLCanvasElement, options: WallpaperOptions, 
     ctx.globalCompositeOperation = 'source-over';
   };
 
-  /** Copies glyph `g` in `style` to a layer's cell (col, row), at `alpha`. */
+  /** Copies glyph `g` in `style` to a layer's cell (col, row), at `alpha`: on the canvas, or into the pre-warm's record. */
   const put = (l: Layer, col: number, row: number, g: number, style: AtlasRow, alpha: number) => {
-    if (!ctx || !drawing) return;
+    if (recordings) {
+      const r = recordings[l.index];
+      if (!r || row < 0 || row >= r.rows || col >= r.cols) return;
+      const i = row * r.cols + col;
+      r.time[i] = simTime;
+      r.glyph[i] = g;
+      r.style[i] = style;
+      r.alpha[i] = alpha;
+      return;
+    }
+    blit(l, col, row, g, style, alpha);
+  };
+
+  /** Draws glyph `g` in `style` at a layer's cell (col, row), at `alpha`, from the sprite sheet. */
+  const blit = (l: Layer, col: number, row: number, g: number, style: AtlasRow, alpha: number) => {
+    if (!ctx) return;
     const { atlas } = l;
     ctx.globalAlpha = alpha;
     ctx.drawImage(
@@ -201,13 +246,17 @@ function createMatrixRain(canvas: HTMLCanvasElement, options: WallpaperOptions, 
 
   /** Clears one cell (before redrawing it dimmer or with another glyph). */
   const clearCell = (l: Layer, col: number, row: number) => {
-    if (drawing) ctx?.clearRect(Math.round(col * l.colW), Math.round(row * l.rowH), Math.ceil(l.colW), Math.ceil(l.rowH));
+    // While recording, the next put simply replaces the cell's record.
+    if (!recordings) ctx?.clearRect(Math.round(col * l.colW), Math.round(row * l.rowH), Math.ceil(l.colW), Math.ceil(l.rowH));
   };
 
   /** Advances the whole rain by `dt` seconds, drawing as it goes. */
   const step = (dt: number) => {
     // 1. The fade: FADE_PHASES stripe sets per FADE_INTERVAL, whole sets only.
-    if (drawing) {
+    //    (While recording, time just moves on: the paint works out each cell's fade.)
+    if (recordings) {
+      simTime += dt;
+    } else {
       fadeDebt += (dt / FADE_INTERVAL) * FADE_PHASES;
       while (fadeDebt >= 1) {
         fadeDebt -= 1;
@@ -236,9 +285,9 @@ function createMatrixRain(canvas: HTMLCanvasElement, options: WallpaperOptions, 
           if (d.lit) put(l, col, d.drawn, d.glyph, ROW.head, 1);
           else put(l, col, d.drawn, d.glyph, d.style, d.alpha);
         }
-        // The flicker: now and then a glyph in the live trail changes.
+        // The flicker: now and then a glyph in the live trail changes (not while recording: it only changes which glyph).
         const trail = Math.min(d.drawn, Math.round(d.speed * TRAIL_SECONDS));
-        if (trail > 1 && rng() < MUTATIONS_PER_SECOND * dt * (trail / 12)) {
+        if (!recordings && trail > 1 && rng() < MUTATIONS_PER_SECOND * dt * (trail / 12)) {
           const back = 1 + Math.floor(rng() * (trail - 1));
           const row = d.drawn - back;
           clearCell(l, col, row);
@@ -257,9 +306,34 @@ function createMatrixRain(canvas: HTMLCanvasElement, options: WallpaperOptions, 
   };
 
   /**
-   * One slice of the pre-warm: simulates until PREWARM_BUDGET_MS is used,
-   * then yields to the next frame. Only the last PREWARM_DRAWN seconds draw.
-   * When it's done the first full frame is on the canvas: say so once, and
+   * Paints recorded cells from where the last slice stopped, until `until`
+   * (performance.now ms). Each cell still visible is drawn once, at what the
+   * fades would have left: fadedAlpha(alpha, its age). True when all done.
+   */
+  const paintRecorded = (until: number): boolean => {
+    if (!recordings) return true;
+    for (; paintLayer < layers.length; paintLayer++, paintCell = 0) {
+      const l = layers[paintLayer]!;
+      const r = recordings[paintLayer];
+      if (!r) continue;
+      const n = r.cols * r.rows;
+      for (; paintCell < n; paintCell++) {
+        // Checking the clock every 256 cells keeps the check itself cheap.
+        if ((paintCell & 255) === 0 && performance.now() > until) return false;
+        const age = simTime - r.time[paintCell]!;
+        if (!(age < TRAIL_SECONDS)) continue;
+        const a = fadedAlpha(r.alpha[paintCell]!, age);
+        if (a < PREWARM_MIN_ALPHA) continue;
+        blit(l, paintCell % r.cols, Math.floor(paintCell / r.cols), r.glyph[paintCell]!, r.style[paintCell] as AtlasRow, a);
+      }
+    }
+    return true;
+  };
+
+  /**
+   * One slice of the pre-warm, up to PREWARM_BUDGET_MS, then the next frame:
+   * first the simulation (recording), then painting what it recorded. When
+   * both are done the first full frame is on the canvas: say so once, and
    * start animating if asked to.
    */
   const warmSlice = () => {
@@ -267,15 +341,14 @@ function createMatrixRain(canvas: HTMLCanvasElement, options: WallpaperOptions, 
     if (warmLeft === null || destroyed) return;
     const until = performance.now() + PREWARM_BUDGET_MS;
     while (warmLeft > 0 && performance.now() < until) {
-      drawing = warmLeft <= PREWARM_DRAWN;
       step(PREWARM_STEP);
       warmLeft -= PREWARM_STEP;
     }
-    drawing = true;
-    if (warmLeft > 0) {
+    if (warmLeft > 0 || !paintRecorded(until)) {
       warmFrame = requestAnimationFrame(warmSlice);
       return;
     }
+    recordings = null;
     warmLeft = null;
     // Recorded for e2e/motion.mjs: how long the screen took to fill (spread over frames).
     performance.measure('rain-prewarm', { start: warmStarted });
@@ -293,6 +366,10 @@ function createMatrixRain(canvas: HTMLCanvasElement, options: WallpaperOptions, 
   const prewarm = (seconds: number) => {
     warmLeft = seconds;
     warmStarted = performance.now();
+    simTime = 0;
+    paintLayer = 0;
+    paintCell = 0;
+    recordings = layers.map((l) => newRecording(l.drops.length, l.rows));
     if (!warmFrame) warmSlice();
   };
 
@@ -312,7 +389,7 @@ function createMatrixRain(canvas: HTMLCanvasElement, options: WallpaperOptions, 
       const rows = Math.ceil(h / p.rowH);
       const drops = (old?.drops ?? []).slice(0, cols);
       while (drops.length < cols) drops.push(spawnDrop(p, rows, glyphCount, rng, rng() < p.occupancy));
-      return { p, atlas: old?.atlas ?? buildAtlas(p, palette, dpr, glyphs, glow), colW, rowH, rows, drops };
+      return { index: i, p, atlas: old?.atlas ?? buildAtlas(p, palette, dpr, glyphs, glow), colW, rowH, rows, drops };
     });
     builtDpr = dpr;
     return rebuild;

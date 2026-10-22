@@ -14,11 +14,14 @@
  *   1  wallpaper, prefs (0.1.x)
  *   2  + bookmarks: an imported copy of the bookmarks bar, and which
  *      folders are open (0.2.0)
+ *   3  + bookmarks.arrangement (your areas, order, hidden items) and
+ *      panels (where NAV and the brand sit) (0.3.0)
  */
+import { type Arrangement, type Panels, defaultPanels, emptyArrangement } from './arrange';
 import { type BookmarkNode, countLinks } from './bookmarks';
 
 /** The current schema version of the layout document. */
-export const LAYOUT_SCHEMA_VERSION = 2;
+export const LAYOUT_SCHEMA_VERSION = 3;
 
 /** The wallpaper a new layout starts with (src/wallpaper/registry.ts lists them all). */
 export const DEFAULT_WALLPAPER_ID = 'matrix-rain';
@@ -43,15 +46,19 @@ export interface BookmarksLayout {
   importedAt: number | null;
   /** Folders shown open, by folderKey (lib/bookmarks.ts); every other folder is collapsed. Sorted. */
   open: string[];
+  /** Your areas, order and hidden items (lib/arrange.ts). */
+  arrangement: Arrangement;
 }
 
-/** The layout document (schema version 2). */
+/** The layout document (schema version 3). */
 export interface LayoutDocument {
   schemaVersion: typeof LAYOUT_SCHEMA_VERSION;
   /** The id of the wallpaper shown behind the dashboard. */
   wallpaper: string;
   prefs: LayoutPrefs;
   bookmarks: BookmarksLayout;
+  /** Where NAV and the brand panel sit (null each = the default place). */
+  panels: Panels;
 }
 
 /** Most open folders remembered. */
@@ -59,7 +66,7 @@ export const MAX_OPEN_FOLDERS = 1000;
 
 /** The bookmarks part of a new layout: nothing imported, every folder collapsed. */
 export function defaultBookmarks(): BookmarksLayout {
-  return { imported: null, importedAt: null, open: [] };
+  return { imported: null, importedAt: null, open: [], arrangement: emptyArrangement() };
 }
 
 /** Preferences a new layout starts with. */
@@ -69,7 +76,7 @@ export function defaultPrefs(): LayoutPrefs {
 
 /** A new, empty layout. */
 export function defaultLayout(): LayoutDocument {
-  return { schemaVersion: LAYOUT_SCHEMA_VERSION, wallpaper: DEFAULT_WALLPAPER_ID, prefs: defaultPrefs(), bookmarks: defaultBookmarks() };
+  return { schemaVersion: LAYOUT_SCHEMA_VERSION, wallpaper: DEFAULT_WALLPAPER_ID, prefs: defaultPrefs(), bookmarks: defaultBookmarks(), panels: defaultPanels() };
 }
 
 /**
@@ -105,7 +112,11 @@ export function hasCustomContent(doc: LayoutDocument): boolean {
  */
 export function summarizeLayout(doc: LayoutDocument): string {
   const parts: string[] = [];
-  const { imported, open } = doc.bookmarks;
+  const { imported, open, arrangement } = doc.bookmarks;
+  if (arrangement.areas.length) parts.push(`${arrangement.areas.length} AREA${arrangement.areas.length === 1 ? '' : 'S'}`);
+  if (arrangement.order.length) parts.push('CUSTOM ORDER');
+  if (arrangement.hidden.length) parts.push(`${arrangement.hidden.length} HIDDEN`);
+  if (doc.panels.nav || doc.panels.brand) parts.push('PANELS MOVED');
   if (imported) parts.push(`BAR COPY ${countLinks(imported)} LINKS`);
   if (open.length) parts.push(`${open.length} OPEN`);
   parts.push(`WALLPAPER ${doc.wallpaper.toUpperCase()}`);

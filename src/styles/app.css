@@ -149,7 +149,7 @@ ul {
   top: 0;
   left: 0;
   opacity: 0;
-  transition: opacity var(--slow) var(--ease);
+  transition: opacity var(--base) var(--ease);
 }
 .wallpaper-canvas[data-ready] {
   opacity: 1;
@@ -994,6 +994,9 @@ kbd {
   flex: none;
   width: 20px;
   color: var(--text);
+  /* A size of its own: at the headings' 11 px the triangle is too small to read. */
+  font-size: var(--fs-body);
+  font-weight: 400;
   transition: transform var(--base) var(--ease-fold);
 }
 .caret.open {
@@ -1064,9 +1067,386 @@ a.text-btn {
   text-decoration: none;
 }
 
+/* --- Sections, areas and edit mode ------------------------------------------ */
+/* A section's items (NAV's, or an area's): its tiles, then its folder cards. */
+.section-items {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.section-empty {
+  padding: var(--s-sm) var(--s-md);
+  border: var(--hairline) dashed var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+  letter-spacing: 1px;
+}
+
+/* Your areas: a heading like a terminal section line, then the area's items, folding. */
+.area {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding-top: var(--s-xs);
+}
+.area-head {
+  display: flex;
+  align-items: center;
+  gap: var(--s-sm);
+  min-height: 30px;
+  padding: 0 var(--s-sm) 0 0;
+  border: var(--hairline) solid var(--line);
+  border-radius: var(--radius);
+  background: var(--scanlines), var(--surface);
+}
+.area-toggle {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: var(--s-sm);
+  min-width: 0;
+  min-height: 30px;
+  padding-left: var(--s-xs);
+  color: var(--text-bright);
+  font-size: var(--fs-small);
+  font-weight: 700;
+  letter-spacing: 1.5px;
+  text-align: left;
+}
+.area.editing .area-toggle {
+  flex: none;
+}
+.area-toggle:hover {
+  color: var(--accent);
+}
+.area-title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.area-head .count {
+  color: var(--text-dim);
+  font-size: var(--fs-small);
+}
+.area-title-input {
+  flex: 1;
+  min-width: 0;
+  height: 24px;
+  padding: 0 var(--s-sm);
+  border: var(--hairline) solid var(--line);
+  border-radius: var(--radius);
+  background: var(--bg);
+  color: var(--text-bright);
+  font-size: var(--fs-small);
+  font-weight: 700;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  outline: none;
+}
+.area-title-input:focus {
+  border-color: var(--accent);
+  box-shadow: var(--glow-faint);
+}
+.area-confirm {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s-xs);
+  color: var(--text-bright);
+}
+/* The fold, as a folder's. */
+.area-body {
+  display: grid;
+  grid-template-rows: 1fr;
+  transition:
+    grid-template-rows var(--base) var(--ease-fold),
+    opacity var(--base) var(--ease-fold);
+}
+.area.collapsed > .area-body {
+  grid-template-rows: 0fr;
+  opacity: 0;
+  visibility: hidden;
+  transition:
+    grid-template-rows var(--base) var(--ease-fold),
+    opacity var(--base) var(--ease-fold),
+    visibility 0s var(--base);
+}
+.area-inner {
+  min-height: 0;
+  overflow: hidden;
+  /* Room for the focus ring of the items inside. */
+  padding: 3px;
+  margin: -3px;
+}
+.icon-btn.small-icon {
+  width: 24px;
+  height: 24px;
+  font-size: var(--fs-small);
+}
+
+/* Grips: what you drag (and focus, for the arrow keys) in edit mode. */
+.grip {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border: var(--hairline) solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface-raised);
+  color: var(--accent);
+  cursor: grab;
+  touch-action: none;
+}
+.grip:hover {
+  border-color: var(--accent-35);
+  box-shadow: var(--glow-faint);
+}
+/* The brand panel's grip sits on its top-right corner. */
+.masthead > .panel-grip {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+}
+
+/* Edit mode: the deck's frame is dashed and lit, and everything can be picked up. */
+.deck.editing .deck-head {
+  border-style: dashed;
+  border-color: var(--accent-35);
+}
+.edit-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-sm);
+  padding: 6px var(--s-sm) 6px var(--s-md);
+  border: var(--hairline) dashed var(--accent-35);
+  border-radius: var(--radius);
+  background: var(--surface-raised);
+  box-shadow: var(--glow-faint);
+}
+.edit-state {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--accent);
+  font-size: var(--fs-micro);
+  letter-spacing: 1px;
+}
+.edit-bar.confirm .edit-state {
+  color: var(--text-bright);
+}
+.edit-actions {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: var(--s-xs);
+}
+.editable {
+  position: relative;
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+}
+.tile.editable,
+.folder.card:has(> .folder-head-row.editable) {
+  border-style: dashed;
+}
+.folder-head-row {
+  display: flex;
+  align-items: center;
+}
+.folder-head-row .folder-head {
+  flex: 1;
+  min-width: 0;
+}
+/* An item's ⋯ menu button (edit mode). */
+.item-menu-btn {
+  flex: none;
+  min-width: 24px;
+  height: 24px;
+  margin-left: auto;
+  border: var(--hairline) solid transparent;
+  border-radius: var(--radius);
+  color: var(--accent);
+  font-weight: 700;
+  line-height: 1;
+}
+.tile .item-menu-btn {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  background: var(--surface-raised);
+}
+.item-menu-btn:hover,
+.item-menu-btn:focus-visible {
+  border-color: var(--accent-35);
+  box-shadow: var(--glow-faint);
+}
+/* While dragging: no text selection, the grabbing hand everywhere. */
+:root[data-dragging],
+:root[data-dragging] * {
+  cursor: grabbing !important;
+  user-select: none !important;
+}
+/* Where a drop lands: a glowing accent line (or a lit outline, for an empty section or the tray). */
+.drop-line {
+  position: fixed;
+  z-index: 60;
+  border-radius: 1px;
+  background: var(--accent);
+  box-shadow: var(--glow-bright);
+  pointer-events: none;
+}
+.drag-label {
+  position: fixed;
+  z-index: 61;
+  max-width: 240px;
+  padding: 2px var(--s-sm);
+  overflow: hidden;
+  border: var(--hairline) solid var(--accent-35);
+  border-radius: var(--radius);
+  background: var(--surface-raised);
+  box-shadow: var(--glow);
+  color: var(--text-bright);
+  font-size: var(--fs-small);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+/* The HIDDEN tray (edit mode). */
+.hidden-tray {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-xs);
+  margin-top: var(--s-xs);
+  padding: var(--s-sm) var(--s-md);
+  border: var(--hairline) dashed var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+.hidden-tray .section-title {
+  padding-top: 0;
+}
+.hidden-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.hidden-item {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-sm);
+  max-width: 260px;
+  padding: 2px 2px 2px var(--s-sm);
+  border: var(--hairline) solid var(--line);
+  border-radius: var(--radius);
+  color: var(--text-dim);
+  font-size: var(--fs-meta);
+}
+
+/* Placed panels (lib/arrange.ts PanelPlace via app/panels.tsx): left/top from shares of the
+   window, kept on screen. No transforms, so the text stays crisp. */
+.deck-area[data-placed] {
+  left: clamp(8px, calc(var(--px) * 100vw), calc(100vw - var(--pw, 640px) - 8px));
+  right: auto;
+  top: clamp(8px, calc(var(--py) * 100vh), calc(100vh - 200px));
+  width: min(var(--pw, 1120px), calc(100vw - 16px));
+  margin: 0;
+}
+.hud-brand[data-placed] {
+  left: clamp(8px, calc(var(--px) * 100vw), calc(100vw - 280px));
+  top: clamp(8px, calc(var(--py) * 100vh), calc(100vh - 100px));
+}
+.hud-brand.editing {
+  border-style: dashed;
+  border-color: var(--accent-35);
+  padding-right: 40px;
+}
+/* NAV's resize edge (edit mode): a lit bar down its right side. */
+.resize-grip {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 10px;
+  cursor: ew-resize;
+  touch-action: none;
+}
+.resize-grip::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 4px;
+  width: 2px;
+  background: var(--accent-35);
+}
+.resize-grip:hover::after,
+.resize-grip:focus-visible::after {
+  background: var(--accent);
+  box-shadow: var(--glow-bright);
+}
+
+/* --- Menu (from quest_log_desktop) ------------------------------------------ */
+.menu-layer {
+  position: fixed;
+  inset: 0;
+  z-index: 55;
+}
+.menu {
+  position: fixed;
+  min-width: 240px;
+  max-height: calc(100vh - 16px);
+  overflow-y: auto;
+  padding: var(--s-xs) 0;
+  border: var(--hairline) solid var(--line);
+  border-radius: var(--radius);
+  /* Its top edge is lit in the middle, drawn in the border's place. */
+  border-top-color: transparent;
+  background:
+    var(--lit-rule) top / 100% var(--hairline) no-repeat border-box,
+    linear-gradient(var(--line), var(--line)) top / 100% var(--hairline) no-repeat border-box,
+    var(--surface-raised);
+  box-shadow: var(--glow);
+  animation: rise var(--fast) var(--ease);
+}
+.menu-heading {
+  max-width: 300px;
+  padding: var(--s-xs) var(--s-md);
+  overflow: hidden;
+  color: var(--text-dim);
+  font-size: var(--fs-small);
+  letter-spacing: 1px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.menu-item {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  min-height: 28px;
+  padding: 0 var(--s-md);
+  color: var(--text);
+  font-size: var(--fs-meta);
+  letter-spacing: 0.5px;
+  text-align: left;
+}
+.menu-item:hover,
+.menu-item:focus-visible {
+  background: var(--surface);
+  color: var(--text-bright);
+  outline: none;
+  /* The same lit edge as a selected row. */
+  box-shadow: inset 2px 0 0 var(--accent);
+}
+
 /* --- Narrow windows ------------------------------------------------------ */
 @media (max-width: 600px) {
-  .hud-brand {
+  .hud-brand,
+  .hud-brand[data-placed] {
     top: var(--s-lg);
     left: var(--s-lg);
     right: var(--s-lg);
@@ -1077,7 +1457,11 @@ a.text-btn {
     right: var(--s-lg);
     bottom: var(--s-lg);
   }
-  .deck-area {
+  .deck-area,
+  .deck-area[data-placed] {
+    left: 0;
+    right: 0;
+    margin: 0 auto;
     top: calc(var(--s-lg) + 104px);
     bottom: calc(var(--s-lg) + var(--control) + var(--s-md));
     width: calc(100vw - var(--s-lg) * 2);

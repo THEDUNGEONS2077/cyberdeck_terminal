@@ -1,0 +1,302 @@
+/**
+ * src/lib/arrange.ts: the dashboard's own arrangement of the bookmarks
+ * bar: your areas, your order, what's hidden, and where the panels sit.
+ *
+ * Layer: pure lib. Chrome's bookmarks are never changed: this is a layer
+ * on top of them, saved in the layout document (so it's backed up and
+ * restorable like everything else).
+ *
+ * Items are named by keys that stay the same across reloads and across
+ * the live bar and an imported copy:
+ *   - a link:   `l:<url>` (a second link to the same URL: `l:<url>#2`, …);
+ *   - a folder: `f:<path of titles>` (lib/bookmarks.ts folderKey).
+ * A renamed folder or a changed URL is a new item: it simply shows up
+ * where Chrome has it again.
+ *
+ * What shows where:
+ *   - NAV (the main section): the bar's top-level items, plus any deeper
+ *     item you placed there, in your order. Items you haven't placed sit
+ *     where Chrome has them (after the item Chrome puts before them).
+ *   - Each area: the items you put in it, in your order.
+ *   - A folder shows its contents in Chrome's order, minus anything you
+ *     placed elsewhere or hid.
+ *   - Hidden items show only in edit mode's HIDDEN tray.
+ */
+import { type BookmarkNode, folderKey } from './bookmarks';
+
+/** One of your areas: a named section of the dashboard. */
+export interface Area {
+  id: string;
+  title: string;
+  /** Item keys, in your order. */
+  items: string[];
+  collapsed: boolean;
+}
+
+/** Your arrangement of the bookmarks. */
+export interface Arrangement {
+  /** NAV's order: item keys (top-level items not listed follow Chrome's order; deeper items listed here are placed in NAV). */
+  order: string[];
+  areas: Area[];
+  /** Hidden item keys. */
+  hidden: string[];
+}
+
+/** Where a panel sits: its top-left corner as a share of the window (0–1), and its width in px (NAV only). */
+export interface PanelPlace {
+  x: number;
+  y: number;
+  w?: number;
+}
+
+/** Where the movable panels sit; null = their default place. */
+export interface Panels {
+  nav: PanelPlace | null;
+  brand: PanelPlace | null;
+}
+
+/** The movable panels. */
+export type PanelId = keyof Panels;
+
+/** Longest area title kept. */
+export const MAX_AREA_TITLE = 40;
+/** Most areas. */
+export const MAX_AREAS = 50;
+/** NAV's width limits (px). */
+export const NAV_MIN_W = 360;
+export const NAV_MAX_W = 2400;
+
+/** No arrangement: everything where Chrome has it. */
+export function emptyArrangement(): Arrangement {
+  return { order: [], areas: [], hidden: [] };
+}
+
+/** Panels in their default places. */
+export function defaultPanels(): Panels {
+  return { nav: null, brand: null };
+}
+
+/** An item of the bar, with where it is in Chrome. */
+export interface TreeItem {
+  key: string;
+  node: BookmarkNode;
+  /** Titles of its folders, outermost first, ending with its own title (folders) or its folder's (links). */
+  path: string[];
+  /** Its folder's key, or null for the bar's top level. */
+  parent: string | null;
+}
+
+/** The kind of an item key. */
+export function keyKind(key: string): 'link' | 'folder' {
+  return key.startsWith('f:') ? 'folder' : 'link';
+}
+
+/**
+ * Every item of the bar by key, in Chrome's order (depth first), plus the
+ * keys of the top level. Links to the same URL get `#2`, `#3`… in that order.
+ */
+export function indexTree(bar: BookmarkNode | null): { items: Map<string, TreeItem>; top: string[] } {
+  const items = new Map<string, TreeItem>();
+  const top: string[] = [];
+  const seen = new Map<string, number>();
+  const walk = (node: BookmarkNode, path: string[], parent: string | null) => {
+    for (const child of node.children ?? []) {
+      let key: string;
+      let childPath = path;
+      if (child.url !== undefined) {
+        const base = `l:${child.url}`;
+        const n = (seen.get(base) ?? 0) + 1;
+        seen.set(base, n);
+        key = n === 1 ? base : `${base}#${n}`;
+      } else {
+        childPath = [...path, child.title];
+        key = `f:${folderKey(childPath)}`;
+        if (items.has(key)) continue; // two folders with the same path: the first one counts
+      }
+      items.set(key, { key, node: child, path: childPath, parent });
+      if (parent === null) top.push(key);
+      if (child.children) walk(child, childPath, key);
+    }
+  };
+  if (bar) walk(bar, [], null);
+  return { items, top };
+}
+
+/**
+ * `custom` (your order) with Chrome's `natural` keys that aren't in it
+ * added where Chrome has them: right after the item Chrome puts before
+ * them (or first, if none). Keys in `custom` that no longer exist go.
+ */
+export function mergeOrder(natural: readonly string[], custom: readonly string[], exists: (key: string) => boolean): string[] {
+  const out = custom.filter(exists);
+  const inOut = new Set(out);
+  natural.forEach((key, i) => {
+    if (inOut.has(key)) return;
+    const before = natural.slice(0, i).reverse().find((k) => inOut.has(k));
+    out.splice(before === undefined ? 0 : out.indexOf(before) + 1, 0, key);
+    inOut.add(key);
+  });
+  return out;
+}
+
+/** What the dashboard shows, worked out from the bar and the arrangement. */
+export interface Arranged {
+  /** NAV's items, in order. */
+  main: TreeItem[];
+  /** NAV's keys in order, hidden ones included (where moves are measured from, so hidden items keep their place). */
+  mainKeys: string[];
+  /** Every item of the bar, by key (folders look their contents up here). */
+  all: Map<string, TreeItem>;
+  /** Each area and its items, in order. */
+  areas: { area: Area; items: TreeItem[] }[];
+  /** Hidden items that exist (the edit tray). */
+  hidden: TreeItem[];
+  /** Keys shown somewhere other than inside their own folder (placed) or not at all (hidden): folders leave these out. */
+  excluded: Set<string>;
+}
+
+/** Works out what shows where (see the file header). */
+export function arrange(bar: BookmarkNode | null, arr: Arrangement): Arranged {
+  const { items, top } = indexTree(bar);
+  const hidden = new Set(arr.hidden.filter((k) => items.has(k)));
+  const inAreas = new Set(arr.areas.flatMap((a) => a.items).filter((k) => items.has(k)));
+  // Deeper items placed in NAV are those listed in its order.
+  const placedInMain = new Set(arr.order.filter((k) => items.get(k)?.parent !== null && items.has(k) && !inAreas.has(k)));
+  const naturalMain = top.filter((k) => !inAreas.has(k));
+  const mainKeys = mergeOrder(naturalMain, arr.order, (k) => items.has(k) && !inAreas.has(k) && (items.get(k)!.parent === null || placedInMain.has(k)));
+  const excluded = new Set<string>([...hidden, ...inAreas, ...placedInMain]);
+  // An item in two areas (a hand-edited backup): only its first area keeps it.
+  const claimed = new Set<string>();
+  const areas = arr.areas.map((area) => {
+    const shown: TreeItem[] = [];
+    for (const k of area.items) {
+      const item = items.get(k);
+      if (!item || hidden.has(k) || claimed.has(k)) continue;
+      claimed.add(k);
+      shown.push(item);
+    }
+    return { area, items: shown };
+  });
+  return {
+    main: mainKeys.filter((k) => !hidden.has(k)).map((k) => items.get(k)!),
+    mainKeys,
+    all: items,
+    areas,
+    hidden: [...hidden].map((k) => items.get(k)!),
+    excluded,
+  };
+}
+
+/** A folder's contents as shown: Chrome's order, minus what's placed elsewhere or hidden. */
+export function folderContents(item: TreeItem, all: Map<string, TreeItem>, excluded: ReadonlySet<string>): TreeItem[] {
+  const out: TreeItem[] = [];
+  for (const [key, it] of all) if (it.parent === item.key && !excluded.has(key)) out.push(it);
+  return out;
+}
+
+// --- Changes (each returns a new arrangement) -------------------------------
+
+/** Where a moved item goes: NAV (`main`) or an area, before `before` (a key) or at the end (null). */
+export interface MoveTarget {
+  section: 'main' | string;
+  before: string | null;
+}
+
+/** Takes `key` out of every list it's placed in (NAV's order, every area). */
+function unplace(arr: Arrangement, key: string): Arrangement {
+  return { ...arr, order: arr.order.filter((k) => k !== key), areas: arr.areas.map((a) => (a.items.includes(key) ? { ...a, items: a.items.filter((k) => k !== key) } : a)) };
+}
+
+/** Inserts `key` into `list` before `before` (or at the end). */
+function insertBefore(list: readonly string[], key: string, before: string | null): string[] {
+  const out = list.filter((k) => k !== key);
+  const at = before === null ? -1 : out.indexOf(before);
+  out.splice(at < 0 ? out.length : at, 0, key);
+  return out;
+}
+
+/**
+ * Moves `key` to `target`. NAV's order is written out in full (`mainNow`:
+ * NAV's keys as shown now), so the move is kept exactly as seen even as
+ * Chrome adds items later.
+ */
+export function moveItem(arr: Arrangement, key: string, target: MoveTarget, mainNow: readonly string[]): Arrangement {
+  const out = unplace(arr, key);
+  if (target.section === 'main') return { ...out, order: insertBefore(mainNow, key, target.before) };
+  return { ...out, areas: out.areas.map((a) => (a.id === target.section ? { ...a, items: insertBefore(a.items, key, target.before) } : a)) };
+}
+
+/**
+ * BACK TO CHROME'S PLACE: `key` leaves your order and your areas, and shows
+ * where Chrome has it again (inside its folder, for a deeper item).
+ */
+export function unplaceItem(arr: Arrangement, key: string): Arrangement {
+  return unplace(arr, key);
+}
+
+/** Is `key` placed by you (in an area, or in NAV's order)? */
+export function isPlaced(arr: Arrangement, key: string): boolean {
+  return arr.order.includes(key) || arr.areas.some((a) => a.items.includes(key));
+}
+
+/** Hides `key` (it keeps its place, for when it's shown again). */
+export function hideItem(arr: Arrangement, key: string): Arrangement {
+  return arr.hidden.includes(key) ? arr : { ...arr, hidden: [...arr.hidden, key] };
+}
+
+/** Shows `key` again, where it was. */
+export function showItem(arr: Arrangement, key: string): Arrangement {
+  return { ...arr, hidden: arr.hidden.filter((k) => k !== key) };
+}
+
+/** Adds an area at the end, named `title`, with id `id`. */
+export function addArea(arr: Arrangement, id: string, title: string): Arrangement {
+  if (arr.areas.length >= MAX_AREAS) return arr;
+  return { ...arr, areas: [...arr.areas, { id, title: cleanTitle(title), items: [], collapsed: false }] };
+}
+
+/** An area title: trimmed, capped, upper case (the terminal look), never empty. */
+export function cleanTitle(title: string): string {
+  return title.trim().slice(0, MAX_AREA_TITLE).toUpperCase() || 'AREA';
+}
+
+/** Renames area `id`. */
+export function renameArea(arr: Arrangement, id: string, title: string): Arrangement {
+  return { ...arr, areas: arr.areas.map((a) => (a.id === id ? { ...a, title: cleanTitle(title) } : a)) };
+}
+
+/** Deletes area `id`: its items go back where Chrome has them. */
+export function deleteArea(arr: Arrangement, id: string): Arrangement {
+  return { ...arr, areas: arr.areas.filter((a) => a.id !== id) };
+}
+
+/** Moves area `id` before area `before` (or to the end). */
+export function moveArea(arr: Arrangement, id: string, before: string | null): Arrangement {
+  const area = arr.areas.find((a) => a.id === id);
+  if (!area || id === before) return arr;
+  const rest = arr.areas.filter((a) => a.id !== id);
+  const at = before === null ? -1 : rest.findIndex((a) => a.id === before);
+  rest.splice(at < 0 ? rest.length : at, 0, area);
+  return { ...arr, areas: rest };
+}
+
+/** Opens or collapses area `id`. */
+export function setAreaCollapsed(arr: Arrangement, id: string, collapsed: boolean): Arrangement {
+  return { ...arr, areas: arr.areas.map((a) => (a.id === id ? { ...a, collapsed } : a)) };
+}
+
+/**
+ * RELOAD CHROME ORDER: everything back where Chrome has it: your order and
+ * areas go. Hidden items stay hidden (that's a choice, not an order).
+ */
+export function chromeOrder(arr: Arrangement): Arrangement {
+  return { ...arr, order: [], areas: [] };
+}
+
+/** A panel place kept inside sensible bounds (shares 0–0.95; NAV width within its limits). */
+export function clampPlace(place: PanelPlace): PanelPlace {
+  const clamp = (v: number, lo: number, hi: number) => (Number.isFinite(v) ? Math.min(hi, Math.max(lo, v)) : lo);
+  const out: PanelPlace = { x: clamp(place.x, 0, 0.95), y: clamp(place.y, 0, 0.95) };
+  if (place.w !== undefined) out.w = Math.round(clamp(place.w, NAV_MIN_W, NAV_MAX_W));
+  return out;
+}

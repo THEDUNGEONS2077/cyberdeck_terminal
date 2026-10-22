@@ -1,54 +1,64 @@
 /**
- * src/app/Bookmarks.tsx: the bookmarks deck: a live mirror of the
- * bookmarks bar, or the CONNECT prompt when there are no bookmarks yet.
+ * src/app/Bookmarks.tsx: the bookmarks deck, NAV: your bookmarks bar as
+ * you've arranged it, or the CONNECT prompt when there are no bookmarks yet.
  *
  * Layer: UI.
  *
- *   ┌ > NAV ──────── [CHROME NEW TAB] [EDIT BOOKMARKS] ● LIVE · 41 LINKS ┐
- *   [› GitHub    ] [› Mail      ] [› Docs      ] …        the bar's own links, as tiles
- *   ┌ ▸ ▤ DEV  12 ┐ ┌ ▾ ▤ NEWS  5 ┐ ┌ ▸ ▤ TOOLS  9 ┐       its folders, as cards that
- *                   │ › Hacker News│                       fold open (nested folders
- *                   │ ▸ ▤ Blogs  3 │                       fold inside them)
+ *   ┌ ⠿ > NAV ── [EDIT] [CHROME NEW TAB] [EDIT BOOKMARKS] ● LIVE · 41 LINKS ┐
+ *   [› GitHub ] [› Mail ] [› Docs ] …        NAV's links, as tiles
+ *   ┌ ▸ ▤ DEV 12 ┐ ┌ ▸ ▤ NEWS 5 ┐          NAV's folders, as cards that fold open
+ *   ▾ WORK ─────────────────────── 9        your areas, each with its own
+ *   [› Jira ] [› Mail ]                      tiles and folder cards
  *
  * Which bar is shown: the bridge's live one; while the bridge is being
  * asked, the one cached from last time; with no bridge, the imported copy
- * (layout.bookmarks.imported); with neither, the CONNECT prompt.
+ * (layout.bookmarks.imported); with neither, the CONNECT prompt. What goes
+ * where comes from your arrangement (lib/arrange.ts): NAV, your areas,
+ * hidden items; anything you haven't placed sits where Chrome has it.
  *
- * Links open in a new tab (user request 2026-10-22), so the dashboard stays
- * where it is; `noreferrer` keeps the sites from seeing where you came
- * from. Links a webpage can't open (chrome://, javascript: bookmarklets)
- * are shown, dimmed, but inert.
- * Which folders are open is part of the layout (saved, backed up).
+ * EDIT (in the header; DONE to lock again) unlocks the layout
+ * (store/edit.ts): the edit bar, dragging (app/arrangeDrag.ts), the ⋯
+ * menus (deck/ArrangeMenu.tsx), area names and grips (deck/Areas.tsx), the
+ * HIDDEN tray, and grips to move NAV and the brand panel and resize NAV
+ * (app/panels.tsx). Esc locks it again; Ctrl+Z undoes.
  *
- * With bridge 1.1+ (its `features`): each link shows its site icon from
- * Chrome's icon cache, and the header offers CHROME NEW TAB (Chrome's own
- * New Tab page, with the bookmarks bar to edit) and EDIT BOOKMARKS (the
- * Bookmark manager), each in a new tab. An older bridge gets an UPDATE
- * BRIDGE chip instead.
+ * With bridge 1.1+ (its `features`): site icons, and CHROME NEW TAB /
+ * EDIT BOOKMARKS (Chrome's own pages, in a new tab). An older bridge gets
+ * an UPDATE BRIDGE chip instead.
  */
-import { memo, useId, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 
-import { type ChromePage, faviconSrcSet, openChromePage } from '@/bridge/client';
+import { type ChromePage, openChromePage } from '@/bridge/client';
+import { arrange } from '@/lib/arrange';
 import { formatStamp } from '@/lib/backup';
-import { type BookmarkNode, countLinks, folderKey, hostOf, isOpenable } from '@/lib/bookmarks';
-import { layoutStore } from '@/store/instance';
+import { type BookmarkNode, countLinks } from '@/lib/bookmarks';
+import { editStore } from '@/store/edit';
 import { uiStore } from '@/store/ui';
 
+import { useArrangeDrag } from './arrangeDrag';
 import { cx } from './cx';
-import { G } from './glyphs';
-import { useBookmarks, useLayout } from './hooks';
+import { ArrangeMenu, type MenuState } from './deck/ArrangeMenu';
+import { AreaSection } from './deck/Areas';
+import { type DeckApi, DeckProvider } from './deck/context';
+import { EditBar, HiddenTray } from './deck/EditBar';
+import { SectionItems } from './deck/Items';
+import { useBookmarks, useEdit, useLayout } from './hooks';
 import { CopyAddress, DownloadBridgeButton, ImportBookmarksButton } from './ImportBookmarks';
+import { MoveGrip, ResizeGrip, placeStyle } from './panels';
 import { Prompted } from './Prompted';
+import { typing } from './useShortcuts';
 
 /** Where the shown bar came from. */
 type Source = 'live' | 'cached' | 'imported';
 
-/** The deck: the bar, or the CONNECT prompt (nothing while the bridge is first asked). */
+/** The deck's area (placed where you put it), holding the bar or the CONNECT prompt (nothing while the bridge is first asked). */
 export function BookmarksDeck() {
   const status = useBookmarks((s) => s.status);
   const liveBar = useBookmarks((s) => s.bar);
   const imported = useLayout((s) => s.layout.bookmarks.imported);
   const importedAt = useLayout((s) => s.layout.bookmarks.importedAt);
+  const place = useLayout((s) => s.layout.panels.nav);
+  const area = useRef<HTMLDivElement>(null);
 
   let bar: BookmarkNode | null = null;
   let source: Source = 'live';
@@ -61,64 +71,124 @@ export function BookmarksDeck() {
   }
 
   return (
-    <div className="deck-area">
-      {bar ? <Deck bar={bar} source={source} importedAt={importedAt} /> : status === 'absent' ? <ConnectPrompt /> : null}
+    <div ref={area} className="deck-area" data-placed={place ? '' : undefined} style={placeStyle(place)}>
+      {bar ? <Deck bar={bar} source={source} importedAt={importedAt} area={area} /> : status === 'absent' ? <ConnectPrompt /> : null}
     </div>
   );
 }
 
-/** The bar: its header, its links as tiles, its folders as cards. */
-function Deck({ bar, source, importedAt }: { bar: BookmarkNode; source: Source; importedAt: number | null }) {
-  const items = bar.children ?? [];
-  const links = items.filter((n) => n.url !== undefined);
-  const folders = items.filter((n) => n.children);
+/** The bar as arranged: header, edit bar, NAV's items, your areas, the HIDDEN tray. */
+function Deck({ bar, source, importedAt, area }: { bar: BookmarkNode; source: Source; importedAt: number | null; area: React.RefObject<HTMLDivElement | null> }) {
+  const arrangement = useLayout((s) => s.layout.bookmarks.arrangement);
+  const editing = useEdit((s) => s.editing);
+  const arranged = useMemo(() => arrange(bar, arrangement), [bar, arrangement]);
+  const { start, view } = useArrangeDrag(area);
+  const [menu, setMenu] = useState<MenuState | null>(null);
+  // A just-made area whose name field takes the cursor.
+  const [newArea, setNewArea] = useState<string | null>(null);
+
+  // Editing: Esc locks the layout again; Ctrl+Z undoes. (Not while typing, or in a menu.)
+  useEffect(() => {
+    if (!editing) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (typing(e) || menu) return;
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        editStore.getState().done();
+      } else if ((e.ctrlKey || e.metaKey) && !e.shiftKey && e.key.toLowerCase() === 'z') {
+        e.preventDefault();
+        editStore.getState().undoLast();
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [editing, menu]);
+
+  // Locking again closes any open menu (the previous-props pattern).
+  const [wasEditing, setWasEditing] = useState(editing);
+  if (wasEditing !== editing) {
+    setWasEditing(editing);
+    if (!editing) setMenu(null);
+  }
+
+  const api: DeckApi = useMemo(
+    () => ({
+      editing,
+      all: arranged.all,
+      excluded: arranged.excluded,
+      mainKeys: arranged.mainKeys,
+      startDrag: start,
+      openMenu: (key, section, anchor) => setMenu({ key, section, anchor }),
+    }),
+    [editing, arranged, start],
+  );
+
+  const closeMenu = () => {
+    const anchor = menu?.anchor;
+    setMenu(null);
+    // Back to the ⋯ button, if it's still there.
+    if (anchor?.isConnected) anchor.focus();
+  };
+
   return (
-    <section className="deck" aria-label="Nav">
-      <header className="deck-head">
-        <h2 className="deck-title">
-          <Prompted>NAV</Prompted>
-        </h2>
-        {source === 'live' && <ChromeButtons />}
-        <span className="deck-source">
-          {source === 'live' && (
-            <>
-              <span className="live-dot" aria-hidden /> LIVE
-            </>
-          )}
-          {source === 'cached' && 'SYNCING…'}
-          {source === 'imported' && (
-            <>
-              COPY {importedAt ? formatStamp(importedAt).slice(0, 10) : ''} ·{' '}
-              <button type="button" className="link" onClick={() => uiStore.getState().setPanelOpen(true)}>
-                GO LIVE
-              </button>
-            </>
-          )}
-          <span className="dim"> · {countLinks(bar)} LINKS</span>
-        </span>
-      </header>
-      {items.length === 0 && (
-        <p className="deck-empty dim">
-          <Prompted>YOUR BOOKMARKS BAR IS EMPTY.</Prompted>
-        </p>
+    <DeckProvider value={api}>
+      <section className={cx('deck', editing && 'editing')} aria-label="Nav">
+        <header className="deck-head">
+          {editing && <MoveGrip id="nav" label="NAV" target={() => area.current} startDrag={start} />}
+          <h2 className="deck-title">
+            <Prompted>NAV</Prompted>
+          </h2>
+          <button
+            type="button"
+            className={cx('text-btn small-btn', editing && 'primary')}
+            aria-pressed={editing}
+            onClick={() => (editing ? editStore.getState().done() : editStore.getState().begin())}
+            title={editing ? 'Lock the layout (Esc)' : 'Rearrange: areas, order, hidden items, panels'}
+          >
+            {editing ? 'DONE' : 'EDIT'}
+          </button>
+          {source === 'live' && !editing && <ChromeButtons />}
+          <span className="deck-source">
+            {source === 'live' && (
+              <>
+                <span className="live-dot" aria-hidden /> LIVE
+              </>
+            )}
+            {source === 'cached' && 'SYNCING…'}
+            {source === 'imported' && (
+              <>
+                COPY {importedAt ? formatStamp(importedAt).slice(0, 10) : ''} ·{' '}
+                <button type="button" className="link" onClick={() => uiStore.getState().setPanelOpen(true)}>
+                  GO LIVE
+                </button>
+              </>
+            )}
+            <span className="dim"> · {countLinks(bar)} LINKS</span>
+          </span>
+        </header>
+        {editing && <EditBar onNewArea={setNewArea} />}
+        {(bar.children ?? []).length === 0 && (
+          <p className="deck-empty dim">
+            <Prompted>YOUR BOOKMARKS BAR IS EMPTY.</Prompted>
+          </p>
+        )}
+        <SectionItems section="main" items={arranged.main} />
+        {arranged.areas.map(({ area: a, items }, i) => (
+          <AreaSection key={a.id} area={a} items={items} index={i} count={arranged.areas.length} focusTitle={editing && newArea === a.id} />
+        ))}
+        {editing && <HiddenTray items={arranged.hidden} />}
+      </section>
+      {editing && <ResizeGrip target={() => area.current} startDrag={start} />}
+      {menu && <ArrangeMenu menu={menu} arranged={arranged} onClose={closeMenu} onNewArea={setNewArea} />}
+      {view && (
+        <>
+          {view.line && <div className="drop-line" style={{ left: view.line.left, top: view.line.top, width: view.line.width, height: view.line.height }} aria-hidden />}
+          <div className="drag-label" style={{ left: view.x + 14, top: view.y + 10 }} aria-hidden>
+            {view.label}
+          </div>
+        </>
       )}
-      {links.length > 0 && (
-        <ul className="tiles">
-          {links.map((n) => (
-            <li key={n.id}>
-              <Link node={n} className="tile" />
-            </li>
-          ))}
-        </ul>
-      )}
-      {folders.length > 0 && (
-        <div className="folders">
-          {folders.map((f) => (
-            <Folder key={f.id} node={f} path={[f.title]} card />
-          ))}
-        </div>
-      )}
-    </section>
+    </DeckProvider>
   );
 }
 
@@ -150,93 +220,6 @@ function ChromeButtons() {
     </span>
   );
 }
-
-/**
- * A bookmark's site icon from Chrome's icon cache (via the bridge), or the
- * accent `›` when there's no bridge with icons, or the icon can't load.
- */
-function SiteIcon({ url }: { url: string }) {
-  const icons = useBookmarks((s) => s.status === 'live' && s.features.includes('favicons'));
-  const [failed, setFailed] = useState(false);
-  if (!icons || failed) {
-    return (
-      <span className="link-glyph" aria-hidden>
-        {G.link}
-      </span>
-    );
-  }
-  const srcSet = faviconSrcSet(url);
-  return <img className="favicon" src={srcSet.split(' ')[0]} srcSet={srcSet} width={16} height={16} alt="" loading="lazy" decoding="async" onError={() => setFailed(true)} />;
-}
-
-/** One link: a plain link when a webpage can open it, otherwise a dimmed label saying why not. */
-const Link = memo(function Link({ node, className }: { node: BookmarkNode; className: string }) {
-  const url = node.url ?? '';
-  const host = hostOf(url);
-  const title = node.title.trim() || host || url;
-  if (!isOpenable(url)) {
-    return (
-      <span className={cx(className, 'off')} title="Chrome doesn’t let a webpage open this kind of link: use your bookmarks bar for it.">
-        <span className="link-glyph" aria-hidden>
-          {G.blocked}
-        </span>
-        <span className="link-title">{title}</span>
-        <span className="link-host">{url.split(':')[0]}</span>
-      </span>
-    );
-  }
-  return (
-    <a className={className} href={url} title={url} target="_blank" rel="noopener noreferrer">
-      <SiteIcon url={url} />
-      <span className="link-title">{title}</span>
-      {host && <span className="link-host">{host}</span>}
-    </a>
-  );
-});
-
-/**
- * A folder: a heading that opens and collapses it, and its contents in a
- * fold (the quest_log_desktop sidebar's: the body's grid row grows from
- * nothing). Contents are first drawn when the folder first opens, so a
- * big, collapsed bookmarks tree costs nothing.
- */
-const Folder = memo(function Folder({ node, path, card = false }: { node: BookmarkNode; path: string[]; card?: boolean }) {
-  const key = folderKey(path);
-  const open = useLayout((s) => s.layout.bookmarks.open.includes(key));
-  const bodyId = useId();
-  // Drawn once opened, and kept while it folds shut (the previous-props pattern).
-  const [drawn, setDrawn] = useState(open);
-  if (open && !drawn) setDrawn(true);
-  const children = node.children ?? [];
-  return (
-    <section className={cx('folder', card && 'card', !open && 'collapsed')}>
-      <button type="button" className="folder-head" aria-expanded={open} aria-controls={bodyId} onClick={() => layoutStore().getState().setFolderOpen(key, !open)}>
-        <span className={cx('caret', open && 'open')} aria-hidden>
-          {G.caret}
-        </span>
-        <span className="folder-glyph" aria-hidden>
-          {G.folder}
-        </span>
-        <span className="folder-title">{node.title.trim() || 'UNTITLED'}</span>
-        <span className="count">{countLinks(node)}</span>
-      </button>
-      <div className="folder-body" id={bodyId} inert={!open}>
-        <div className="folder-inner">
-          {drawn &&
-            (children.length ? (
-              <ul className="rows">
-                {children.map((c) => (
-                  <li key={c.id}>{c.url !== undefined ? <Link node={c} className="row-link" /> : <Folder node={c} path={[...path, c.title]} />}</li>
-                ))}
-              </ul>
-            ) : (
-              <p className="row-empty dim small">EMPTY</p>
-            ))}
-        </div>
-      </div>
-    </section>
-  );
-});
 
 /** No bridge and no imported copy: the two ways to bring the bookmarks bar in. */
 function ConnectPrompt() {

@@ -15,7 +15,13 @@ const APP = { version: '0.1.0', build: 1 };
 describe('layout', () => {
   it('compares content, not key order', () => {
     const a = defaultLayout();
-    const b = { bookmarks: { open: [], importedAt: null, imported: null }, prefs: { backupReminderDays: 14 }, wallpaper: 'matrix-rain', schemaVersion: 2 as const };
+    const b = {
+      panels: { brand: null, nav: null },
+      bookmarks: { arrangement: { hidden: [], areas: [], order: [] }, open: [], importedAt: null, imported: null },
+      prefs: { backupReminderDays: 14 },
+      wallpaper: 'matrix-rain',
+      schemaVersion: 3 as const,
+    };
     expect(sameLayout(a, b)).toBe(true);
     expect(canonicalJson({ b: 1, a: { d: 2, c: 3 } })).toBe('{"a":{"c":3,"d":2},"b":1}');
   });

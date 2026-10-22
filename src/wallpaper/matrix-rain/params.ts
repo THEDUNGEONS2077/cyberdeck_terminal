@@ -93,21 +93,20 @@ export const RESPAWN_DELAY: [number, number] = [0.2, 4];
 export const PREWARM_SECONDS = 18;
 
 /**
- * Of those, only the last PREWARM_DRAWN seconds are drawn. Glyphs drawn
- * earlier would have faded to under 5% by the first frame, so the earlier
- * part only moves the drops (no drawing, no fading): about half the cost.
+ * The pre-warm paints a recorded glyph only if the fades would have left it
+ * at least this bright (dimmer ones are invisible against the haze).
  */
-export const PREWARM_DRAWN = 9;
+export const PREWARM_MIN_ALPHA = 0.05;
 
-/** The simulation step while pre-warming (seconds). */
-export const PREWARM_STEP = 1 / 30;
+/** The simulation step while pre-warming (seconds): coarser than a frame, it only moves numbers. */
+export const PREWARM_STEP = 1 / 20;
 
 /**
  * Main-thread time the pre-warm may take per frame (ms). It runs in slices
  * across frames, so the page stays responsive while it fills; the canvas
  * fades in when it's done.
  */
-export const PREWARM_BUDGET_MS = 10;
+export const PREWARM_BUDGET_MS = 16;
 
 /** The longest real time step taken in one frame (s): after a stall the rain resumes instead of jumping. */
 export const MAX_FRAME_STEP = 0.1;

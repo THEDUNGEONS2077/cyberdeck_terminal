@@ -124,12 +124,14 @@ describe('layout schema 2', () => {
 
   it('drops a damaged imported tree instead of the whole layout, and tidies open folders', () => {
     const { doc } = migrateLayout({ ...defaultLayout(), bookmarks: { imported: { broken: true }, importedAt: 5, open: ['b', 'a', 'b', 7] } });
-    expect(doc.bookmarks).toEqual({ imported: null, importedAt: null, open: ['a', 'b'] });
+    expect(doc.bookmarks).toEqual({ imported: null, importedAt: null, open: ['a', 'b'], arrangement: { order: [], areas: [], hidden: [] } });
   });
 
   it('summarizes the imported copy and open folders', () => {
     const bar = parseBookmarksHtml(EXPORT);
-    expect(summarizeLayout({ ...defaultLayout(), bookmarks: { imported: bar, importedAt: NOW, open: ['Dev'] } })).toBe('BAR COPY 5 LINKS · 1 OPEN · WALLPAPER MATRIX-RAIN · REMIND 14D');
+    expect(summarizeLayout({ ...defaultLayout(), bookmarks: { ...defaultLayout().bookmarks, imported: bar, importedAt: NOW, open: ['Dev'] } })).toBe(
+      'BAR COPY 5 LINKS · 1 OPEN · WALLPAPER MATRIX-RAIN · REMIND 14D',
+    );
   });
 });
 

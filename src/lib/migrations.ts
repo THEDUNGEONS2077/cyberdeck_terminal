@@ -11,6 +11,7 @@
  *   2. add `STEPS[n]`, turning a version-n document into version n+1;
  *   3. add a fixture test with a real version-n document.
  */
+import { type Arrangement, type Area, type PanelPlace, type Panels, MAX_AREAS, cleanTitle, clampPlace, defaultPanels, emptyArrangement } from './arrange';
 import { sanitizeTree } from './bookmarks';
 import { type BookmarksLayout, type LayoutDocument, LAYOUT_SCHEMA_VERSION, MAX_OPEN_FOLDERS, defaultBookmarks, defaultPrefs } from './layout';
 
@@ -28,10 +29,45 @@ function isRecord(v: unknown): v is Record<string, unknown> {
 /**
  * Migration steps: STEPS[n] turns a version-n document into version n+1.
  *   1 → 2: bookmarks arrive (nothing imported, every folder collapsed).
+ *   2 → 3: an empty arrangement (Chrome's order, no areas), panels in place.
  */
 const STEPS: Record<number, (doc: Record<string, unknown>) => Record<string, unknown>> = {
-  1: (doc) => ({ ...doc, bookmarks: defaultBookmarks() }),
+  1: (doc) => ({ ...doc, bookmarks: { imported: null, importedAt: null, open: [] } }),
+  2: (doc) => ({ ...doc, bookmarks: { ...(isRecord(doc.bookmarks) ? doc.bookmarks : {}), arrangement: emptyArrangement() }, panels: defaultPanels() }),
 };
+
+/** Strings only, each once, at most `max`. */
+function stringList(v: unknown, max = 5000): string[] {
+  return Array.isArray(v) ? [...new Set(v.filter((k): k is string => typeof k === 'string'))].slice(0, max) : [];
+}
+
+/** The arrangement, checked: anything malformed is dropped piece by piece (never the whole layout). */
+function normalizeArrangement(v: unknown): Arrangement {
+  if (!isRecord(v)) return emptyArrangement();
+  const ids = new Set<string>();
+  const areas: Area[] = [];
+  for (const a of Array.isArray(v.areas) ? v.areas.slice(0, MAX_AREAS) : []) {
+    if (!isRecord(a) || typeof a.id !== 'string' || !a.id || ids.has(a.id)) continue;
+    ids.add(a.id);
+    areas.push({ id: a.id, title: cleanTitle(typeof a.title === 'string' ? a.title : ''), items: stringList(a.items), collapsed: a.collapsed === true });
+  }
+  return { order: stringList(v.order), areas, hidden: stringList(v.hidden) };
+}
+
+/** A panel place, checked and clamped; null when missing or malformed. */
+function normalizePlace(v: unknown): PanelPlace | null {
+  if (!isRecord(v) || typeof v.x !== 'number' || typeof v.y !== 'number') return null;
+  return clampPlace({ x: v.x, y: v.y, w: typeof v.w === 'number' ? v.w : undefined });
+}
+
+/** Where the panels sit, checked. */
+function normalizePanels(v: unknown): Panels {
+  if (!isRecord(v)) return defaultPanels();
+  const brand = normalizePlace(v.brand);
+  // The brand panel has no width.
+  if (brand) delete brand.w;
+  return { nav: normalizePlace(v.nav), brand };
+}
 
 /**
  * The bookmarks part, checked: the imported tree goes through sanitizeTree
@@ -44,7 +80,7 @@ function normalizeBookmarks(v: unknown): BookmarksLayout {
   const imported = v.imported === null || v.imported === undefined ? null : sanitizeTree(v.imported);
   const importedAt = imported && typeof v.importedAt === 'number' ? v.importedAt : null;
   const open = Array.isArray(v.open) ? [...new Set(v.open.filter((k): k is string => typeof k === 'string'))].sort().slice(0, MAX_OPEN_FOLDERS) : [];
-  return { imported, importedAt, open };
+  return { imported, importedAt, open, arrangement: normalizeArrangement(v.arrangement) };
 }
 
 /**
@@ -63,7 +99,7 @@ export function normalizeLayout(doc: Record<string, unknown>): LayoutDocument {
   const days = isRecord(doc.prefs) ? doc.prefs.backupReminderDays : undefined;
   if (typeof days === 'number' && Number.isInteger(days) && days >= 0 && days <= 365) prefs.backupReminderDays = days;
 
-  return { schemaVersion: LAYOUT_SCHEMA_VERSION, wallpaper: doc.wallpaper, prefs, bookmarks: normalizeBookmarks(doc.bookmarks) };
+  return { schemaVersion: LAYOUT_SCHEMA_VERSION, wallpaper: doc.wallpaper, prefs, bookmarks: normalizeBookmarks(doc.bookmarks), panels: normalizePanels(doc.panels) };
 }
 
 /**

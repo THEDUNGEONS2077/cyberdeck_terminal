@@ -138,6 +138,161 @@ try {
     await settled();
   });
 
+  // --- Edit mode (on the imported bar: GitHub, Mail & more, Hacker News; folders Dev > Tools / Utils) ---
+  /** The keys of a section's tiles, in order (NAV: 'main', or an area's id). */
+  const tilesIn = (section) => page.locator(`[data-section="${section}"][data-kind="link"] .link-title`).allInnerTexts();
+  /** Drags from one element's middle to a point inside another, in small steps (a real pointer drag). */
+  const drag = async (from, to, where = 'center') => {
+    const a = await from.boundingBox();
+    const b = await to.boundingBox();
+    const tx = where === 'left' ? b.x + 6 : b.x + b.width / 2;
+    await page.mouse.move(a.x + a.width / 2, a.y + a.height / 2);
+    await page.mouse.down();
+    await page.mouse.move(a.x + a.width / 2 + 12, a.y + a.height / 2 + 6, { steps: 3 });
+    await page.mouse.move(tx, b.y + b.height / 2, { steps: 8 });
+    await page.waitForTimeout(80);
+    await page.mouse.up();
+    await page.waitForTimeout(150);
+  };
+  const editBar = () => page.getByRole('toolbar', { name: 'Edit layout' });
+
+  await path('EDIT unlocks the layout: the edit bar, grips and ⋯ menus; links don’t open', async () => {
+    await page.getByRole('button', { name: 'EDIT', exact: true }).click();
+    await editBar().waitFor();
+    await page.getByRole('button', { name: /^Move NAV/ }).waitFor();
+    await page.getByRole('button', { name: 'Arrange GitHub' }).waitFor();
+    const pages = context.pages().length;
+    await page.locator('.tile', { hasText: 'GitHub' }).click();
+    await page.waitForTimeout(300);
+    expect(context.pages().length === pages, 'a link opened while editing');
+    await shot('09-edit');
+  });
+
+  await path('+ AREA makes an area, its name ready to type', async () => {
+    await editBar().getByRole('button', { name: '+ AREA' }).click();
+    const name = page.getByRole('textbox', { name: /^Name of area/ });
+    await name.waitFor();
+    expect(await name.evaluate((el) => el === document.activeElement), 'the name field doesn’t have the cursor');
+    await name.fill('work');
+    await name.press('Enter');
+    await page.locator('[data-area-id]', { hasText: '' }).first().waitFor();
+    expect((await name.inputValue()) === 'WORK', `area named ${await name.inputValue()}`);
+  });
+
+  await path('dragging a tile into an area moves it there', async () => {
+    const area = page.locator('[data-area-id]').first();
+    const areaId = await area.getAttribute('data-area-id');
+    await drag(page.locator('.tile', { hasText: 'GitHub' }), area.locator('.section-items'));
+    expect(JSON.stringify(await tilesIn(areaId)) === '["GitHub"]', `area holds ${await tilesIn(areaId)}`);
+    expect(!(await tilesIn('main')).includes('GitHub'), 'GitHub is still in NAV');
+  });
+
+  await path('dragging reorders NAV', async () => {
+    await drag(page.locator('.tile', { hasText: 'Hacker News' }), page.locator('.tile', { hasText: 'Mail & more' }), 'left');
+    const order = await tilesIn('main');
+    expect(JSON.stringify(order) === '["Hacker News","Mail & more"]', `NAV order is ${order}`);
+  });
+
+  await path('a link inside a folder can be dragged out into NAV', async () => {
+    await drag(page.locator('.row-link', { hasText: 'MDN' }), page.locator('[data-drop-section="main"]').first());
+    expect((await tilesIn('main')).includes('MDN'), 'MDN isn’t in NAV');
+    expect((await page.locator('.row-link', { hasText: 'MDN' }).count()) === 0, 'MDN is still in its folder');
+  });
+
+  await path('the ⋯ menu works from the keyboard: hide, then SHOW from the tray', async () => {
+    await page.getByRole('button', { name: 'Arrange Mail & more' }).focus();
+    await page.keyboard.press('Enter');
+    const menu = page.getByRole('menu');
+    await menu.waitFor();
+    await page.waitForTimeout(100);
+    for (let i = 0; i < 8; i++) {
+      if ((await page.evaluate(() => document.activeElement?.textContent)) === 'HIDE') break;
+      await page.keyboard.press('ArrowDown');
+    }
+    await shot('10-menu');
+    await page.keyboard.press('Enter');
+    await page.getByRole('region', { name: 'Hidden' }).getByText('Mail & more').waitFor();
+    expect(!(await tilesIn('main')).includes('Mail & more'), 'still shown after HIDE');
+    await page.getByRole('button', { name: 'Show Mail & more' }).click();
+    await page.locator('.tile', { hasText: 'Mail & more' }).waitFor();
+  });
+
+  await path('UNDO steps back one change; REVERT goes back to how it was before editing', async () => {
+    await editBar().getByRole('button', { name: 'UNDO' }).click(); // un-SHOW: hidden again
+    await page.getByRole('region', { name: 'Hidden' }).getByText('Mail & more').waitFor();
+    await page.keyboard.press('Control+z'); // un-HIDE
+    await page.locator('.tile', { hasText: 'Mail & more' }).waitFor();
+    await editBar().getByRole('button', { name: 'REVERT' }).click();
+    await page.waitForFunction(() => !document.querySelector('[data-area-id]'));
+    expect((await tilesIn('main')).includes('GitHub'), 'REVERT didn’t bring GitHub back to NAV');
+    await editBar().getByRole('button', { name: 'UNDO' }).click(); // undo the revert: the arrangement is back
+    await page.locator('[data-area-id]').first().waitFor();
+  });
+
+  await path('panels move: drag NAV by its grip, nudge the brand with the keys, resize NAV; RESET PANELS', async () => {
+    const nav = page.locator('.deck-area');
+    const before = await nav.boundingBox();
+    const grip = page.getByRole('button', { name: /^Move NAV/ });
+    const g = await grip.boundingBox();
+    await page.mouse.move(g.x + 8, g.y + 8);
+    await page.mouse.down();
+    await page.mouse.move(g.x + 60, g.y + 40, { steps: 6 });
+    await page.mouse.up();
+    await page.waitForTimeout(150);
+    const after = await nav.boundingBox();
+    expect(Math.abs(after.x - before.x - 52) < 4 && Math.abs(after.y - before.y - 32) < 4, `NAV moved by ${after.x - before.x}, ${after.y - before.y}`);
+    const brand = page.locator('.hud-brand');
+    const b0 = await brand.boundingBox();
+    await page.getByRole('button', { name: /^Move the brand panel/ }).focus();
+    await page.keyboard.press('Shift+ArrowRight');
+    await page.waitForTimeout(100);
+    const b1 = await brand.boundingBox();
+    expect(b1.x > b0.x + 40, `brand moved by ${b1.x - b0.x}`);
+    await page.getByRole('button', { name: /^Resize NAV/ }).focus();
+    await page.keyboard.press('Shift+ArrowLeft');
+    await page.waitForTimeout(100);
+    expect((await nav.boundingBox()).width < after.width - 40, 'NAV didn’t narrow');
+    await shot('11-panels-moved');
+    await editBar().getByRole('button', { name: 'RESET PANELS' }).click();
+    await page.waitForTimeout(100);
+    const reset = await nav.boundingBox();
+    expect(Math.abs(reset.x - before.x) < 2 && Math.abs(reset.y - before.y) < 2, 'RESET PANELS didn’t put NAV back');
+  });
+
+  await path('no accessibility violations in edit mode', async () => {
+    await audit('edit mode');
+  });
+
+  await path('DONE locks the layout: links open again, and it all survives a reload', async () => {
+    await page.getByRole('button', { name: 'DONE' }).click();
+    await page.waitForFunction(() => !document.querySelector('[role="toolbar"]'));
+    expect((await page.getByRole('button', { name: /^Arrange/ }).count()) === 0, 'menus still shown');
+    const [tab] = await Promise.all([context.waitForEvent('page'), page.locator('.tile', { hasText: 'Hacker News' }).click()]);
+    await tab.close();
+    await settled();
+    await page.reload();
+    await page.locator('[data-area-id]', { hasText: 'WORK' }).waitFor({ timeout: 5000 });
+    expect(JSON.stringify(await tilesIn('main')) === '["Hacker News","Mail & more","MDN"]', `NAV after reload: ${await tilesIn('main')}`);
+    await shot('12-locked-with-area');
+    // Folding an area works when locked too.
+    await page.getByRole('button', { name: /^WORK/ }).click();
+    await page.waitForFunction(() => document.querySelector('.area')?.classList.contains('collapsed'));
+    await page.getByRole('button', { name: /^WORK/ }).click();
+  });
+
+  await path('CHROME ORDER asks first, then puts everything back where Chrome has it', async () => {
+    await page.getByRole('button', { name: 'EDIT', exact: true }).click();
+    await editBar().getByRole('button', { name: 'CHROME ORDER' }).click();
+    await page.getByText('RELOAD CHROME ORDER?').waitFor();
+    await page.getByRole('button', { name: 'RELOAD', exact: true }).click();
+    await page.waitForFunction(() => !document.querySelector('[data-area-id]'));
+    const order = await tilesIn('main');
+    expect(JSON.stringify(order) === '["GitHub","Mail & more","Hacker News"]', `after CHROME ORDER: ${order}`);
+    await page.keyboard.press('Escape'); // Esc locks it again
+    await page.waitForFunction(() => !document.querySelector('[role="toolbar"]'));
+    await settled();
+  });
+
   await path('the rain moves', async () => {
     const grab = () => page.evaluate(() => document.querySelector('.wallpaper-canvas').toDataURL());
     const a = await grab();
@@ -195,7 +350,7 @@ try {
     backupPath = join(shots, 'backup.json');
     await download.saveAs(backupPath);
     const file = JSON.parse(readFileSync(backupPath, 'utf8'));
-    expect(file.format === 'cyberdeck_terminal-backup' && file.layout?.schemaVersion === 2, 'not a backup file');
+    expect(file.format === 'cyberdeck_terminal-backup' && file.layout?.schemaVersion === 3, 'not a backup file');
     expect(file.layout.prefs.backupReminderDays === 14, 'unexpected layout in backup');
     await page.locator('.toast', { hasText: 'BACKUP EXPORTED' }).waitFor();
     // LAST EXPORT updates the next time the panel opens.

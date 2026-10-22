@@ -8,7 +8,15 @@
 | `src/wallpaper/` | Animated wallpapers on a canvas, plus `WallpaperLayer.tsx`, which owns the canvas | `lib` (ids only) |
 | `src/bridge/` | `client.ts`: messaging with the bridge extension (Chrome's externally_connectable API) | `lib` |
 | `bridge/` | The **CYBERDECK BRIDGE** extension itself (MV3, plain JS), zipped into the build as `cyberdeck-bridge.zip` | nothing |
-| `src/app/` | React UI: `App`, `Hud`, `SystemPanel`, `Dialog`, `Toast`, shortcuts, fullscreen | everything |
+| `src/app/` | React UI: `App`, `Hud`, `SystemPanel`, `Dialog`, `Toast`, shortcuts, fullscreen; the deck in `Bookmarks.tsx` + `deck/`; `arrangeDrag.ts`, `panels.tsx` | everything |
+
+## Startup
+`index.html` holds the wallpaper's canvas as plain HTML.
+1. `src/main.tsx`, the first chunk (about 13 KB), starts it at once (`wallpaper/host.ts`, with the choice remembered in localStorage).
+2. It then `import()`s `src/start.tsx` (storage + React + dashboard, about 250 KB), which loads in parallel.
+3. The rain's font is preloaded.
+
+The pre-warm records the simulation into typed arrays and paints each visible glyph once. Time to rain: about 0.18 s at normal CPU speed and about 0.7 s at 4× slowdown (`e2e/motion.mjs`).
 
 ## The page
 ```
@@ -48,6 +56,15 @@ bridge/background.js ──(externally_connectable)──▶ src/bridge/client.t
 **Links:** only http(s) links are clickable, because Chrome blocks webpages from opening chrome://, file:// and javascript:. They open in a new tab (`target=_blank`, `rel=noopener noreferrer`), so the dashboard never navigates away and its animation is never caught frozen mid-handoff.
 
 **`bookmarks.html` import:** `lib/bookmarks.ts` `parseBookmarksHtml` reads the Netscape export without a DOM and takes the folder marked `PERSONAL_TOOLBAR_FOLDER`.
+
+## Arranging (edit mode)
+- **`lib/arrange.ts`** (pure) holds your `Arrangement`: `order` (NAV), `areas` and `hidden`, plus the `Panels` places. Both are stored in the layout document (schema 3), so backups and snapshots cover them.
+- **Item keys** are `l:<url>` (`#2`… for repeats) and `f:<folder path>`.
+- **`arrange(bar, arrangement)`** works out NAV, the areas, the hidden items, and what folders leave out. Unplaced items follow Chrome's order (`mergeOrder`).
+- **`store/edit.ts`:** `begin` takes a BEFORE EDIT snapshot. `apply` pushes an undo step and saves at once. `undoLast` / `revert` step back. `done` locks and snapshots.
+- **`app/arrangeDrag.ts`:** pointer drags past a 5 px threshold. Targets are read from `data-drop-section`, `data-item-key`, `data-kind`, `data-section` and `data-area-id`; Esc cancels. Panels move live through CSS variables and are saved on drop.
+- **Keyboard alternatives:** the ⋯ menus (`deck/ArrangeMenu.tsx`), ↑ / ↓ on area grips, and arrow keys on panel grips.
+- **Panels** are placed with `left`/`top` from shares of the window, clamped on screen. There are no transforms, so text stays crisp, and narrow windows ignore the places.
 
 ## Storage and recovery
 IndexedDB, database `cyberdeck_terminal`, store `kv`. quest_log_desktop shares the origin, so the name is this app's own. The keys:
