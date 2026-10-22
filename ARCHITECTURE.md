@@ -27,7 +27,12 @@ bridge/background.js ──(externally_connectable)──▶ src/bridge/client.t
  chrome.bookmarks        hello · bar · port "changed"   useBridge (app/useBridge.ts)   status · bar          deck / CONNECT prompt
 ```
 **The bridge.**
-- It answers `hello` (its version) and `bar` (the bookmarks bar, reduced by `bridge/tree.js` to id, title, url and children).
+- It answers three messages:
+  - `hello`: its version and `features` (`favicons`, `open`; bridge 1.1.0 and later);
+  - `bar`: the bookmarks bar, reduced by `bridge/tree.js` to id, title, url and children;
+  - `open`: `ntp` or `bookmarks` opens Chrome's New Tab page or Bookmark manager in a new tab next to the dashboard. Only these two pages.
+- **New Tab** (`bridge/newtab.js`): if a dashboard tab is open in the same window, the new tab switches to it and closes itself; otherwise it becomes the dashboard (`location.replace`). Finding dashboard tabs uses `host_permissions` for the dashboard's address only, not the `tabs` permission.
+- **Site icons** load as `<img>` from `chrome-extension://<id>/_favicon/?pageUrl=…&size=16|32` (Chrome's icon cache). That needs the bridge's `favicon` permission, plus `web_accessible_resources` for the dashboard's origin.
 - Over a long-lived port it posts `changed`, debounced by 150 ms.
 - Chrome stops idle extension workers, which closes the port. The page then reconnects, with back-off from 1 to 30 s, paused while the page is hidden, and asks for the bar again.
 - **Id:** `mbjnlinjocmaalhodjhpkadlpifnelic`, fixed by the manifest's public `key`. The private key was never kept, since an unpacked extension doesn't need it.
@@ -40,7 +45,7 @@ bridge/background.js ──(externally_connectable)──▶ src/bridge/client.t
 
 **Folders:** which are open is stored in `layout.bookmarks.open`, keyed by folder path (`lib/bookmarks.ts` `folderKey`), so the same folder matches across the live bar and an imported copy. A folder's contents are first rendered when it first opens.
 
-**Links:** only http(s) links are clickable, because Chrome blocks webpages from opening chrome://, file:// and javascript:. They open in the same tab.
+**Links:** only http(s) links are clickable, because Chrome blocks webpages from opening chrome://, file:// and javascript:. They open in a new tab (`target=_blank`, `rel=noopener noreferrer`), so the dashboard never navigates away and its animation is never caught frozen mid-handoff.
 
 **`bookmarks.html` import:** `lib/bookmarks.ts` `parseBookmarksHtml` reads the Netscape export without a DOM and takes the folder marked `PERSONAL_TOOLBAR_FOLDER`.
 

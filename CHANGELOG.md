@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.2.1 (build 4)
+- **Links open in a new tab.** The dashboard stays where it is, and sites aren't told where you came from (`noreferrer`). With the dashboard staying put, the rain no longer sits frozen while the next site loads.
+- **Site icons:** each link shows its site's icon from Chrome's own icon cache, through the bridge, sharp on high-density screens.
+- **CHROME NEW TAB** opens Chrome's own New Tab page, with your bookmarks bar, to edit there. **EDIT BOOKMARKS** opens the Bookmark manager. Both open in a new tab.
+- The deck is titled **NAV**.
+- **Smaller, crisper type:** tiles and rows use 12 px titles and 10 px hosts. The deck and toasts are centred without transforms, so text sits on whole pixels.
+- **One dashboard per window:** with the dashboard already open, a new tab switches back to it and closes itself. Chrome's own New Tab page is the CHROME NEW TAB button.
+- **Bridge 1.1.0** adds the `favicon` permission and opening those two Chrome pages. It also gets host permission for the dashboard's address, so it can find an open dashboard tab and see no other tab's address. SYSTEM offers the update, and the deck shows an UPDATE BRIDGE chip until it's installed.
+
 ## 0.2.0 (build 3)
 Your bookmarks bar on the dashboard.
 - **The bookmarks deck** mirrors the bookmarks bar. Its links are tiles; its folders are cards that fold open, with nested folders folding inside them. Links open in the same tab (Ctrl or middle-click for a new one). Links a webpage can't open (chrome://, bookmarklets) are listed but inert. Which folders are open is saved in the layout and its backups.

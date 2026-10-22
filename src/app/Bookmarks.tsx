@@ -4,7 +4,7 @@
  *
  * Layer: UI.
  *
- *   ┌ > BOOKMARKS BAR ─────────────── ● LIVE · 41 LINKS ┐
+ *   ┌ > NAV ──────── [CHROME NEW TAB] [EDIT BOOKMARKS] ● LIVE · 41 LINKS ┐
  *   [› GitHub    ] [› Mail      ] [› Docs      ] …        the bar's own links, as tiles
  *   ┌ ▸ ▤ DEV  12 ┐ ┌ ▾ ▤ NEWS  5 ┐ ┌ ▸ ▤ TOOLS  9 ┐       its folders, as cards that
  *                   │ › Hacker News│                       fold open (nested folders
@@ -14,13 +14,21 @@
  * asked, the one cached from last time; with no bridge, the imported copy
  * (layout.bookmarks.imported); with neither, the CONNECT prompt.
  *
- * Links open in this tab (a start page), as plain links, so Ctrl+click and
- * middle-click open new tabs as usual. Links a webpage can't open
- * (chrome://, javascript: bookmarklets) are shown, dimmed, but inert.
+ * Links open in a new tab (user request 2026-10-22), so the dashboard stays
+ * where it is; `noreferrer` keeps the sites from seeing where you came
+ * from. Links a webpage can't open (chrome://, javascript: bookmarklets)
+ * are shown, dimmed, but inert.
  * Which folders are open is part of the layout (saved, backed up).
+ *
+ * With bridge 1.1+ (its `features`): each link shows its site icon from
+ * Chrome's icon cache, and the header offers CHROME NEW TAB (Chrome's own
+ * New Tab page, with the bookmarks bar to edit) and EDIT BOOKMARKS (the
+ * Bookmark manager), each in a new tab. An older bridge gets an UPDATE
+ * BRIDGE chip instead.
  */
 import { memo, useId, useState } from 'react';
 
+import { type ChromePage, faviconSrcSet, openChromePage } from '@/bridge/client';
 import { formatStamp } from '@/lib/backup';
 import { type BookmarkNode, countLinks, folderKey, hostOf, isOpenable } from '@/lib/bookmarks';
 import { layoutStore } from '@/store/instance';
@@ -65,11 +73,12 @@ function Deck({ bar, source, importedAt }: { bar: BookmarkNode; source: Source; 
   const links = items.filter((n) => n.url !== undefined);
   const folders = items.filter((n) => n.children);
   return (
-    <section className="deck" aria-label="Bookmarks bar">
+    <section className="deck" aria-label="Nav">
       <header className="deck-head">
         <h2 className="deck-title">
-          <Prompted>BOOKMARKS BAR</Prompted>
+          <Prompted>NAV</Prompted>
         </h2>
+        {source === 'live' && <ChromeButtons />}
         <span className="deck-source">
           {source === 'live' && (
             <>
@@ -113,6 +122,53 @@ function Deck({ bar, source, importedAt }: { bar: BookmarkNode; source: Source; 
   );
 }
 
+/**
+ * The header's buttons into Chrome itself (bridge 1.1+). A webpage can't open
+ * chrome:// pages, so the bridge opens them, in a new tab next to this one.
+ * With an older bridge: a chip that opens SYSTEM, where the update is offered.
+ */
+function ChromeButtons() {
+  const canOpen = useBookmarks((s) => s.features.includes('open'));
+  const open = async (target: ChromePage) => {
+    if (!(await openChromePage(target))) uiStore.getState().showToast('THE BRIDGE COULDN’T OPEN THAT · UPDATE IT IN SYSTEM [S]');
+  };
+  if (!canOpen) {
+    return (
+      <button type="button" className="text-btn small-btn primary deck-update" onClick={() => uiStore.getState().setPanelOpen(true)}>
+        UPDATE BRIDGE: ICONS + CHROME NEW TAB
+      </button>
+    );
+  }
+  return (
+    <span className="deck-actions">
+      <button type="button" className="text-btn small-btn" onClick={() => void open('ntp')} title="Chrome’s own New Tab page, with your bookmarks bar">
+        CHROME NEW TAB
+      </button>
+      <button type="button" className="text-btn small-btn" onClick={() => void open('bookmarks')} title="Chrome’s Bookmark manager">
+        EDIT BOOKMARKS
+      </button>
+    </span>
+  );
+}
+
+/**
+ * A bookmark's site icon from Chrome's icon cache (via the bridge), or the
+ * accent `›` when there's no bridge with icons, or the icon can't load.
+ */
+function SiteIcon({ url }: { url: string }) {
+  const icons = useBookmarks((s) => s.status === 'live' && s.features.includes('favicons'));
+  const [failed, setFailed] = useState(false);
+  if (!icons || failed) {
+    return (
+      <span className="link-glyph" aria-hidden>
+        {G.link}
+      </span>
+    );
+  }
+  const srcSet = faviconSrcSet(url);
+  return <img className="favicon" src={srcSet.split(' ')[0]} srcSet={srcSet} width={16} height={16} alt="" loading="lazy" decoding="async" onError={() => setFailed(true)} />;
+}
+
 /** One link: a plain link when a webpage can open it, otherwise a dimmed label saying why not. */
 const Link = memo(function Link({ node, className }: { node: BookmarkNode; className: string }) {
   const url = node.url ?? '';
@@ -130,10 +186,8 @@ const Link = memo(function Link({ node, className }: { node: BookmarkNode; class
     );
   }
   return (
-    <a className={className} href={url} title={url}>
-      <span className="link-glyph" aria-hidden>
-        {G.link}
-      </span>
+    <a className={className} href={url} title={url} target="_blank" rel="noopener noreferrer">
+      <SiteIcon url={url} />
       <span className="link-title">{title}</span>
       {host && <span className="link-host">{host}</span>}
     </a>

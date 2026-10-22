@@ -20,7 +20,7 @@ import { type BookmarkNode, sanitizeTree } from '@/lib/bookmarks';
 export const BRIDGE_ID = 'mbjnlinjocmaalhodjhpkadlpifnelic';
 
 /** The bridge version this page ships as a download (bridge/manifest.json `version`). */
-export const BRIDGE_VERSION = '1.0.0';
+export const BRIDGE_VERSION = '1.1.0';
 
 /** The bridge download, next to the page (built by vite.config.ts). */
 export const BRIDGE_ZIP = 'cyberdeck-bridge.zip';
@@ -71,10 +71,45 @@ function ask(message: unknown): Promise<Record<string, unknown> | null> {
   });
 }
 
-/** The bridge's version, or null if it isn't there. */
-export async function bridgeVersion(): Promise<string | null> {
+/** What an installed bridge says about itself. */
+export interface BridgeInfo {
+  version: string;
+  /**
+   * What it can do beyond the bookmarks bar: 'favicons' (site icons),
+   * 'open' (Chrome's New Tab page, Bookmark manager). Bridge 1.0.0 had none.
+   */
+  features: string[];
+}
+
+/** The bridge's version and features, or null if it isn't there. */
+export async function bridgeInfo(): Promise<BridgeInfo | null> {
   const r = await ask({ type: 'hello' });
-  return r?.ok && typeof r.version === 'string' ? r.version : null;
+  if (!r?.ok || typeof r.version !== 'string') return null;
+  const features = Array.isArray(r.features) ? r.features.filter((f): f is string => typeof f === 'string') : [];
+  return { version: r.version, features };
+}
+
+/** The Chrome pages the bridge can open for the page (bridge/background.js OPENABLE). */
+export type ChromePage = 'ntp' | 'bookmarks';
+
+/**
+ * Asks the bridge to open Chrome's own New Tab page or Bookmark manager in
+ * a new tab next to this one (a webpage can't open chrome:// itself).
+ * True if it did.
+ */
+export async function openChromePage(target: ChromePage): Promise<boolean> {
+  const r = await ask({ type: 'open', target });
+  return !!r?.ok;
+}
+
+/**
+ * A bookmark's site icon from Chrome's icon cache, via the bridge
+ * (chrome-extension://<id>/_favicon/), as a srcset: 16 px for ordinary
+ * screens, 32 px for sharper ones, so the 16 px icon is always crisp.
+ */
+export function faviconSrcSet(pageUrl: string): string {
+  const base = `chrome-extension://${BRIDGE_ID}/_favicon/?pageUrl=${encodeURIComponent(pageUrl)}`;
+  return `${base}&size=16 1x, ${base}&size=32 2x`;
 }
 
 /** The bookmarks bar from the bridge (checked), or null. */

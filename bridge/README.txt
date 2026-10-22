@@ -22,7 +22,13 @@ UPDATE
 WHAT IT CAN DO
   - Read your bookmarks bar (only the bar), and share it with the dashboard
     page only. It never changes your bookmarks.
-  - Point new tabs at the dashboard.
+  - Let the dashboard show your bookmarks' site icons (from Chrome's own
+    icon cache).
+  - Open Chrome's own New Tab page or Bookmark manager when you ask the
+    dashboard to (a webpage can't open chrome:// pages itself).
+  - Point new tabs at the dashboard. If the dashboard is already open in
+    the window, a new tab switches to it instead (and closes itself). For
+    that it can see the address of dashboard tabs, and of no other tab.
   Nothing is sent anywhere else. The source is in this folder: background.js,
   tree.js and newtab.js.
 

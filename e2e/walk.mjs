@@ -120,6 +120,10 @@ try {
     await page.getByLabel('Bookmarks file to import').first().setInputFiles(join(root, 'e2e/fixtures/bookmarks.html'));
     await page.locator('.toast', { hasText: 'IMPORTED 5 LINKS' }).waitFor();
     await page.locator('.deck-source', { hasText: 'COPY' }).waitFor();
+    await page.getByRole('heading', { name: '> NAV' }).waitFor();
+    // No bridge: no Chrome buttons, and the accent › stands in for site icons.
+    expect((await page.getByRole('button', { name: 'CHROME NEW TAB' }).count()) === 0, 'Chrome buttons without a bridge');
+    expect((await page.locator('img.favicon').count()) === 0, 'site icons without a bridge');
     await page.getByRole('link', { name: /GitHub/ }).waitFor();
     await page.getByRole('link', { name: /Hacker News/ }).waitFor();
     await page.getByRole('button', { name: /^dev\b/i }).click();

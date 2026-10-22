@@ -88,6 +88,8 @@
   --fs-quest: calc(13px * var(--text-scale));
   --fs-meta: calc(12px * var(--text-scale));
   --fs-small: calc(11px * var(--text-scale));
+  /* The smallest text: a link's host under its title (the deck's dense tiles). */
+  --fs-micro: calc(10px * var(--text-scale));
   --lh-body: calc(20px * var(--text-scale));
   --lh-meta: calc(16px * var(--text-scale));
 

@@ -10,7 +10,7 @@ import { inflateRawSync } from 'node:zlib';
 import { findBar, simplify } from '../../bridge/tree.js';
 import { makeZip } from '../../scripts/zip.ts';
 
-import { BRIDGE_ID, BRIDGE_VERSION } from '@/bridge/client';
+import { BRIDGE_ID, BRIDGE_VERSION, faviconSrcSet } from '@/bridge/client';
 import { BookmarksFileError, countLinks, folderKey, hostOf, isOpenable, MAX_NODES, parseBookmarksHtml, sanitizeTree } from '@/lib/bookmarks';
 import { defaultLayout, summarizeLayout } from '@/lib/layout';
 import { migrateLayout } from '@/lib/migrations';
@@ -177,6 +177,16 @@ describe('bookmarks store (the live bar)', () => {
     expect(set).toHaveBeenCalledWith(KEYS.bookmarksCache, { ...bar, children: [] });
   });
 
+  it('keeps the bridge’s features, and drops them with the bridge', () => {
+    const store = createBookmarksStore(memoryKV(), null);
+    store.getState().setLive(bar, '1.1.0', ['favicons', 'open']);
+    const first = store.getState().features;
+    store.getState().setLive(bar, '1.1.0', ['favicons', 'open']);
+    expect(store.getState().features).toBe(first); // same array: no re-render
+    store.getState().setAbsent();
+    expect(store.getState().features).toEqual([]);
+  });
+
   it('drops the bar when the bridge is absent', () => {
     const store = createBookmarksStore(memoryKV(), bar);
     store.getState().setAbsent();
@@ -195,7 +205,11 @@ describe('the bridge extension', () => {
 
   it('the page ships the manifest’s version, and lists only the dashboard as a caller', () => {
     expect(manifest.version).toBe(BRIDGE_VERSION);
-    expect(manifest.permissions).toEqual(['bookmarks']);
+    expect(manifest.permissions).toEqual(['bookmarks', 'favicon']);
+    // Only the dashboard's tabs are visible to it (to switch to an open one on New Tab).
+    expect(manifest.host_permissions).toEqual(['https://thedungeons2077.github.io/cyberdeck_terminal/*']);
+    // Site icons: only the dashboard's origin may load them.
+    expect(manifest.web_accessible_resources).toEqual([{ resources: ['_favicon/*'], matches: ['https://thedungeons2077.github.io/*', 'http://127.0.0.1/*'] }]);
     expect((manifest.externally_connectable as { matches: string[] }).matches).toEqual(['https://thedungeons2077.github.io/cyberdeck_terminal/*', 'http://127.0.0.1/*']);
   });
 
@@ -212,6 +226,14 @@ describe('the bridge extension', () => {
     ];
     expect(simplify(findBar(roots))).toEqual({ id: '1', title: 'Bookmarks bar', children: [{ id: '5', title: 'A', url: 'https://a/' }] });
     expect(findBar([{ id: '0', title: '', children: [{ id: '9', title: 'x', children: [] }, { id: '1', title: 'bar', children: [] }] }])!.id).toBe('1');
+  });
+});
+
+describe('site icons', () => {
+  it('come from the bridge’s copy of Chrome’s icon cache, 16 px and 32 px', () => {
+    const set = faviconSrcSet('https://github.com/a?b=1&c=2');
+    const base = `chrome-extension://${BRIDGE_ID}/_favicon/?pageUrl=https%3A%2F%2Fgithub.com%2Fa%3Fb%3D1%26c%3D2`;
+    expect(set).toBe(`${base}&size=16 1x, ${base}&size=32 2x`);
   });
 });
 

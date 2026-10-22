@@ -620,7 +620,11 @@ kbd {
 /* --- Toast (from quest_log_desktop) -------------------------------------- */
 .toast {
   position: fixed;
-  left: 50%;
+  left: 0;
+  right: 0;
+  width: max-content;
+  max-width: calc(100vw - 32px);
+  margin: 0 auto;
   bottom: calc(var(--s-xl) + var(--control) + var(--s-lg));
   z-index: 40;
   display: flex;
@@ -637,13 +641,12 @@ kbd {
     var(--glow-faint);
   color: var(--text-bright);
   font-size: var(--fs-meta);
-  transform: translateX(-50%);
   animation: toast-in var(--base) var(--ease);
 }
 @keyframes toast-in {
   from {
     opacity: 0;
-    transform: translate(-50%, 16px);
+    transform: translateY(16px);
   }
 }
 /* The toast's clock: a hairline that shrinks to nothing as its time runs out (stops while held). */
@@ -677,7 +680,7 @@ kbd {
 @keyframes toast-out {
   to {
     opacity: 0;
-    transform: translate(-50%, 12px);
+    transform: translateY(12px);
   }
 }
 
@@ -685,13 +688,16 @@ kbd {
 /* The deck's area: centred, between the brand panel and the key hints; scrolls on its own.
    Its own pieces have solid surfaces (text never sits on the rain); the gaps between
    them let the rain show through. */
+/* Centred with auto margins, never translate(-50%): a transform can put text on half
+   pixels and soften it. */
 .deck-area {
   position: absolute;
   top: calc(var(--s-xl) + 112px);
   bottom: calc(var(--s-xl) + var(--control) + var(--s-lg));
-  left: 50%;
+  left: 0;
+  right: 0;
   width: min(1120px, calc(100vw - var(--s-xl) * 2));
-  transform: translateX(-50%);
+  margin: 0 auto;
   overflow-y: auto;
   /* Room for focus rings and glows at the edges. */
   padding: 4px;
@@ -726,7 +732,7 @@ kbd {
 }
 .deck-title {
   color: var(--text-bright);
-  font-size: var(--fs-body);
+  font-size: var(--fs-meta);
   font-weight: 700;
   letter-spacing: 1.5px;
   text-shadow: var(--glow-text-faint);
@@ -735,13 +741,25 @@ kbd {
   display: inline-flex;
   align-items: center;
   gap: 6px;
+  margin-left: auto;
   color: var(--accent);
-  font-size: var(--fs-meta);
+  font-size: var(--fs-small);
   letter-spacing: 1px;
   white-space: nowrap;
 }
 .deck-source .link {
   color: var(--accent);
+  letter-spacing: 1px;
+}
+/* The header's buttons into Chrome (bridge 1.1+), and the update chip for an older bridge. */
+.deck-actions {
+  display: inline-flex;
+  gap: var(--s-xs);
+}
+.small-btn {
+  height: 24px;
+  padding: 0 var(--s-sm);
+  font-size: var(--fs-micro);
   letter-spacing: 1px;
 }
 /* LIVE: a lit dot that breathes slowly (opacity only; paused under Reduce Motion). */
@@ -776,16 +794,20 @@ kbd {
 /* The bar's own links: tiles. */
 .tiles {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(176px, 1fr));
-  gap: var(--s-sm);
+  grid-template-columns: repeat(auto-fill, minmax(152px, 1fr));
+  gap: 6px;
 }
+/* Small, crisp type (user request 2026-10-22): 12 px titles, 10 px hosts. */
 .tile {
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr);
+  grid-template-columns: 16px minmax(0, 1fr);
   column-gap: var(--s-sm);
-  align-items: baseline;
-  min-height: 52px;
-  padding: var(--s-sm) var(--s-md) var(--s-sm) var(--s-sm);
+  row-gap: 2px;
+  align-items: center;
+  min-height: 40px;
+  padding: 6px var(--s-sm);
+  font-size: var(--fs-meta);
+  line-height: var(--lh-meta);
   border: var(--hairline) solid var(--line);
   border-radius: var(--radius);
   background: var(--surface);
@@ -805,8 +827,19 @@ kbd {
   text-shadow: var(--glow-text-bright);
 }
 .link-glyph {
+  display: inline-flex;
+  justify-content: center;
+  width: 16px;
+  flex: none;
   color: var(--accent);
   text-shadow: var(--glow-text);
+}
+/* A site's own icon (bridge 1.1+), 16 px, drawn from a 32 px image on sharp screens. */
+.favicon {
+  display: block;
+  width: 16px;
+  height: 16px;
+  flex: none;
 }
 .link-title {
   overflow: hidden;
@@ -816,7 +849,7 @@ kbd {
 .link-host {
   overflow: hidden;
   color: var(--text-dim);
-  font-size: var(--fs-small);
+  font-size: var(--fs-micro);
   letter-spacing: 0.5px;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -846,9 +879,9 @@ kbd {
 /* Folders: top-level ones as cards in a grid; each card grows as it opens. */
 .folders {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(272px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
   align-items: start;
-  gap: var(--s-sm);
+  gap: 6px;
 }
 .folder.card {
   border: var(--hairline) solid var(--line);
@@ -863,10 +896,10 @@ kbd {
   align-items: center;
   gap: var(--s-sm);
   width: 100%;
-  min-height: var(--row);
-  padding: 0 var(--s-md) 0 var(--s-xs);
+  min-height: 30px;
+  padding: 0 var(--s-sm) 0 var(--s-xs);
   color: var(--text-bright);
-  font-size: var(--fs-meta);
+  font-size: var(--fs-small);
   font-weight: 700;
   letter-spacing: 1px;
   text-align: left;
@@ -927,11 +960,13 @@ kbd {
 }
 .row-link {
   display: flex;
-  align-items: baseline;
+  align-items: center;
   gap: var(--s-sm);
-  min-height: 28px;
-  padding: var(--s-xs) var(--s-md) var(--s-xs) var(--s-md);
+  min-height: 26px;
+  padding: 3px var(--s-sm) 3px var(--s-md);
   color: var(--text);
+  font-size: var(--fs-meta);
+  line-height: var(--lh-meta);
   text-decoration: none;
 }
 .row-link .link-title {

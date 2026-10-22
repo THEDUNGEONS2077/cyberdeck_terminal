@@ -11,8 +11,16 @@
  * bar only, read-only. The bridge never writes bookmarks.
  *
  * Messages (chrome.runtime.sendMessage(BRIDGE_ID, …) from the page):
- *   { type: 'hello' } → { ok: true, version }
+ *   { type: 'hello' } → { ok: true, version, features }
  *   { type: 'bar' }   → { ok: true, bar }  (bridge/tree.js shape)
+ *   { type: 'open', target: 'ntp' | 'bookmarks' } → { ok: true }
+ *       opens Chrome's own New Tab page or Bookmark manager in a new tab
+ *       next to the asking one (a webpage can't open chrome:// pages
+ *       itself). Only these two.
+ *
+ * Site icons: the page loads them from this extension's
+ * chrome-extension://<id>/_favicon/ (Chrome's icon cache; the `favicon`
+ * permission plus web_accessible_resources in manifest.json).
  * A long-lived port (chrome.runtime.connect(BRIDGE_ID)) receives
  * { type: 'changed' } after any bookmark change; the page then asks for
  * the bar again. If Chrome stops this worker the port closes, and the
@@ -22,13 +30,33 @@ import { findBar, simplify } from './tree.js';
 
 const VERSION = chrome.runtime.getManifest().version;
 
+/** What this bridge can do beyond the bookmarks bar (the page shows only what's here). */
+const FEATURES = ['favicons', 'open'];
+
+/** The chrome:// pages the dashboard may ask to open, by name. Nothing else can be opened. */
+const OPENABLE = { ntp: 'chrome://new-tab-page/', bookmarks: 'chrome://bookmarks/' };
+
 /** Open ports from dashboard pages. */
 const ports = new Set();
 
-chrome.runtime.onMessageExternal.addListener((message, _sender, sendResponse) => {
+chrome.runtime.onMessageExternal.addListener((message, sender, sendResponse) => {
   if (message?.type === 'hello') {
-    sendResponse({ ok: true, version: VERSION });
+    sendResponse({ ok: true, version: VERSION, features: FEATURES });
     return false;
+  }
+  if (message?.type === 'open') {
+    const url = Object.hasOwn(OPENABLE, message.target) ? OPENABLE[message.target] : null;
+    const tab = sender.tab;
+    if (!url || tab?.id === undefined) {
+      sendResponse({ ok: false, error: 'cannot open that' });
+      return false;
+    }
+    // Next to the dashboard's tab, like a link opened from it (no extra permission needed).
+    chrome.tabs
+      .create({ url, index: tab.index + 1, openerTabId: tab.id })
+      .then(() => sendResponse({ ok: true }))
+      .catch((error) => sendResponse({ ok: false, error: String(error) }));
+    return true;
   }
   if (message?.type === 'bar') {
     chrome.bookmarks

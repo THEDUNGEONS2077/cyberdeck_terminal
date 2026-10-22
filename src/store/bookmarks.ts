@@ -28,8 +28,10 @@ export interface BookmarksState {
   bar: BookmarkNode | null;
   /** The installed bridge's version, when live. */
   bridgeVersion: string | null;
+  /** What the installed bridge can do ('favicons', 'open'), when live. */
+  features: string[];
   /** The bridge answered: shows `bar` and caches it (only when it changed). */
-  setLive(bar: BookmarkNode, version: string): void;
+  setLive(bar: BookmarkNode, version: string, features?: string[]): void;
   /** No bridge: the cached bar is no longer shown. */
   setAbsent(): void;
 }
@@ -40,14 +42,17 @@ export function createBookmarksStore(kv: KV, cached: BookmarkNode | null) {
     status: 'checking',
     bar: cached,
     bridgeVersion: null,
-    setLive(bar, version) {
+    features: [],
+    setLive(bar, version, features = []) {
       const same = get().bar !== null && canonicalJson(get().bar) === canonicalJson(bar);
-      set({ status: 'live', bar: same ? get().bar : bar, bridgeVersion: version });
+      // The same features keep the same array, so components reading it don't re-render.
+      const sameFeatures = features.join() === get().features.join();
+      set({ status: 'live', bar: same ? get().bar : bar, bridgeVersion: version, features: sameFeatures ? get().features : features });
       // The cache is only for drawing the next open quickly: a failed write costs nothing.
       if (!same) kv.set(KEYS.bookmarksCache, bar).catch(() => {});
     },
     setAbsent() {
-      set({ status: 'absent', bar: null, bridgeVersion: null });
+      set({ status: 'absent', bar: null, bridgeVersion: null, features: [] });
     },
   }));
 }

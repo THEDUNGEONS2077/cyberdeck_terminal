@@ -121,15 +121,38 @@ try {
 
   await path('SYSTEM shows the live source and the bridge version', async () => {
     await page.keyboard.press('s');
-    await page.locator('.setting', { hasText: 'SOURCE' }).getByText('LIVE · BRIDGE v1.0.0').waitFor();
+    await page.locator('.setting', { hasText: 'SOURCE' }).getByText('LIVE · BRIDGE v1.1.0').waitFor();
     await page.keyboard.press('Escape');
   });
 
-  await path('a bookmark opens in the same tab', async () => {
-    await page.getByRole('link', { name: /Alpha/ }).click();
-    await page.waitForURL(`${SITE}alpha`);
-    await page.goBack();
-    await page.locator('.deck-source', { hasText: 'LIVE' }).waitFor({ timeout: 8000 });
+  await path('the deck is titled NAV, and links show their site icons (from Chrome, via the bridge)', async () => {
+    await page.getByRole('heading', { name: '> NAV' }).waitFor();
+    const icon = page.getByRole('link', { name: /Alpha/ }).locator('img.favicon');
+    await icon.waitFor();
+    expect((await icon.getAttribute('src')).startsWith(`chrome-extension://${BRIDGE_ID}/_favicon/?pageUrl=`), 'icon not from the bridge');
+    // It loads (Chrome answers with its default icon for a site it hasn't seen).
+    await page.waitForFunction(() => document.querySelector('.tile img.favicon')?.naturalWidth > 0, null, { timeout: 5000 });
+  });
+
+  await path('a bookmark opens in a new tab; the dashboard stays as it is', async () => {
+    const [tab] = await Promise.all([context.waitForEvent('page'), page.getByRole('link', { name: /Alpha/ }).click()]);
+    await tab.waitForURL(`${SITE}alpha`);
+    // No referrer: the site isn't told where you came from.
+    expect((await tab.evaluate(() => document.referrer)) === '', 'the referrer was sent');
+    await tab.close();
+    expect(page.url() === DASHBOARD, `the dashboard navigated to ${page.url()}`);
+  });
+
+  await path('CHROME NEW TAB opens Chrome’s own New Tab page, EDIT BOOKMARKS the Bookmark manager: each in a new tab', async () => {
+    for (const [button, url] of [
+      ['CHROME NEW TAB', 'chrome://new-tab-page/'],
+      ['EDIT BOOKMARKS', 'chrome://bookmarks/'],
+    ]) {
+      const [tab] = await Promise.all([context.waitForEvent('page'), page.getByRole('button', { name: button }).click()]);
+      await tab.waitForURL(url, { timeout: 8000 });
+      await tab.close();
+    }
+    expect(page.url() === DASHBOARD, `the dashboard navigated to ${page.url()}`);
   });
 
   await path('the next open draws the bar at once from the cache, before the bridge answers', async () => {
@@ -146,12 +169,23 @@ try {
     await page.locator('.deck-source', { hasText: 'LIVE' }).waitFor({ timeout: 8000 });
   });
 
-  await path('a new tab opens the dashboard', async () => {
+  await path('with the dashboard open, a new tab switches back to it and closes itself', async () => {
+    const before = context.pages().length;
+    const blank = await context.newPage();
+    const closed = blank.waitForEvent('close', { timeout: 8000 });
+    await blank.goto('chrome://newtab/').catch(() => {}); // the tab closes during this
+    await closed;
+    expect(context.pages().length === before, `${context.pages().length - before} extra tab(s) left open`);
+    const active = await inBridge(async () => (await chrome.tabs.query({ active: true, lastFocusedWindow: true }))[0]?.url);
+    expect(active === DASHBOARD, `the active tab is ${active}`);
+  });
+
+  await path('with no dashboard open, a new tab becomes the dashboard', async () => {
+    await page.close();
     const tab = await context.newPage();
     await tab.goto('chrome://newtab/').catch(() => {}); // the redirect interrupts this navigation
     await tab.waitForURL(DASHBOARD, { timeout: 8000 });
     await tab.locator('.deck-source', { hasText: 'LIVE' }).waitFor({ timeout: 8000 });
-    await tab.close();
   });
 } finally {
   await context.close();

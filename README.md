@@ -11,7 +11,7 @@ A terminal-style start page for Chrome. A matrix rain falls across the whole scr
 | **S** | SYSTEM: bookmarks source, backups, restore, wallpaper |
 | **Esc** | Closes SYSTEM |
 
-Bookmarks open in the same tab. Ctrl+click or middle-click opens a new one.
+Bookmarks open in a new tab, so the dashboard stays put. With the bridge, links show their site icons, and NAV's header has **CHROME NEW TAB** (Chrome's own New Tab page, with your bookmarks bar, to edit) and **EDIT BOOKMARKS** (the Bookmark manager).
 
 ## Make it your start page
 - **Homepage:** in Chrome Settings, go to **Appearance** and turn on **Show home button**. Choose the custom web address option and paste the page's address.
@@ -22,7 +22,8 @@ Bookmarks open in the same tab. Ctrl+click or middle-click opens a new one.
   3. Open `chrome://extensions`, turn on **Developer mode**, choose **Load unpacked**, and pick the folder with `manifest.json`.
   4. Reload the dashboard.
 
-  From then on, the deck mirrors your bookmarks bar live and every new tab opens the dashboard. The bridge is read-only and shares only the bookmarks bar, with this page only.
+  From then on, NAV mirrors your bookmarks bar live, with site icons, and every new tab opens the dashboard. If the dashboard is already open in the window, a new tab switches back to it instead. The bridge is read-only and shares only the bookmarks bar, with this page only.
+- **Updating the bridge:** when SYSTEM ▸ BOOKMARKS offers an update, download it, unzip it over the old folder, and press ↻ on CYBERDECK BRIDGE in `chrome://extensions`.
 - **Without the bridge:** export your bookmarks (Bookmark manager ▸ ⋮ ▸ Export bookmarks), then choose **IMPORT BOOKMARKS.HTML…**. You get a copy of the bar, kept in your layout and its backups.
 
 ## Your layout is recoverable

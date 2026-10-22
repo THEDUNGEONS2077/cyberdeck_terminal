@@ -15,10 +15,12 @@ A terminal/cyberdeck start page: a **webpage** the user sets as Chrome's homepag
   - Never write over data you couldn't read: keep it under `corrupt.*`.
 - **Shared origin.** quest_log_desktop is served from the same origin, `thedungeons2077.github.io`. Use only the IndexedDB database `cyberdeck_terminal` and the cache prefix `cyberdeck_terminal-`, and never touch the other app's storage.
 - **No network code and no analytics.** The page is static files.
+- **Links open in a new tab** (`target=_blank rel="noopener noreferrer"`): the user's choice, 2026-10-22.
 - **The bridge:**
   - Never change the `key` in `bridge/manifest.json`. It fixes the extension id (`BRIDGE_ID` in `src/bridge/client.ts`), and a unit test checks the two match.
   - Bump `version` in the manifest and `BRIDGE_VERSION` together; SYSTEM then offers the update.
   - Keep the bridge read-only, limited to the bookmarks bar, and limited to the callers in `externally_connectable`.
+  - Its only host permission is the dashboard's address, used to find an open dashboard on New Tab. Don't widen it, and don't add `tabs`.
 - **Servers:** start `serve` directly (not `npx serve`), on 127.0.0.1 only. Stop it by PID, and check with `ss -ltnp`. The e2e script already does this.
 - **Deploying is public.** Ask the user before every `npm run deploy`, and before creating the GitHub repo.
 

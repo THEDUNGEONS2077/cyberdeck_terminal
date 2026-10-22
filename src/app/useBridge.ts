@@ -10,7 +10,7 @@
  */
 import { useEffect } from 'react';
 
-import { bridgePossible, bridgeVersion, fetchBar, watchBridge } from '@/bridge/client';
+import { bridgeInfo, bridgePossible, fetchBar, watchBridge } from '@/bridge/client';
 import { bookmarksStore } from '@/store/instance';
 
 /** Connects to the bridge while mounted. */
@@ -33,10 +33,10 @@ export function useBridge(): void {
       busy = true;
       do {
         again = false;
-        const version = await bridgeVersion();
-        const bar = version ? await fetchBar() : null;
+        const info = await bridgeInfo();
+        const bar = info ? await fetchBar() : null;
         if (!alive) return;
-        if (version && bar) store.getState().setLive(bar, version);
+        if (info && bar) store.getState().setLive(bar, info.version, info.features);
         else store.getState().setAbsent();
       } while (again && alive);
       busy = false;
