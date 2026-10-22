@@ -68,9 +68,16 @@ The contract is `src/wallpaper/types.ts`: `create(canvas, { palette, still })` â
   - Its rows are HEAD, BODY and DIM.
   - Katakana are used only if a system font can draw them (`canDraw`).
 - **`engine.ts`** never repaints the whole canvas. Each frame it does three things:
-  1. fades all pixels one step, on a 0.2 s clock;
+  1. fades one set of interleaved 2 px stripes, a twelfth of the screen. Each pixel is still faded once per 0.2 s, but no frame fades everything, so there's no whole-screen dimming pulse and no expensive frame. The fills are plain solid rectangles, the cheap path on both GPU and CPU canvases (a pattern fill measured many times slower on a CPU canvas);
   2. copies in the glyphs that drops moved onto;
   3. re-rolls a few glyphs inside trails (the flicker).
 - **Drops:** each column of each layer has one drop slot. A drop falls to a random depth, then waits at the top. The wait sets the layer's occupancy.
-- **Startup:** 18 s of rain are simulated before the first frame, so the screen opens full.
+- **Startup:** 18 s of rain are simulated before the canvas is shown, so it opens full.
+  - Only the last 9 s are drawn. Earlier glyphs would have faded to under 5% anyway.
+  - The work runs in slices of up to 10 ms per frame, so the page never stalls.
+  - `onReady` then fades the canvas in.
 - **Resize:** the drawn pixels are copied across and columns are added or removed, so entering fullscreen doesn't restart the rain.
+  - The canvas's CSS size always matches its pixels, so it's never shown stretched.
+  - Fullscreen changes apply at once; window drags are debounced.
+
+`npm run e2e:motion` measures frame gaps, script time per second (normal CPU and 4Ã— slower), the worst stall while loading, and the frame just after a resize. Compare a change against a copy of the old `dist/` with `MOTION_DIST`.

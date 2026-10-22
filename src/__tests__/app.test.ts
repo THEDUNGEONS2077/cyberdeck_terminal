@@ -4,9 +4,9 @@
  */
 import { toggleFullscreen } from '@/app/fullscreen';
 import { shortcutFor } from '@/app/useShortcuts';
-import { fadedAlpha, FADE_ALPHA, spawnDrop, withAlpha } from '@/wallpaper/matrix-rain/engine';
+import { fadedAlpha, FADE_ALPHA, FADE_ORDER, spawnDrop, withAlpha } from '@/wallpaper/matrix-rain/engine';
 import { BASE_GLYPHS, desaturate, glyphSet, KATAKANA } from '@/wallpaper/matrix-rain/glyphAtlas';
-import { END_BIAS, FADE_INTERVAL, LAYERS, TRAIL_SECONDS } from '@/wallpaper/matrix-rain/params';
+import { END_BIAS, FADE_INTERVAL, FADE_PHASES, LAYERS, TRAIL_SECONDS } from '@/wallpaper/matrix-rain/params';
 import { findWallpaper, WALLPAPERS } from '@/wallpaper/registry';
 
 /** A key event as the shortcut rules see it. */
@@ -115,6 +115,16 @@ describe('matrix rain', () => {
     expect(fadedAlpha(1, FADE_INTERVAL * 0.99)).toBe(1);
     // Strong enough per step that 8-bit rounding can't leave ghosts brighter than ~3%.
     expect(0.5 / FADE_ALPHA / 255).toBeLessThan(0.04);
+  });
+
+  it('fades every stripe set exactly once per cycle, never two neighbours in a row', () => {
+    expect([...FADE_ORDER].sort((a, b) => a - b)).toEqual(Array.from({ length: FADE_PHASES }, (_, i) => i));
+    // Consecutive phases land apart, so the fade never reads as a line sweeping down.
+    FADE_ORDER.forEach((p, i) => {
+      const next = FADE_ORDER[(i + 1) % FADE_PHASES]!;
+      const gap = Math.min(Math.abs(next - p), FADE_PHASES - Math.abs(next - p));
+      expect(gap).toBeGreaterThan(1);
+    });
   });
 
   it('turns hex tokens into canvas colours', () => {

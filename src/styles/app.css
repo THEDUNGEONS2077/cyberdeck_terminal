@@ -139,11 +139,18 @@ ul {
     linear-gradient(to bottom, var(--accent-05), var(--accent-05) 55%, transparent 95%);
   opacity: 0.6;
 }
+/* The engine sets the canvas's CSS size to match its pixels, so it is never stretched;
+   while a resize is pending the window simply shows a little more or less of it.
+   It fades in once its first full frame is drawn (WallpaperLayer: data-ready). */
 .wallpaper-canvas {
   position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
+  top: 0;
+  left: 0;
+  opacity: 0;
+  transition: opacity var(--slow) var(--ease);
+}
+.wallpaper-canvas[data-ready] {
+  opacity: 1;
 }
 /* The reference's dark lower edge: the rain thins out to black at the bottom. */
 .wallpaper-floor {

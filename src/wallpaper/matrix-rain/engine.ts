@@ -6,8 +6,10 @@
  *
  * How it stays cheap: the canvas is never redrawn in full. It keeps its
  * pixels between frames, and each frame only
- *   1. fades everything a little (on a FADE_INTERVAL clock): that fading
- *      *is* the trails: a glyph drawn earlier is simply dimmer by now;
+ *   1. fades a slice of the screen a little: one set of interleaved thin
+ *      stripes (FADE_PHASES × FADE_STRIPE), so each pixel is faded once per FADE_INTERVAL
+ *      but never all at once. That fading *is* the trails: a glyph drawn
+ *      earlier is simply dimmer by now;
  *   2. draws the glyphs drops moved onto since the last frame (one copy
  *      from the sprite sheet each, glyphAtlas.ts);
  *   3. re-rolls a few glyphs inside live trails (the flicker).
@@ -20,19 +22,26 @@
  * How long it waits sets how many columns are busy (LayerParams.occupancy).
  *
  * The screen opens full: PREWARM_SECONDS of rain are simulated before the
- * first frame. A resize keeps what's drawn (copied across) and only adds
- * or removes columns, so going fullscreen doesn't restart the rain.
+ * first frame, in slices of PREWARM_BUDGET_MS per frame so the page never
+ * stalls; `onReady` then lets the canvas fade in. A resize keeps what's
+ * drawn (copied across), sizes the canvas's CSS box with its pixels (never
+ * stretched), and only adds or removes columns, so going fullscreen
+ * doesn't restart the rain.
  */
 import type { Wallpaper, WallpaperInstance, WallpaperOptions, WallpaperPalette } from '../types';
 import { type Atlas, type AtlasRow, ROW, buildAtlas, canDraw, FONT_STACK, glyphSet, KATAKANA } from './glyphAtlas';
 import {
   END_BIAS,
   FADE_INTERVAL,
+  FADE_PHASES,
+  FADE_STRIPE,
   LAYERS,
   type LayerParams,
   MAX_DPR,
   MAX_FRAME_STEP,
   MUTATIONS_PER_SECOND,
+  PREWARM_BUDGET_MS,
+  PREWARM_DRAWN,
   PREWARM_SECONDS,
   PREWARM_STEP,
   RESPAWN_DELAY,
@@ -100,6 +109,16 @@ export function fadedAlpha(alpha: number, seconds: number): number {
   return alpha * (1 - FADE_ALPHA) ** Math.floor(seconds / FADE_INTERVAL);
 }
 
+/**
+ * The order the stripe sets are faded in: stepping by 7 (coprime with 12)
+ * scatters consecutive phases across the 12-px period, so the fade never
+ * reads as a line sweeping down the screen.
+ */
+export const FADE_ORDER: readonly number[] = Array.from({ length: FADE_PHASES }, (_, i) => (i * 7) % FADE_PHASES);
+
+/** The fade's fill: black at the fade's strength (only its alpha matters to destination-out). */
+const FADE_FILL = `rgba(0, 0, 0, ${FADE_ALPHA})`;
+
 /** `#rrggbb` → `rgba(r, g, b, a)`. */
 export function withAlpha(hex: string, a: number): string {
   const n = parseInt(hex.replace('#', ''), 16);
@@ -129,24 +148,41 @@ function createMatrixRain(canvas: HTMLCanvasElement, options: WallpaperOptions, 
   let running = false;
   let frame = 0;
   let last = 0;
-  let fadeClock = 0;
+  // Stripe sets owed a fade (fractional), and the next one in FADE_ORDER.
+  let fadeDebt = 0;
+  let fadePhase = 0;
+  // While true, steps move the drops but draw and fade nothing (the early pre-warm).
+  let drawing = true;
+  // The pre-warm in progress: seconds left to simulate, or null when done.
+  let warmLeft: number | null = null;
+  let warmStarted = 0;
+  let warmFrame = 0;
+  let announced = false;
   // The size asked for, in CSS px, and the device pixel ratio in use.
   let size: { w: number; h: number; dpr: number } | null = null;
   let builtDpr = 0;
   let glyphs = glyphSet(false);
 
-  /** Fades every pixel one step (destination-out leaves the canvas transparent where faded). */
-  const fade = () => {
+  /**
+   * Fades one stripe set: every FADE_PHASES-th stripe (FADE_STRIPE pixel rows) from `offset`.
+   * Plain solid rectangles, not a pattern: solid fills are the cheap path
+   * whether the canvas is drawn by the GPU or (on some machines, and
+   * headless) by the CPU, where a pattern fill costs many times more.
+   * destination-out leaves the canvas transparent where faded.
+   */
+  const fadeStripes = (offset: number) => {
     if (!ctx) return;
     ctx.globalCompositeOperation = 'destination-out';
-    ctx.fillStyle = `rgba(0, 0, 0, ${FADE_ALPHA})`;
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.fillStyle = FADE_FILL;
+    const w = canvas.width;
+    const period = FADE_PHASES * FADE_STRIPE;
+    for (let y = offset * FADE_STRIPE; y < canvas.height; y += period) ctx.fillRect(0, y, w, FADE_STRIPE);
     ctx.globalCompositeOperation = 'source-over';
   };
 
   /** Copies glyph `g` in `style` to a layer's cell (col, row), at `alpha`. */
   const put = (l: Layer, col: number, row: number, g: number, style: AtlasRow, alpha: number) => {
-    if (!ctx) return;
+    if (!ctx || !drawing) return;
     const { atlas } = l;
     ctx.globalAlpha = alpha;
     ctx.drawImage(
@@ -165,23 +201,27 @@ function createMatrixRain(canvas: HTMLCanvasElement, options: WallpaperOptions, 
 
   /** Clears one cell (before redrawing it dimmer or with another glyph). */
   const clearCell = (l: Layer, col: number, row: number) => {
-    ctx?.clearRect(Math.round(col * l.colW), Math.round(row * l.rowH), Math.ceil(l.colW), Math.ceil(l.rowH));
+    if (drawing) ctx?.clearRect(Math.round(col * l.colW), Math.round(row * l.rowH), Math.ceil(l.colW), Math.ceil(l.rowH));
   };
 
   /** Advances the whole rain by `dt` seconds, drawing as it goes. */
   const step = (dt: number) => {
-    // 1. The fade clock: whole steps only (see FADE_INTERVAL).
-    fadeClock += dt;
-    while (fadeClock >= FADE_INTERVAL) {
-      fadeClock -= FADE_INTERVAL;
-      fade();
+    // 1. The fade: FADE_PHASES stripe sets per FADE_INTERVAL, whole sets only.
+    if (drawing) {
+      fadeDebt += (dt / FADE_INTERVAL) * FADE_PHASES;
+      while (fadeDebt >= 1) {
+        fadeDebt -= 1;
+        fadeStripes(FADE_ORDER[fadePhase]!);
+        fadePhase = (fadePhase + 1) % FADE_PHASES;
+      }
     }
     // 2 and 3, layer by layer, back to front.
     for (const l of layers) {
-      l.drops.forEach((d, col) => {
+      for (let col = 0; col < l.drops.length; col++) {
+        const d = l.drops[col]!;
         if (d.wait > 0) {
           d.wait -= dt;
-          return;
+          continue;
         }
         d.y += d.speed * dt;
         // Draw every row the head reached since the last frame.
@@ -212,13 +252,48 @@ function createMatrixRain(canvas: HTMLCanvasElement, options: WallpaperOptions, 
           }
           l.drops[col] = spawnDrop(l.p, l.rows, glyphCount, rng);
         }
-      });
+      }
     }
   };
 
-  /** Simulates `seconds` of rain at once (the screen opens full). */
+  /**
+   * One slice of the pre-warm: simulates until PREWARM_BUDGET_MS is used,
+   * then yields to the next frame. Only the last PREWARM_DRAWN seconds draw.
+   * When it's done the first full frame is on the canvas: say so once, and
+   * start animating if asked to.
+   */
+  const warmSlice = () => {
+    warmFrame = 0;
+    if (warmLeft === null || destroyed) return;
+    const until = performance.now() + PREWARM_BUDGET_MS;
+    while (warmLeft > 0 && performance.now() < until) {
+      drawing = warmLeft <= PREWARM_DRAWN;
+      step(PREWARM_STEP);
+      warmLeft -= PREWARM_STEP;
+    }
+    drawing = true;
+    if (warmLeft > 0) {
+      warmFrame = requestAnimationFrame(warmSlice);
+      return;
+    }
+    warmLeft = null;
+    // Recorded for e2e/motion.mjs: how long the screen took to fill (spread over frames).
+    performance.measure('rain-prewarm', { start: warmStarted });
+    if (!announced) {
+      announced = true;
+      options.onReady?.();
+    }
+    if (running && !still && !frame) {
+      last = 0;
+      frame = requestAnimationFrame(tick);
+    }
+  };
+
+  /** Starts (or restarts) filling an empty canvas with `seconds` of rain. */
   const prewarm = (seconds: number) => {
-    for (let t = 0; t < seconds; t += PREWARM_STEP) step(PREWARM_STEP);
+    warmLeft = seconds;
+    warmStarted = performance.now();
+    if (!warmFrame) warmSlice();
   };
 
   /**
@@ -261,8 +336,13 @@ function createMatrixRain(canvas: HTMLCanvasElement, options: WallpaperOptions, 
       }
       canvas.width = pw;
       canvas.height = ph;
+      // Changing the size also resets the context's state.
+      ctx.imageSmoothingEnabled = false;
       if (copy) ctx.drawImage(copy, 0, 0);
     }
+    // The CSS box matches the pixels exactly: never stretched while a resize is pending.
+    canvas.style.width = `${pw / dpr}px`;
+    canvas.style.height = `${ph / dpr}px`;
     const rebuilt = layout(w, h, dpr);
     // A first start or a new pixel ratio starts from an empty canvas: fill it.
     if (fresh || rebuilt) {
@@ -274,7 +354,8 @@ function createMatrixRain(canvas: HTMLCanvasElement, options: WallpaperOptions, 
   /** One animation frame. */
   const tick = (now: number) => {
     frame = 0;
-    if (!running) return;
+    // Stopped, or still filling (warmSlice starts the animation when it's done).
+    if (!running || warmLeft !== null) return;
     const dt = last ? Math.min((now - last) / 1000, MAX_FRAME_STEP) : 0;
     last = now;
     step(dt);
@@ -288,7 +369,7 @@ function createMatrixRain(canvas: HTMLCanvasElement, options: WallpaperOptions, 
     },
     start() {
       running = true;
-      if (!ready || still || frame) return;
+      if (!ready || still || frame || warmLeft !== null) return;
       last = 0;
       frame = requestAnimationFrame(tick);
     },
@@ -309,6 +390,7 @@ function createMatrixRain(canvas: HTMLCanvasElement, options: WallpaperOptions, 
     destroy() {
       destroyed = true;
       instance.stop();
+      cancelAnimationFrame(warmFrame);
       layers = [];
     },
   };

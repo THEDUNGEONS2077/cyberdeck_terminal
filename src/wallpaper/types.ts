@@ -28,13 +28,16 @@ export interface WallpaperOptions {
   palette: WallpaperPalette;
   /** Draw one still frame and don't animate (Reduce Motion). */
   still: boolean;
+  /** Called once, when the first full frame is on the canvas (WallpaperLayer fades the canvas in then). */
+  onReady?: () => void;
 }
 
 /** A running wallpaper on one canvas. */
 export interface WallpaperInstance {
   /**
    * The canvas's CSS size and device pixel ratio changed (also called once
-   * right after create). The wallpaper sizes the canvas's backing store itself.
+   * right after create). The wallpaper sizes the canvas itself: its backing
+   * store and its CSS size, so the canvas is never shown stretched.
    */
   resize(width: number, height: number, dpr: number): void;
   /** Starts (or resumes) animating. */

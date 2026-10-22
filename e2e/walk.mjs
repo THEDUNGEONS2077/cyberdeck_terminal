@@ -94,9 +94,8 @@ try {
   await page.locator('.brand').waitFor();
 
   await path('opens on a screen already full of rain, with the HUD', async () => {
-    // The canvas is pre-warmed: well lit within a moment of opening.
-    await page.waitForFunction(() => document.querySelector('.wallpaper-canvas')?.width > 0, null, { timeout: 5000 });
-    await page.waitForTimeout(300);
+    // The canvas is pre-warmed (in slices, without stalling the page), then fades in already full.
+    await page.locator('.wallpaper-canvas[data-ready]').waitFor({ state: 'attached', timeout: 5000 });
     const lit = await litPixels();
     expect(lit > 0.02, `canvas only ${(lit * 100).toFixed(2)}% lit`);
     console.log(`  (first full frame within ${Date.now() - opened} ms; ${(lit * 100).toFixed(1)}% of pixels lit)`);

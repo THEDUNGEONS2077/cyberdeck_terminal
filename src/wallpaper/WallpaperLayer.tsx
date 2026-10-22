@@ -6,7 +6,9 @@
  * Layer: UI (React), owning the canvas a wallpaper draws on. It:
  *   - creates the chosen wallpaper (registry.ts) and swaps it when the id changes;
  *   - passes on size and pixel-ratio changes, debounced (150 ms) so a
- *     window being dragged larger doesn't resize the canvas every frame;
+ *     window being dragged larger doesn't resize the canvas every frame,
+ *     but at once when fullscreen starts or ends (one jump, no dragging);
+ *   - fades the canvas in once its first full frame is drawn;
  *   - stops the animation while the page is hidden (another tab in front);
  *   - follows Reduce Motion: a still frame instead of animation.
  */
@@ -48,7 +50,12 @@ export function WallpaperLayer({ id }: { id: string }) {
     const canvas = canvasRef.current;
     if (!canvas) return;
     const motion = matchMedia('(prefers-reduced-motion: reduce)');
-    const wallpaper = findWallpaper(id).create(canvas, { palette: readPalette(), still: reduceMotion(motion) });
+    const wallpaper = findWallpaper(id).create(canvas, {
+      palette: readPalette(),
+      still: reduceMotion(motion),
+      // app.css fades a ready canvas in (.wallpaper-canvas[data-ready]).
+      onReady: () => (canvas.dataset.ready = ''),
+    });
 
     // Size: now, then after each resize settles.
     const measure = () => wallpaper.resize(window.innerWidth, window.innerHeight, window.devicePixelRatio || 1);
@@ -63,13 +70,21 @@ export function WallpaperLayer({ id }: { id: string }) {
     const onVisibility = () => (document.hidden ? wallpaper.stop() : wallpaper.start());
     const onMotion = () => wallpaper.setStill(reduceMotion(motion));
 
+    // Entering or leaving fullscreen is one jump in size: apply it at once.
+    const onFullscreen = () => {
+      clearTimeout(resizeTimer);
+      requestAnimationFrame(measure);
+    };
+
     window.addEventListener('resize', onResize);
+    document.addEventListener('fullscreenchange', onFullscreen);
     document.addEventListener('visibilitychange', onVisibility);
     motion.addEventListener('change', onMotion);
     if (!document.hidden) wallpaper.start();
     return () => {
       clearTimeout(resizeTimer);
       window.removeEventListener('resize', onResize);
+      document.removeEventListener('fullscreenchange', onFullscreen);
       document.removeEventListener('visibilitychange', onVisibility);
       motion.removeEventListener('change', onMotion);
       wallpaper.destroy();
