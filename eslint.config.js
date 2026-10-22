@@ -21,4 +21,6 @@ export default tseslint.config(
     },
   },
   { files: ['**/*.{js,mjs}'], languageOptions: { globals: { ...globals.node, ...globals.browser } } },
+  // The bridge extension runs in Chrome's extension context, where `chrome` is the API.
+  { files: ['bridge/**/*.js'], languageOptions: { globals: { ...globals.serviceworker, ...globals.browser, chrome: 'readonly' } } },
 );

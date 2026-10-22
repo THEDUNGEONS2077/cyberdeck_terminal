@@ -8,13 +8,22 @@ A terminal-style start page for Chrome. A matrix rain falls across the whole scr
 | Key | Does |
 |---|---|
 | **F** | Fullscreen with only the wallpaper. F or Esc comes back. |
-| **S** | SYSTEM: backups, restore, wallpaper |
+| **S** | SYSTEM: bookmarks source, backups, restore, wallpaper |
 | **Esc** | Closes SYSTEM |
+
+Bookmarks open in the same tab. Ctrl+click or middle-click opens a new one.
 
 ## Make it your start page
 - **Homepage:** in Chrome Settings, go to **Appearance** and turn on **Show home button**. Choose the custom web address option and paste the page's address.
 - **When Chrome starts:** in Chrome Settings, go to **On startup**, choose **Open a specific page or set of pages**, then **Add a new page** and paste the page's address.
-- **New Tab:** Chrome doesn't let a web address replace the New Tab page. The optional bridge extension (coming in phase 2) does it, along with live bookmarks.
+- **New Tab and live bookmarks:** install the optional **CYBERDECK BRIDGE**.
+  1. On the dashboard, choose **DOWNLOAD BRIDGE** (in the CONNECT prompt, or SYSTEM ▸ BOOKMARKS).
+  2. Unzip it to a folder you'll keep.
+  3. Open `chrome://extensions`, turn on **Developer mode**, choose **Load unpacked**, and pick the folder with `manifest.json`.
+  4. Reload the dashboard.
+
+  From then on, the deck mirrors your bookmarks bar live and every new tab opens the dashboard. The bridge is read-only and shares only the bookmarks bar, with this page only.
+- **Without the bridge:** export your bookmarks (Bookmark manager ▸ ⋮ ▸ Export bookmarks), then choose **IMPORT BOOKMARKS.HTML…**. You get a copy of the bar, kept in your layout and its backups.
 
 ## Your layout is recoverable
 - **Automatic snapshots** are kept in this browser: when the page opens, after changes, and before any import or restore. Restore any of them from **SYSTEM ▸ RESTORE**.

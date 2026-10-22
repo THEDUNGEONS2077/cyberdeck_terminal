@@ -1,7 +1,7 @@
 {
   "name": "cyberdeck_terminal",
   "private": true,
-  "version": "0.1.1",
+  "version": "0.2.0",
   "type": "module",
   "scripts": {
     "dev": "vite --host 127.0.0.1",
@@ -12,6 +12,7 @@
     "check": "npm run typecheck && npm run lint && npm test",
     "e2e": "node e2e/walk.mjs",
     "e2e:motion": "node e2e/motion.mjs",
+    "e2e:bridge": "CYBERDECK_BASE=/cyberdeck_terminal/ npm run build && node e2e/bridge.mjs",
     "deploy": "scripts/deploy.sh"
   },
   "dependencies": {

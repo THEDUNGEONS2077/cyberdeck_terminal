@@ -18,4 +18,12 @@ export const G = {
   radioOff: '( )',
   /** The block cursor. */
   cursor: '█',
+  /** A folder's caret (turns 90° when open). */
+  caret: '▸',
+  /** A link. */
+  link: '›',
+  /** A link a webpage can't open (chrome://, javascript:…). */
+  blocked: '⊘',
+  /** A folder. */
+  folder: '▤',
 } as const;

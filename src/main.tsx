@@ -13,11 +13,13 @@ import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 
 import { App } from './app/App';
+import { sanitizeTree } from './lib/bookmarks';
+import { createBookmarksStore } from './store/bookmarks';
 import { idbKV } from './store/idbKV';
 import { createLayoutStore } from './store/layout';
-import { type KV, memoryKV } from './store/kv';
+import { type KV, KEYS, memoryKV } from './store/kv';
 import { type Boot, boot } from './store/persist';
-import { setLayoutStore } from './store/instance';
+import { setBookmarksStore, setLayoutStore } from './store/instance';
 import { uiStore } from './store/ui';
 
 /** The notice when storage can't be used at all. */
@@ -39,6 +41,10 @@ const store = createLayoutStore(kv, booted, (e) => {
   uiStore.getState().showToast('COULDN’T SAVE THE LAYOUT · EXPORT A BACKUP FROM SYSTEM [S]', { sticky: true });
 });
 setLayoutStore(store);
+
+// The bridge's last bookmarks bar, drawn at once while the bridge is asked again (app/useBridge.ts).
+const cachedBar = sanitizeTree(await kv.get(KEYS.bookmarksCache).catch(() => null));
+setBookmarksStore(createBookmarksStore(kv, cachedBar));
 if (booted.notice) uiStore.getState().showToast(booted.notice, { sticky: true });
 
 // Leaving the page: take a pending change snapshot now rather than lose it.

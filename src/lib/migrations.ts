@@ -11,7 +11,8 @@
  *   2. add `STEPS[n]`, turning a version-n document into version n+1;
  *   3. add a fixture test with a real version-n document.
  */
-import { type LayoutDocument, LAYOUT_SCHEMA_VERSION, defaultPrefs } from './layout';
+import { sanitizeTree } from './bookmarks';
+import { type BookmarksLayout, type LayoutDocument, LAYOUT_SCHEMA_VERSION, MAX_OPEN_FOLDERS, defaultBookmarks, defaultPrefs } from './layout';
 
 /** The document was written by a newer version of the app than this one. */
 export class FutureSchemaError extends Error {}
@@ -26,9 +27,25 @@ function isRecord(v: unknown): v is Record<string, unknown> {
 
 /**
  * Migration steps: STEPS[n] turns a version-n document into version n+1.
- * Empty while version 1 is the only one.
+ *   1 → 2: bookmarks arrive (nothing imported, every folder collapsed).
  */
-const STEPS: Record<number, (doc: Record<string, unknown>) => Record<string, unknown>> = {};
+const STEPS: Record<number, (doc: Record<string, unknown>) => Record<string, unknown>> = {
+  1: (doc) => ({ ...doc, bookmarks: defaultBookmarks() }),
+};
+
+/**
+ * The bookmarks part, checked: the imported tree goes through sanitizeTree
+ * (a damaged tree is dropped rather than failing the whole layout), and
+ * the open folders are kept as sorted, unique strings.
+ */
+function normalizeBookmarks(v: unknown): BookmarksLayout {
+  if (v === undefined) return defaultBookmarks();
+  if (!isRecord(v)) throw new InvalidLayoutError('bookmarks is not an object');
+  const imported = v.imported === null || v.imported === undefined ? null : sanitizeTree(v.imported);
+  const importedAt = imported && typeof v.importedAt === 'number' ? v.importedAt : null;
+  const open = Array.isArray(v.open) ? [...new Set(v.open.filter((k): k is string => typeof k === 'string'))].sort().slice(0, MAX_OPEN_FOLDERS) : [];
+  return { imported, importedAt, open };
+}
 
 /**
  * Validates a current-version document and returns a clean copy of it.
@@ -46,7 +63,7 @@ export function normalizeLayout(doc: Record<string, unknown>): LayoutDocument {
   const days = isRecord(doc.prefs) ? doc.prefs.backupReminderDays : undefined;
   if (typeof days === 'number' && Number.isInteger(days) && days >= 0 && days <= 365) prefs.backupReminderDays = days;
 
-  return { schemaVersion: LAYOUT_SCHEMA_VERSION, wallpaper: doc.wallpaper, prefs };
+  return { schemaVersion: LAYOUT_SCHEMA_VERSION, wallpaper: doc.wallpaper, prefs, bookmarks: normalizeBookmarks(doc.bookmarks) };
 }
 
 /**

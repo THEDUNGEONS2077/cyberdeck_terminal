@@ -15,7 +15,7 @@ const APP = { version: '0.1.0', build: 1 };
 describe('layout', () => {
   it('compares content, not key order', () => {
     const a = defaultLayout();
-    const b = { prefs: { backupReminderDays: 14 }, wallpaper: 'matrix-rain', schemaVersion: 1 as const };
+    const b = { bookmarks: { open: [], importedAt: null, imported: null }, prefs: { backupReminderDays: 14 }, wallpaper: 'matrix-rain', schemaVersion: 2 as const };
     expect(sameLayout(a, b)).toBe(true);
     expect(canonicalJson({ b: 1, a: { d: 2, c: 3 } })).toBe('{"a":{"c":3,"d":2},"b":1}');
   });

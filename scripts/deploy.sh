@@ -9,7 +9,8 @@
 #   1. types, lint and unit tests (npm run check),
 #   2. build at the site root and run the full browser walk (e2e/walk.mjs),
 #   3. build again for the /cyberdeck_terminal/ path GitHub Pages serves it
-#      from, and walk that build at that path,
+#      from, walk that build at that path, and run it with the real bridge
+#      extension at its production address (e2e/bridge.mjs),
 #   4. publish it as this repo's `gh-pages` branch (replacing the old one),
 #   5. turn on GitHub Pages for that branch the first time.
 #
@@ -36,6 +37,7 @@ npm run e2e
 # 3. The real build for GitHub Pages' path, walked at that path.
 CYBERDECK_BASE="$BASE" npm run build
 CYBERDECK_BASE="$BASE" node e2e/walk.mjs
+node e2e/bridge.mjs
 
 # 4. Replace the gh-pages branch with this build (a fresh one-commit branch: no history kept).
 TMP="$(mktemp -d)"

@@ -1,0 +1,18 @@
+<!doctype html>
+<!--
+  bridge/newtab.html: Chrome's New Tab page while the bridge is installed.
+  It only forwards the tab to the dashboard (newtab.js); the black
+  background keeps the moment in between dark. Extension pages can't run
+  inline scripts, hence the separate file.
+-->
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>New Tab</title>
+    <style>
+      html { background: #000; color-scheme: dark; }
+    </style>
+    <script src="newtab.js"></script>
+  </head>
+  <body></body>
+</html>

@@ -12,6 +12,7 @@
  */
 import { createStore, type StoreApi } from 'zustand/vanilla';
 
+import type { BookmarkNode } from '@/lib/bookmarks';
 import type { LayoutDocument } from '@/lib/layout';
 import { type BackupMeta, SNOOZE_MS } from '@/lib/reminder';
 import { CHANGE_DEBOUNCE_MS, type Snapshot } from '@/lib/snapshots';
@@ -29,6 +30,12 @@ export interface LayoutState {
   setWallpaper(id: string): void;
   /** Sets the backup reminder's interval in days (0 = off). */
   setReminderDays(days: number): void;
+  /** Opens or collapses a bookmarks folder (by folderKey). */
+  setFolderOpen(key: string, open: boolean): void;
+  /** Keeps `bar` as the imported copy of the bookmarks bar (replacing any earlier copy). */
+  importBookmarks(bar: BookmarkNode): void;
+  /** Forgets the imported copy (snapshots still hold it). */
+  removeImported(): void;
   /**
    * Replaces the whole layout (an import or a restore), after snapshotting
    * the current one with `reason`. Resolves once both are stored.
@@ -98,6 +105,24 @@ export function createLayoutStore(kv: KV, boot: Boot, onSaveError: SaveErrorHand
       setReminderDays(days) {
         const layout = get().layout;
         if (layout.prefs.backupReminderDays !== days) commit({ ...layout, prefs: { ...layout.prefs, backupReminderDays: days } });
+      },
+
+      setFolderOpen(key, open) {
+        const layout = get().layout;
+        const was = layout.bookmarks.open.includes(key);
+        if (was === open) return;
+        const keys = open ? [...layout.bookmarks.open, key].sort() : layout.bookmarks.open.filter((k) => k !== key);
+        commit({ ...layout, bookmarks: { ...layout.bookmarks, open: keys } });
+      },
+
+      importBookmarks(bar) {
+        const layout = get().layout;
+        commit({ ...layout, bookmarks: { ...layout.bookmarks, imported: bar, importedAt: now() } });
+      },
+
+      removeImported() {
+        const layout = get().layout;
+        if (layout.bookmarks.imported) commit({ ...layout, bookmarks: { ...layout.bookmarks, imported: null, importedAt: null } });
       },
 
       async replaceLayout(next, reason) {

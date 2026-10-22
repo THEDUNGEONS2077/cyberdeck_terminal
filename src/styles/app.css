@@ -69,6 +69,8 @@ button:disabled {
 .icon-btn,
 .text-btn,
 .hint,
+.tile,
+.folder-head,
 .setting select {
   transition-property: color, background-color, border-color, box-shadow;
   transition-duration: var(--fast);
@@ -679,6 +681,354 @@ kbd {
   }
 }
 
+/* --- Bookmarks deck ------------------------------------------------------- */
+/* The deck's area: centred, between the brand panel and the key hints; scrolls on its own.
+   Its own pieces have solid surfaces (text never sits on the rain); the gaps between
+   them let the rain show through. */
+.deck-area {
+  position: absolute;
+  top: calc(var(--s-xl) + 112px);
+  bottom: calc(var(--s-xl) + var(--control) + var(--s-lg));
+  left: 50%;
+  width: min(1120px, calc(100vw - var(--s-xl) * 2));
+  transform: translateX(-50%);
+  overflow-y: auto;
+  /* Room for focus rings and glows at the edges. */
+  padding: 4px;
+  scrollbar-gutter: stable;
+}
+.deck {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-sm);
+}
+/* The header bar: lit like the desktop's centre header, with a rule lit in the middle. */
+.deck-head {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-md);
+  min-height: calc(var(--control) + var(--s-sm));
+  padding: 0 var(--s-md);
+  border: var(--hairline) solid var(--line);
+  border-radius: var(--radius);
+  background: var(--scanlines), var(--phosphor), var(--surface);
+}
+.deck-head::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -1px;
+  height: var(--hairline);
+  background: var(--lit-rule);
+}
+.deck-title {
+  color: var(--text-bright);
+  font-size: var(--fs-body);
+  font-weight: 700;
+  letter-spacing: 1.5px;
+  text-shadow: var(--glow-text-faint);
+}
+.deck-source {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--accent);
+  font-size: var(--fs-meta);
+  letter-spacing: 1px;
+  white-space: nowrap;
+}
+.deck-source .link {
+  color: var(--accent);
+  letter-spacing: 1px;
+}
+/* LIVE: a lit dot that breathes slowly (opacity only; paused under Reduce Motion). */
+.live-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: var(--glow-bright);
+  animation: breathe 2.4s ease-in-out infinite;
+  animation-play-state: var(--loops);
+}
+@keyframes breathe {
+  50% {
+    opacity: 0.35;
+  }
+}
+.deck-empty {
+  padding: var(--s-md);
+  border: var(--hairline) solid var(--line);
+  background: var(--surface);
+}
+.link {
+  color: var(--text);
+  text-align: left;
+}
+.link:hover {
+  color: var(--accent);
+  text-decoration: underline;
+}
+
+/* The bar's own links: tiles. */
+.tiles {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(176px, 1fr));
+  gap: var(--s-sm);
+}
+.tile {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  column-gap: var(--s-sm);
+  align-items: baseline;
+  min-height: 52px;
+  padding: var(--s-sm) var(--s-md) var(--s-sm) var(--s-sm);
+  border: var(--hairline) solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--text-bright);
+  text-decoration: none;
+}
+.tile .link-host {
+  grid-column: 2;
+}
+.tile:hover,
+.tile:focus-visible {
+  border-color: var(--accent-35);
+  background: var(--surface-raised);
+  box-shadow: var(--glow-faint);
+}
+.tile:hover .link-glyph {
+  text-shadow: var(--glow-text-bright);
+}
+.link-glyph {
+  color: var(--accent);
+  text-shadow: var(--glow-text);
+}
+.link-title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.link-host {
+  overflow: hidden;
+  color: var(--text-dim);
+  font-size: var(--fs-small);
+  letter-spacing: 0.5px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+/* A link a webpage can't open: shown for completeness, plainly inert. Dimmed with
+   --text-dim (which still passes AA), not opacity (which wouldn't). */
+.off,
+.off:hover {
+  box-shadow: none;
+  color: var(--text-dim);
+  cursor: not-allowed;
+}
+.tile.off,
+.tile.off:hover {
+  border-style: dashed;
+  border-color: var(--line);
+  background: var(--surface);
+}
+.row-link.off:hover {
+  background: none;
+}
+.off .link-glyph {
+  color: var(--text-dim);
+  text-shadow: none;
+}
+
+/* Folders: top-level ones as cards in a grid; each card grows as it opens. */
+.folders {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(272px, 1fr));
+  align-items: start;
+  gap: var(--s-sm);
+}
+.folder.card {
+  border: var(--hairline) solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+.folder.card:not(.collapsed) {
+  border-color: var(--line-lit);
+}
+.folder-head {
+  display: flex;
+  align-items: center;
+  gap: var(--s-sm);
+  width: 100%;
+  min-height: var(--row);
+  padding: 0 var(--s-md) 0 var(--s-xs);
+  color: var(--text-bright);
+  font-size: var(--fs-meta);
+  font-weight: 700;
+  letter-spacing: 1px;
+  text-align: left;
+}
+.folder-head:hover {
+  color: var(--accent);
+}
+.folder-head:hover .caret {
+  color: var(--accent);
+  text-shadow: var(--glow-text);
+}
+.folder-glyph {
+  color: var(--text-dim);
+  font-weight: 400;
+}
+.folder-title {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-transform: uppercase;
+}
+.folder-head .count {
+  color: var(--text-dim);
+  font-weight: 400;
+}
+/* The fold (quest_log_desktop's sidebar sections): the body's grid row shrinks to nothing. */
+.folder-body {
+  display: grid;
+  grid-template-rows: 1fr;
+  transition:
+    grid-template-rows var(--base) var(--ease-fold),
+    opacity var(--base) var(--ease-fold);
+}
+.folder.collapsed > .folder-body {
+  grid-template-rows: 0fr;
+  opacity: 0;
+  visibility: hidden;
+  transition:
+    grid-template-rows var(--base) var(--ease-fold),
+    opacity var(--base) var(--ease-fold),
+    visibility 0s var(--base);
+}
+.folder-inner {
+  min-height: 0;
+  overflow: hidden;
+}
+/* Rows inside a folder; a nested folder's rows hang off a tree line. */
+.rows {
+  display: flex;
+  flex-direction: column;
+  padding-bottom: var(--s-xs);
+}
+.rows .rows {
+  margin-left: calc(var(--s-md) + 2px);
+  border-left: var(--hairline) solid var(--line);
+}
+.row-link {
+  display: flex;
+  align-items: baseline;
+  gap: var(--s-sm);
+  min-height: 28px;
+  padding: var(--s-xs) var(--s-md) var(--s-xs) var(--s-md);
+  color: var(--text);
+  text-decoration: none;
+}
+.row-link .link-title {
+  flex: 1;
+  min-width: 0;
+}
+.row-link .link-host {
+  flex: none;
+  max-width: 40%;
+}
+.row-link:hover,
+.row-link:focus-visible {
+  background: var(--surface-raised);
+  box-shadow:
+    inset 2px 0 0 var(--accent),
+    inset 14px 0 14px -14px var(--accent-35);
+  color: var(--text-bright);
+}
+.row-empty {
+  padding: var(--s-xs) var(--s-md) var(--s-sm);
+}
+.caret {
+  display: inline-flex;
+  justify-content: center;
+  flex: none;
+  width: 20px;
+  color: var(--text);
+  transition: transform var(--base) var(--ease-fold);
+}
+.caret.open {
+  transform: rotate(90deg);
+}
+
+/* The CONNECT prompt: two ways in, side by side. */
+.connect-options {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: var(--s-sm);
+}
+.connect-option {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-md);
+  padding: var(--s-md) var(--s-lg) var(--s-lg);
+  border: var(--hairline) solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+  font-size: var(--fs-meta);
+  letter-spacing: 0.5px;
+}
+.connect-option .section-title {
+  padding-top: 0;
+}
+/* Numbered steps: 01, 02… in the accent, like a boot sequence. */
+.steps {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-sm);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  counter-reset: step;
+}
+.steps > li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s-sm);
+  counter-increment: step;
+}
+.steps > li::before {
+  content: counter(step, decimal-leading-zero);
+  color: var(--accent);
+  font-weight: 700;
+  text-shadow: var(--glow-text);
+}
+code {
+  padding: 2px var(--s-xs);
+  border: var(--hairline) solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface-raised);
+  color: var(--accent);
+  font: inherit;
+}
+.copy-address {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-xs);
+}
+.copy-address .text-btn {
+  height: 24px;
+  padding: 0 var(--s-sm);
+}
+a.text-btn {
+  text-decoration: none;
+}
+
 /* --- Narrow windows ------------------------------------------------------ */
 @media (max-width: 600px) {
   .hud-brand {
@@ -691,6 +1041,11 @@ kbd {
   .hud-keys {
     right: var(--s-lg);
     bottom: var(--s-lg);
+  }
+  .deck-area {
+    top: calc(var(--s-lg) + 104px);
+    bottom: calc(var(--s-lg) + var(--control) + var(--s-md));
+    width: calc(100vw - var(--s-lg) * 2);
   }
   .toast {
     width: calc(100vw - 32px);

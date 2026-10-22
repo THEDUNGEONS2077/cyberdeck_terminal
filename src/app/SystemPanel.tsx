@@ -6,6 +6,8 @@
  * will happen, and the current layout is always snapshotted before it's
  * replaced (store/layout.ts replaceLayout), so nothing here can lose a layout.
  *
+ *   BOOKMARKS  where the bookmarks bar comes from (the bridge, live, or an
+ *              imported copy), the bridge download (and update), importing;
  *   BACKUP     export a file, import one (preview, then REPLACE), the
  *              reminder interval, and when the last export was;
  *   RESTORE    the automatic snapshots, newest first; RESTORE asks to confirm;
@@ -14,17 +16,21 @@
  */
 import { type ChangeEvent, useId, useRef, useState } from 'react';
 
+import { BRIDGE_VERSION } from '@/bridge/client';
 import { BackupError, type ParsedBackup, formatStamp } from '@/lib/backup';
+import { countLinks } from '@/lib/bookmarks';
 import { REMINDER_DAY_CHOICES, summarizeLayout } from '@/lib/layout';
 import { exportAge } from '@/lib/reminder';
 import { reasonLabel, type Snapshot } from '@/lib/snapshots';
+import { compareVersions } from '@/lib/versions';
 import { layoutStore } from '@/store/instance';
 import { uiStore } from '@/store/ui';
 import { WALLPAPERS } from '@/wallpaper/registry';
 
 import { APP_INFO, downloadBackup, readBackupFile } from './backupFile';
 import { Dialog } from './Dialog';
-import { useLayout } from './hooks';
+import { useBookmarks, useLayout } from './hooks';
+import { CopyAddress, DownloadBridgeButton, ImportBookmarksButton } from './ImportBookmarks';
 import { Prompted } from './Prompted';
 
 /** The SYSTEM panel; `leaving` while it fades out. */
@@ -33,6 +39,7 @@ export function SystemPanel({ leaving }: { leaving: boolean }) {
   return (
     <Dialog title="SYSTEM" onClose={close} leaving={leaving} wide>
       <div className="panel-body">
+        <BookmarksSection />
         <BackupSection />
         <RestoreSection />
         <WallpaperSection />
@@ -42,6 +49,57 @@ export function SystemPanel({ leaving }: { leaving: boolean }) {
         </p>
       </div>
     </Dialog>
+  );
+}
+
+/** BOOKMARKS: the source, the bridge (download, update), the imported copy. */
+function BookmarksSection() {
+  const status = useBookmarks((s) => s.status);
+  const version = useBookmarks((s) => s.bridgeVersion);
+  const imported = useLayout((s) => s.layout.bookmarks.imported);
+  const importedAt = useLayout((s) => s.layout.bookmarks.importedAt);
+  const outdated = status === 'live' && version !== null && compareVersions(version, BRIDGE_VERSION) < 0;
+  let source = 'NONE';
+  if (status === 'live') source = `LIVE · BRIDGE v${version}`;
+  else if (status === 'checking') source = 'ASKING THE BRIDGE…';
+  else if (imported) source = 'IMPORTED COPY';
+
+  const remove = () => {
+    layoutStore().getState().removeImported();
+    uiStore.getState().showToast('IMPORTED COPY REMOVED · RESTORE CAN BRING IT BACK');
+  };
+
+  return (
+    <section className="settings-group" aria-label="Bookmarks">
+      <h3 className="section-title">BOOKMARKS</h3>
+      <div className="setting">
+        <span>SOURCE</span>
+        <span className={status === 'live' ? 'accent' : 'bright'}>{source}</span>
+      </div>
+      <div className="setting">
+        <span>IMPORTED COPY</span>
+        <span className="bright">{imported ? `${countLinks(imported)} LINKS · ${importedAt ? formatStamp(importedAt) : 'NO DATE'}` : 'NONE'}</span>
+      </div>
+      {outdated && (
+        <p className="accent">
+          <Prompted>BRIDGE v{BRIDGE_VERSION} IS AVAILABLE: DOWNLOAD IT, UNZIP OVER THE OLD FOLDER, THEN PRESS ↻ ON IT IN CHROME://EXTENSIONS.</Prompted>
+        </p>
+      )}
+      {status !== 'live' && (
+        <p className="small dim">
+          THE BRIDGE KEEPS THIS PAGE IN STEP WITH YOUR BOOKMARKS BAR AND OPENS IT ON NEW TABS. UNZIP IT, OPEN <CopyAddress text="chrome://extensions" />, TURN ON DEVELOPER MODE, LOAD UNPACKED, THEN RELOAD THIS PAGE.
+        </p>
+      )}
+      <div className="button-row">
+        <DownloadBridgeButton primary={status !== 'live' || outdated} label={outdated ? 'DOWNLOAD UPDATE' : 'DOWNLOAD BRIDGE'} />
+        <ImportBookmarksButton />
+        {imported && (
+          <button type="button" className="text-btn danger" onClick={remove}>
+            REMOVE COPY
+          </button>
+        )}
+      </div>
+    </section>
   );
 }
 

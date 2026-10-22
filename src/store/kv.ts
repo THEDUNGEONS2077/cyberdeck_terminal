@@ -22,6 +22,12 @@ export const KEYS = {
   layout: 'layout.v1',
   /** Backup bookkeeping: last export, snooze, first run (lib/reminder.ts). */
   meta: 'meta.backup.v1',
+  /**
+   * The bridge's last bookmarks bar, so the dashboard can draw it at once
+   * on the next open while the bridge answers. A cache of Chrome's data,
+   * not part of the layout (nor of backups).
+   */
+  bookmarksCache: 'bookmarks.cache.v1',
   /** Automatic snapshots: `snapshot.<epoch ms>` (lib/snapshots.ts). */
   snapshotPrefix: 'snapshot.',
   /** Unreadable data is kept under `corrupt.<epoch ms>` instead of being thrown away. */

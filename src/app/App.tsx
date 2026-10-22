@@ -16,10 +16,12 @@ import { WallpaperLayer } from '@/wallpaper/WallpaperLayer';
 
 import { useFullscreenSync, useIdleCursor } from './fullscreen';
 import { useLayout, useUi } from './hooks';
+import { BookmarksDeck } from './Bookmarks';
 import { Hud } from './Hud';
 import { SystemPanel } from './SystemPanel';
 import { Toast } from './Toast';
 import { usePresence } from './usePresence';
+import { useBridge } from './useBridge';
 import { useShortcuts } from './useShortcuts';
 
 /** How long the panel takes to fade out (matches --fast in theme.css). */
@@ -52,6 +54,7 @@ export function App() {
   useIdleCursor(immersive);
   useShortcuts(panelOpen);
   useBackupReminder();
+  useBridge();
 
   return (
     <>
@@ -59,6 +62,7 @@ export function App() {
       {/* The page's main landmark: everything that isn't the wallpaper. */}
       <main className="ui-layer" data-hidden={immersive || undefined} inert={immersive}>
         <Hud />
+        <BookmarksDeck />
         <Toast />
       </main>
       {panel.shown && <SystemPanel leaving={panel.leaving} />}

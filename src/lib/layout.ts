@@ -9,10 +9,16 @@
  * it later (areas, folders, collapsed lists, bookmark sources) is backed
  * up and restorable from the day it lands. A shape change bumps
  * LAYOUT_SCHEMA_VERSION and adds a step in lib/migrations.ts.
+ *
+ * Versions:
+ *   1  wallpaper, prefs (0.1.x)
+ *   2  + bookmarks: an imported copy of the bookmarks bar, and which
+ *      folders are open (0.2.0)
  */
+import { type BookmarkNode, countLinks } from './bookmarks';
 
 /** The current schema version of the layout document. */
-export const LAYOUT_SCHEMA_VERSION = 1;
+export const LAYOUT_SCHEMA_VERSION = 2;
 
 /** The wallpaper a new layout starts with (src/wallpaper/registry.ts lists them all). */
 export const DEFAULT_WALLPAPER_ID = 'matrix-rain';
@@ -26,12 +32,34 @@ export interface LayoutPrefs {
   backupReminderDays: number;
 }
 
-/** The layout document (schema version 1). */
+/** The bookmarks part of the layout. */
+export interface BookmarksLayout {
+  /**
+   * A copy of the bookmarks bar imported from bookmarks.html, or null.
+   * Shown when the bridge extension isn't there (the bridge's live bar wins).
+   */
+  imported: BookmarkNode | null;
+  /** When the copy was imported (epoch ms), or null. */
+  importedAt: number | null;
+  /** Folders shown open, by folderKey (lib/bookmarks.ts); every other folder is collapsed. Sorted. */
+  open: string[];
+}
+
+/** The layout document (schema version 2). */
 export interface LayoutDocument {
   schemaVersion: typeof LAYOUT_SCHEMA_VERSION;
   /** The id of the wallpaper shown behind the dashboard. */
   wallpaper: string;
   prefs: LayoutPrefs;
+  bookmarks: BookmarksLayout;
+}
+
+/** Most open folders remembered. */
+export const MAX_OPEN_FOLDERS = 1000;
+
+/** The bookmarks part of a new layout: nothing imported, every folder collapsed. */
+export function defaultBookmarks(): BookmarksLayout {
+  return { imported: null, importedAt: null, open: [] };
 }
 
 /** Preferences a new layout starts with. */
@@ -41,7 +69,7 @@ export function defaultPrefs(): LayoutPrefs {
 
 /** A new, empty layout. */
 export function defaultLayout(): LayoutDocument {
-  return { schemaVersion: LAYOUT_SCHEMA_VERSION, wallpaper: DEFAULT_WALLPAPER_ID, prefs: defaultPrefs() };
+  return { schemaVersion: LAYOUT_SCHEMA_VERSION, wallpaper: DEFAULT_WALLPAPER_ID, prefs: defaultPrefs(), bookmarks: defaultBookmarks() };
 }
 
 /**
@@ -72,10 +100,15 @@ export function hasCustomContent(doc: LayoutDocument): boolean {
 
 /**
  * A one-line description of a layout for snapshot lists and import
- * previews, e.g. `WALLPAPER MATRIX-RAIN · REMIND 14D`. Later phases add
- * their counts at the front ("3 AREAS · 41 LINKS · …").
+ * previews, e.g. `BAR COPY 41 LINKS · 2 OPEN · WALLPAPER MATRIX-RAIN · REMIND 14D`.
+ * What's most likely to differ between snapshots comes first.
  */
 export function summarizeLayout(doc: LayoutDocument): string {
-  const remind = doc.prefs.backupReminderDays ? `REMIND ${doc.prefs.backupReminderDays}D` : 'REMIND OFF';
-  return [`WALLPAPER ${doc.wallpaper.toUpperCase()}`, remind].join(' · ');
+  const parts: string[] = [];
+  const { imported, open } = doc.bookmarks;
+  if (imported) parts.push(`BAR COPY ${countLinks(imported)} LINKS`);
+  if (open.length) parts.push(`${open.length} OPEN`);
+  parts.push(`WALLPAPER ${doc.wallpaper.toUpperCase()}`);
+  parts.push(doc.prefs.backupReminderDays ? `REMIND ${doc.prefs.backupReminderDays}D` : 'REMIND OFF');
+  return parts.join(' · ');
 }

@@ -23,6 +23,13 @@ Reference: `wallhaven-01ye3v2.jpg`, a dense matrix rain. Measured from it, at 19
 
 To re-measure, screenshot the page at 1920×1080 with the UI hidden. Then compare the average brightness of each eighth of the height with the reference.
 
+## The bookmarks deck
+- **Header bar:** the desktop's centre-header look (scanlines, phosphor, a lit rule underneath). It shows the source: `● LIVE`, `SYNCING…`, or `COPY <date> · GO LIVE`.
+- **The bar's own links** are tiles in an auto-fill grid. Each shows an accent `›`, the title, and the host dimmed underneath. Hover and focus light the frame with `--glow-faint`.
+- **Folders** are cards in a second grid. The heading has a turning caret, `▤`, the title (uppercase) and a link count. Contents fold with the desktop sidebar's grid-row fold (`--base`, `--ease-fold`). Nested folders hang off a tree line, and rows light like a selected row (an inset accent edge).
+- **Un-openable links** (chrome://, bookmarklets) use `--text-dim`, with a dashed frame on tiles. They're never dimmed with opacity, so text still passes AA.
+- **Surfaces are solid.** The rain shows only in the gaps between pieces, and there's no backdrop blur, which would re-blur the animating canvas every frame.
+
 ## The UI over the wallpaper
 - **The HUD.** The brand panel (the desktop's `.masthead`: scanlines, corner brackets) sits top left. The key hints (`[F] FULLSCREEN`, `[S] SYSTEM`) sit bottom right, and both are buttons.
 - **Panels** sit on solid `--surface` / `--surface-raised`, so text never sits directly on the rain.

@@ -104,6 +104,36 @@ try {
     await shot('01-open');
   });
 
+  await path('with no bridge: the CONNECT prompt offers the bridge download and the import', async () => {
+    await page.getByText('LINK YOUR BOOKMARKS BAR').waitFor({ timeout: 5000 });
+    const href = await page.getByRole('link', { name: 'DOWNLOAD BRIDGE' }).getAttribute('href');
+    const zip = await page.evaluate(async (h) => new Uint8Array(await (await fetch(h)).arrayBuffer()).slice(0, 4).join(','), href);
+    expect(zip === '80,75,3,4', `the bridge download isn't a zip (${zip})`);
+    await page.getByRole('button', { name: 'Copy chrome://extensions' }).waitFor();
+    await page.waitForTimeout(300);
+    await shot('07-connect');
+    await page.addScriptTag({ path: join(root, 'node_modules/axe-core/axe.min.js') });
+    await audit('the CONNECT prompt');
+  });
+
+  await path('IMPORT BOOKMARKS.HTML: the bar shows as a copy; folders fold open, nested ones too', async () => {
+    await page.getByLabel('Bookmarks file to import').first().setInputFiles(join(root, 'e2e/fixtures/bookmarks.html'));
+    await page.locator('.toast', { hasText: 'IMPORTED 5 LINKS' }).waitFor();
+    await page.locator('.deck-source', { hasText: 'COPY' }).waitFor();
+    await page.getByRole('link', { name: /GitHub/ }).waitFor();
+    await page.getByRole('link', { name: /Hacker News/ }).waitFor();
+    await page.getByRole('button', { name: /^dev\b/i }).click();
+    await page.getByRole('link', { name: /MDN/ }).waitFor();
+    await page.getByRole('button', { name: /^tools/i }).click();
+    // A bookmarklet can't run from a webpage: listed, not a link.
+    await page.locator('.row-link.off', { hasText: 'Bookmarklet' }).waitFor();
+    await page.waitForTimeout(400);
+    await shot('08-imported');
+    await audit('the imported bar, folders open');
+    await page.getByRole('button', { name: /^tools/i }).click(); // leaves DEV open
+    await settled();
+  });
+
   await path('the rain moves', async () => {
     const grab = () => page.evaluate(() => document.querySelector('.wallpaper-canvas').toDataURL());
     const a = await grab();
@@ -161,7 +191,7 @@ try {
     backupPath = join(shots, 'backup.json');
     await download.saveAs(backupPath);
     const file = JSON.parse(readFileSync(backupPath, 'utf8'));
-    expect(file.format === 'cyberdeck_terminal-backup' && file.layout?.schemaVersion === 1, 'not a backup file');
+    expect(file.format === 'cyberdeck_terminal-backup' && file.layout?.schemaVersion === 2, 'not a backup file');
     expect(file.layout.prefs.backupReminderDays === 14, 'unexpected layout in backup');
     await page.locator('.toast', { hasText: 'BACKUP EXPORTED' }).waitFor();
     // LAST EXPORT updates the next time the panel opens.
@@ -173,7 +203,7 @@ try {
   await path('IMPORT: a changed layout is replaced by the backup, after a preview; the old one is snapshotted', async () => {
     await reminder().selectOption('30');
     await settled();
-    await page.locator('input[type=file]').setInputFiles(backupPath);
+    await page.getByLabel('Backup file to import').setInputFiles(backupPath);
     const preview = page.getByRole('group', { name: 'Backup to import' });
     await preview.waitFor();
     await preview.getByText('WALLPAPER MATRIX-RAIN · REMIND 14D').waitFor();
@@ -187,7 +217,7 @@ try {
   });
 
   await path('IMPORT refuses a file that is not a backup, and says why', async () => {
-    await page.locator('input[type=file]').setInputFiles({ name: 'notes.json', mimeType: 'application/json', buffer: Buffer.from('{"hello": 1}') });
+    await page.getByLabel('Backup file to import').setInputFiles({ name: 'notes.json', mimeType: 'application/json', buffer: Buffer.from('{"hello": 1}') });
     await page.getByRole('alert').getByText('isn’t a cyberdeck_terminal backup').waitFor();
     expect((await reminder().inputValue()) === '14', 'the layout changed');
   });

@@ -1,0 +1,14 @@
+{
+  "manifest_version": 3,
+  "name": "CYBERDECK BRIDGE",
+  "version": "1.0.0",
+  "description": "Connects cyberdeck_terminal to your bookmarks bar (read-only) and opens it on every new tab.",
+  "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAy2ol1GsSM1ML2ud9ZW2kpWwrtCPhbx89ucq278h0sEWomSJbFm/LfW8niXjgb8ONoSPvLOaWKoZ1pGZxvIw+hYXwnurkPJ08C5q3UcAZrHksPaPDPFfbCXXozQ+Qr5Z8lNOwge0TEIG8sisilUgIX/m4pFUyvTEGilE4ljlcnu33BmncfF5Zp8COBevFFyvXV+eU++GMbrpscWzBgaLC32vBZxn4EfTjqakJBHfQuN/zBK/+cHtf/zq2Jfkyw8yQml5L27HS7hvSZOCgT+8HoBFYfPhdvUIMvDsufjmO8TJnLH0yiwf3eGo1N0x39lctVDygwiQQheQdtiFxxlRoWQIDAQAB",
+  "permissions": ["bookmarks"],
+  "background": { "service_worker": "background.js", "type": "module" },
+  "externally_connectable": {
+    "matches": ["https://thedungeons2077.github.io/cyberdeck_terminal/*", "http://127.0.0.1/*"]
+  },
+  "chrome_url_overrides": { "newtab": "newtab.html" },
+  "icons": { "16": "icons/icon-16.png", "32": "icons/icon-32.png", "48": "icons/icon-48.png", "128": "icons/icon-128.png" }
+}

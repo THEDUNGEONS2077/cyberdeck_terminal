@@ -13,8 +13,10 @@
     "isolatedModules": true,
     "skipLibCheck": true,
     "noEmit": true,
+    "allowImportingTsExtensions": true,
+    "allowJs": true,
     "types": ["vitest/globals", "vite/client", "node"],
     "paths": { "@/*": ["./src/*"] }
   },
-  "include": ["src", "vite.config.ts"]
+  "include": ["src", "vite.config.ts", "scripts/*.ts", "bridge/*.js"]
 }

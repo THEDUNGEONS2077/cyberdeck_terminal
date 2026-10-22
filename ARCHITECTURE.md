@@ -6,6 +6,8 @@
 | `src/lib/` | Pure rules: the layout document, migrations, backup files, snapshot keeping, the reminder | nothing outside `lib` |
 | `src/store/` | State and storage: `persist.ts` (startup), `layout.ts` (layout store), `ui.ts` (screen state), `idbKV.ts` / `kv.ts` (storage) | `lib` |
 | `src/wallpaper/` | Animated wallpapers on a canvas, plus `WallpaperLayer.tsx`, which owns the canvas | `lib` (ids only) |
+| `src/bridge/` | `client.ts`: messaging with the bridge extension (Chrome's externally_connectable API) | `lib` |
+| `bridge/` | The **CYBERDECK BRIDGE** extension itself (MV3, plain JS), zipped into the build as `cyberdeck-bridge.zip` | nothing |
 | `src/app/` | React UI: `App`, `Hud`, `SystemPanel`, `Dialog`, `Toast`, shortcuts, fullscreen | everything |
 
 ## The page
@@ -19,6 +21,29 @@
 - `useFullscreenSync()` copies `document.fullscreenElement` into `ui.immersive` on every `fullscreenchange`. Esc and the browser's own controls therefore stay in sync.
 - While immersive, `useIdleCursor` hides a still pointer.
 
+## Bookmarks
+```
+bridge/background.js ──(externally_connectable)──▶ src/bridge/client.ts ──▶ store/bookmarks.ts ──▶ app/Bookmarks.tsx
+ chrome.bookmarks        hello · bar · port "changed"   useBridge (app/useBridge.ts)   status · bar          deck / CONNECT prompt
+```
+**The bridge.**
+- It answers `hello` (its version) and `bar` (the bookmarks bar, reduced by `bridge/tree.js` to id, title, url and children).
+- Over a long-lived port it posts `changed`, debounced by 150 ms.
+- Chrome stops idle extension workers, which closes the port. The page then reconnects, with back-off from 1 to 30 s, paused while the page is hidden, and asks for the bar again.
+- **Id:** `mbjnlinjocmaalhodjhpkadlpifnelic`, fixed by the manifest's public `key`. The private key was never kept, since an unpacked extension doesn't need it.
+
+**Which bar shows:**
+1. The bridge's live bar.
+2. While the bridge is first being asked, the cached bar.
+3. With no bridge, the imported copy (`layout.bookmarks.imported`).
+4. With none of these, the CONNECT prompt.
+
+**Folders:** which are open is stored in `layout.bookmarks.open`, keyed by folder path (`lib/bookmarks.ts` `folderKey`), so the same folder matches across the live bar and an imported copy. A folder's contents are first rendered when it first opens.
+
+**Links:** only http(s) links are clickable, because Chrome blocks webpages from opening chrome://, file:// and javascript:. They open in the same tab.
+
+**`bookmarks.html` import:** `lib/bookmarks.ts` `parseBookmarksHtml` reads the Netscape export without a DOM and takes the folder marked `PERSONAL_TOOLBAR_FOLDER`.
+
 ## Storage and recovery
 IndexedDB, database `cyberdeck_terminal`, store `kv`. quest_log_desktop shares the origin, so the name is this app's own. The keys:
 
@@ -26,6 +51,7 @@ IndexedDB, database `cyberdeck_terminal`, store `kv`. quest_log_desktop shares t
 |---|---|
 | `layout.v1` | The layout document (`lib/layout.ts`) |
 | `meta.backup.v1` | Last export, reminder snooze, first run |
+| `bookmarks.cache.v1` | The bridge's last bookmarks bar: a cache for an instant first draw. Not in the layout or backups |
 | `snapshot.<ms>` | Automatic snapshots: `{ at, reason, summary, layout }` |
 | `corrupt.<ms>` | Data that couldn't be read, kept rather than overwritten |
 

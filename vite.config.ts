@@ -7,6 +7,9 @@
  * The service-worker plugin is quest_log_desktop's, renamed: the page is
  * Chrome's homepage and startup page, so it should open instantly (and work
  * offline) from a stored copy of the build.
+ *
+ * The bridge plugin packs the bridge extension (bridge/) as
+ * cyberdeck-bridge.zip next to the page, for the CONNECT prompt's download.
  */
 import react from '@vitejs/plugin-react';
 import { createHash } from 'node:crypto';
@@ -15,6 +18,8 @@ import { join, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import type { Plugin } from 'vite';
 import { defineConfig } from 'vitest/config';
+
+import { makeZip } from './scripts/zip.ts';
 
 // The version (package.json) and build number (the newest CHANGELOG.md entry), shown in SYSTEM and in backups.
 const pkg = JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 'utf8')) as { version: string };
@@ -90,9 +95,35 @@ self.addEventListener('fetch', (event) => {
   };
 }
 
+/**
+ * Adds cyberdeck-bridge.zip to the build: every file in bridge/ inside a
+ * `cyberdeck-bridge/` folder (so unzipping makes one folder to load in
+ * chrome://extensions). Emitted as a build asset, so it's in dist/ before
+ * the service worker lists the files.
+ */
+function bridgeZip(): Plugin {
+  return {
+    name: 'cyberdeck-bridge-zip',
+    apply: 'build',
+    generateBundle() {
+      const dir = fileURLToPath(new URL('./bridge', import.meta.url));
+      const entries: { name: string; data: Buffer }[] = [];
+      const walk = (sub: string) => {
+        for (const name of readdirSync(join(dir, sub)).sort()) {
+          const rel = sub ? `${sub}/${name}` : name;
+          if (statSync(join(dir, rel)).isDirectory()) walk(rel);
+          else entries.push({ name: `cyberdeck-bridge/${rel}`, data: readFileSync(join(dir, rel)) });
+        }
+      };
+      walk('');
+      this.emitFile({ type: 'asset', fileName: 'cyberdeck-bridge.zip', source: makeZip(entries) });
+    },
+  };
+}
+
 export default defineConfig({
   base,
-  plugins: [react(), serviceWorker()],
+  plugins: [react(), bridgeZip(), serviceWorker()],
   define: { __APP_VERSION__: JSON.stringify(pkg.version), __APP_BUILD__: String(build) },
   resolve: { alias: { '@': fileURLToPath(new URL('./src', import.meta.url)) } },
   // ES2022: the entry point awaits persistence before rendering (top-level await).

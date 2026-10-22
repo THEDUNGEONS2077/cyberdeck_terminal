@@ -6,7 +6,8 @@
  */
 import { useStore } from 'zustand';
 
-import { layoutStore } from '@/store/instance';
+import type { BookmarksState } from '@/store/bookmarks';
+import { bookmarksStore, layoutStore } from '@/store/instance';
 import type { LayoutState } from '@/store/layout';
 import { uiStore, type UiState } from '@/store/ui';
 
@@ -18,4 +19,9 @@ export function useLayout<T>(select: (s: LayoutState) => T): T {
 /** A slice of the UI store. */
 export function useUi<T>(select: (s: UiState) => T): T {
   return useStore(uiStore, select);
+}
+
+/** A slice of the bookmarks store (the bridge's live bar). */
+export function useBookmarks<T>(select: (s: BookmarksState) => T): T {
+  return useStore(bookmarksStore(), select);
 }
