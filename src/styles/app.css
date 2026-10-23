@@ -210,6 +210,14 @@ ul {
 .wallpaper[data-wallpaper='data-flow'] .wallpaper-floor {
   display: none;
 }
+/* MEGACITY: its haze (the city draws over it, opaque, once the graphics card is ready). */
+.wallpaper[data-wallpaper='megacity'] {
+  background: linear-gradient(to bottom, var(--cool), color-mix(in srgb, var(--cool) 82%, var(--accent)) 50%, color-mix(in srgb, var(--cool) 64%, var(--accent)));
+}
+.wallpaper[data-wallpaper='megacity'] .wallpaper-haze,
+.wallpaper[data-wallpaper='megacity'] .wallpaper-floor {
+  display: none;
+}
 /* The reference's dark lower edge: the rain thins out to black at the bottom. */
 .wallpaper-floor {
   position: absolute;

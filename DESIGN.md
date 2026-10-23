@@ -88,6 +88,19 @@ SYSTEM ▸ APPEARANCE ▸ ZOOM (user request, 2026-10-23: zoom in, and set each 
 
 fluid_motion's wallpapers zoom the same way.
 
+## Megacity's look
+Reference: `IMG-20261023-WA0020_1792792421032.jpg` (the user's, 2026-10-24): a vertical cyberpunk city in blue haze at night, a figure in silhouette on a rooftop ledge looking out over it.
+
+| Property | Reference | How it's matched |
+|---|---|---|
+| The haze | Azure blue at the top (#4263e9), blue-violet in the middle, violet (#735ef7) low down, a pink glow from below | `--cool` at the top, mixing towards `--accent` lower down, a glow of the accent rising from the bottom (NEON gives the reference's) |
+| The towers | Tall slabs in depth, the far ones lost in the haze, the near ones dark blue, some stepping back, spires | Five layers of towers, far to near, each taking less of the haze (fog); setbacks and spires; a lit roof edge, a bright strip down some edges |
+| Windows | Small dashes, mostly pale blue, some violet, a few pink and white; some towers nearly dark | A grid of dashes per tower from its seed, lit by floors, a few floors blazing; pale, violet, pink, white |
+| Signs | Pink neon signs with glyphs on the middle towers, pale billboards far off | Upright and wide signs in the accent (some in the cool hue) with glyph strokes and a halo, on the middle layers where they can be seen; billboards far off |
+| The figure | A woman in silhouette, three-quarter view, a bob, looking down at the city; a dark ledge with a glass railing | Our own outline of the pose (not traced), near-black blue with a faint rim of light from the city; on a wide screen she stands a little smaller and lower, clear of NAV |
+
+The motion is our own, and slow: a few windows go on or off every second, each at its own moment; a sign now and then stutters like a failing tube; beacons blink on the roofs; drones cross trailing short tails; patches of haze drift. ZOOM grows the towers and windows; she keeps her place.
+
 ## The bookmarks deck
 - **Header bar:** titled **NAV**, in the desktop's centre-header look (scanlines, phosphor, a lit rule underneath).
   - A soft band of light sweeps across it once when NAV appears, and again each time the layout is locked (the brand panel's refresh band, turned sideways). It never loops.

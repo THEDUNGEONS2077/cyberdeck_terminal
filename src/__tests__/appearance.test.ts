@@ -19,6 +19,10 @@ import { COVERAGE, MAIN_CHIP, PITCH } from '@/wallpaper/data-flow/params';
 import { diagonal, linkNodes, rgb, shade } from '@/wallpaper/neural-net/engine';
 import { tones } from '@/wallpaper/velocity/engine';
 import { zoomedSize } from '@/wallpaper/types';
+import { buildCity, cityTones, foreground, inSight, NO_TOWER, placeFigure, SHAPE, skyline, skylineRows } from '@/wallpaper/megacity/city';
+import { FIGURE_OUTLINES, FIGURE_TRIANGLES, FIGURE_VERTICES } from '@/wallpaper/megacity/figure';
+import { LAYERS as CITY_LAYERS, SKYLINE_WIDTH } from '@/wallpaper/megacity/params';
+import { CitySim, frameRoom, GLOW, MAX_DRONES, packGlows, packSigns } from '@/wallpaper/megacity/sim';
 import { memoryKV } from '@/store/kv';
 import { createLayoutStore } from '@/store/layout';
 import { boot } from '@/store/persist';
@@ -275,3 +279,123 @@ describe('data flow', () => {
     expect(t.warmTrace[0]).toBeGreaterThan(t.warmTrace[2]);
   });
 });
+
+describe('megacity', () => {
+  const seeded = (seed: number) => () => ((seed = (seed * 16807) % 2147483647) - 1) / 2147483646;
+  const neon = { bg: '#000000', line: '#3a1033', dim: '#cc4fb0', text: '#ea6ad0', accent: '#ff3fdc', bright: '#ffc6f2', cool: '#3a6bff' };
+  const screens: [number, number][] = [
+    [1920, 1080],
+    [384, 832],
+    [1280, 800],
+  ];
+
+  it('lays out the same city for the same seed, its layers across the whole screen', () => {
+    for (const [w, h] of screens) {
+      const a = buildCity(w, h, seeded(7));
+      const b = buildCity(w, h, seeded(7));
+      expect(JSON.stringify(a.layers)).toBe(JSON.stringify(b.layers));
+      expect(a.layers).toHaveLength(CITY_LAYERS.length);
+      // The farthest layer is nearly a wall: the haze shows through only in narrow gaps.
+      const covered = a.tops[0]!.slice(0, Math.floor(w)).filter((t) => t < NO_TOWER).length;
+      expect(covered / Math.floor(w)).toBeGreaterThan(0.85);
+    }
+  });
+
+  it('puts signs and beacons only where they can be seen, signs on a tower and apart', () => {
+    for (const [w, h] of screens) {
+      const city = buildCity(w, h, seeded(11));
+      expect(city.signs.length).toBeGreaterThan(0);
+      for (const s of city.signs) {
+        expect(s.x).toBeGreaterThanOrEqual(0);
+        expect(s.x + s.w).toBeLessThanOrEqual(w);
+        expect(inSight(city, s.layer, s.x - 1, s.x + s.w + 1, s.y + s.h + 1)).toBe(true);
+        for (let c = s.x; c < s.x + s.w; c++) expect(city.tops[s.layer]![c]!).toBeLessThanOrEqual(s.y);
+      }
+      city.signs.forEach((s, i) => city.signs.slice(i + 1).forEach((o) => expect(s.x < o.x + o.w && o.x < s.x + s.w && s.y < o.y + o.h && o.y < s.y + s.h).toBe(false)));
+      for (const b of city.beacons) expect(inSight(city, b.layer, b.x - 2, b.x + 2, b.y - 1)).toBe(true);
+    }
+  });
+
+  it('packs each layer’s skyline into the texture, spires marked', () => {
+    const city = buildCity(1920, 1080, seeded(3));
+    const data = skyline(city);
+    const rows = skylineRows(city);
+    expect(data.length).toBe(SKYLINE_WIDTH * rows * CITY_LAYERS.length * 4);
+    for (let l = 0; l < CITY_LAYERS.length; l++) {
+      for (const c of [0, 517, 1919]) expect(data[((l * rows + Math.floor(c / SKYLINE_WIDTH)) * SKYLINE_WIDTH + (c % SKYLINE_WIDTH)) * 4]).toBe(city.tops[l]![c]);
+    }
+    const spire = city.layers.flat().find((t) => t.spire);
+    if (spire?.spire) {
+      const l = city.layers.findIndex((ts) => ts.includes(spire));
+      const c = spire.spire.x;
+      const i = ((l * rows + Math.floor(c / SKYLINE_WIDTH)) * SKYLINE_WIDTH + (c % SKYLINE_WIDTH)) * 4;
+      if (data[i] === spire.spire.top) expect(data[i + 3]).toBeLessThan(0);
+    }
+  });
+
+  it('stands the figure on her ledge, on the screen, left of the middle, the railing behind her', () => {
+    for (const [w, h] of screens) {
+      const f = placeFigure(w, h);
+      expect(f.feet - f.height).toBeGreaterThan(0);
+      expect(f.feet).toBeLessThan(h);
+      expect(f.x).toBeLessThan(w / 2);
+      expect(f.ledgeRight).toBeGreaterThan(f.x);
+      expect(f.railRight).toBeLessThan(f.x);
+    }
+  });
+
+  it('has a sound figure mesh, and draws the foreground as whole triangles', () => {
+    const verts = FIGURE_VERTICES.length / 2;
+    expect(Math.max(...FIGURE_TRIANGLES)).toBeLessThan(verts);
+    expect(FIGURE_OUTLINES.reduce((n, [, count]) => n + count, 0)).toBe(verts);
+    let area = 0;
+    for (let i = 0; i < FIGURE_TRIANGLES.length; i += 3) {
+      const [a, b, c] = [FIGURE_TRIANGLES[i]!, FIGURE_TRIANGLES[i + 1]!, FIGURE_TRIANGLES[i + 2]!];
+      area += Math.abs((FIGURE_VERTICES[2 * b]! - FIGURE_VERTICES[2 * a]!) * (FIGURE_VERTICES[2 * c + 1]! - FIGURE_VERTICES[2 * a + 1]!) - (FIGURE_VERTICES[2 * c]! - FIGURE_VERTICES[2 * a]!) * (FIGURE_VERTICES[2 * b + 1]! - FIGURE_VERTICES[2 * a + 1]!)) / 2;
+    }
+    // A slim figure: about a sixth of her height squared.
+    expect(area).toBeGreaterThan(0.1);
+    expect(area).toBeLessThan(0.25);
+    const city = buildCity(384, 832, seeded(5));
+    const fg = foreground(city, cityTones(neon), 2.8125);
+    expect(fg.length % (SHAPE * 3)).toBe(0);
+    for (let i = 5; i < fg.length; i += SHAPE) expect(fg[i]).toBeGreaterThanOrEqual(0);
+  });
+
+  it('takes its colours from the palette: the haze the cool hue, the signs the accent; with NEON, the reference’s', () => {
+    const t = cityTones(neon);
+    expect(t.skyTop).toEqual(rgb('#3a6bff').map((v) => v / 255));
+    expect(t.signWarm).toEqual(rgb('#ff3fdc').map((v) => v / 255));
+    // Violet lower down: redder than the top, still blue.
+    expect(t.skyLow[0]).toBeGreaterThan(t.skyTop[0]);
+    expect(t.skyLow[2]).toBeGreaterThan(t.skyLow[1]);
+    // The figure near-black blue, darker than the near towers.
+    expect(t.figure[2]).toBeGreaterThan(t.figure[0]);
+    expect(t.figure[2]).toBeLessThan(t.faceNear[2] + 0.05);
+  });
+
+  it('moves within its pools: signs between dark and lit, drones crossing, haze drifting, each frame packed', () => {
+    for (const [w, h] of screens) {
+      const city = buildCity(w, h, seeded(9));
+      const sim = new CitySim(city, seeded(10));
+      const room = frameRoom(city);
+      const t = cityTones(neon);
+      let flickered = false;
+      for (let f = 0; f < 30 * 120; f++) {
+        sim.advance(1 / 30);
+        expect(sim.drones).toBeLessThanOrEqual(MAX_DRONES);
+        for (const b of sim.signBright) {
+          expect(b).toBeGreaterThanOrEqual(0);
+          expect(b).toBeLessThanOrEqual(1);
+          if (b < 0.5) flickered = true;
+        }
+        for (let b = 0; b < city.beacons.length; b++) expect(sim.beacon(b)).toBeGreaterThanOrEqual(0);
+        expect(packSigns(sim, t, 'high', room.signs)).toBe(city.signs.length);
+        expect(packGlows(sim, t, 'high', room.glows) * GLOW).toBeLessThanOrEqual(room.glows.length);
+      }
+      expect(sim.drones).toBeGreaterThan(0);
+      expect(flickered).toBe(true);
+    }
+  });
+});
+

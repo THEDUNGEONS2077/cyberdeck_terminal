@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.10.0 (build 16)
+- **MEGACITY wallpaper,** from your reference: a city of towers in blue haze at night, seen from a rooftop where a lone figure stands on the ledge, looking out over it.
+  - **The city.** Five layers of towers, the far ones lost in the haze, the near ones dark; some step back to a narrower top, some carry spires. Tens of thousands of windows, lit floor by floor, a few blazing. Pink neon signs with glyphs on the middle towers, pale billboards far off. The haze turns from blue at the top to violet lower down, with a glow rising from below.
+  - **The figure.** A woman in silhouette with a bob, looking down at the city, a faint rim of light along her edge; a dark ledge and a glass railing. Her outline is our own drawing of the pose. On a wide screen she stands a little smaller and lower, clear of NAV.
+  - **What moves.** A few windows go on or off every second, each at its own moment; signs breathe, and now and then one stutters like a failing tube; beacons blink on the roofs; drones cross with short tails; patches of haze drift.
+  - **Colours.** NEON gives the reference's; every palette makes its own city (BLOOD: steel blue with red signs).
+  - **How it's drawn.** It's the first wallpaper drawn by the graphics card per pixel (WebGL 2): the whole city in one pass, every window included, so it stays smooth and light on the processor. It runs in the wallpaper's worker like the others, and zooms like them (the figure keeps her place).
+- It's coming to fluid_motion next, with the same city and the same shaders.
+
+
 ## 0.9.0 (build 15)
 - **DATA FLOW wallpaper:** a circuit board at night, with data running through it.
   - **The board.** Traces run on a fine grid in straight runs and 45° bends. They leave the chips' pins in parallel buses that bend like ribbons, and run off the screen. Loose traces and small buses fill the rest, ending in vias and pads. A big main chip with its die shows sits a little right of the middle, with smaller chips round it.
