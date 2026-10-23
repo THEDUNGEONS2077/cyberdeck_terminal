@@ -1,7 +1,6 @@
 /**
  * src/wallpaper/megacity/params.ts: the tunable numbers of the MEGACITY
- * wallpaper: a city of towers at night, seen from a rooftop, a lone figure
- * on the ledge looking out over it.
+ * wallpaper: a city of towers at night, seen from a rooftop ledge.
  *
  * Layer: wallpaper (data only). Reference: the user's image (2026-10-24), a
  * vertical cyberpunk city in blue haze. Matched there:
@@ -10,14 +9,14 @@
  *     dark blue; windows as small dashes, mostly pale blue, some violet,
  *     a few pink and white; bright strips down some towers' edges;
  *   - pink neon signs on the middle towers, a few pale billboards far off;
- *   - a figure in silhouette on a dark ledge with a glass railing, left of
- *     the middle, looking down at the city (her outline is our own drawing
- *     of the pose: figure.ts).
+ *   - a dark rooftop ledge with a glass railing in the foreground, left of
+ *     the middle (the reference's figure on it was left out at the user's
+ *     wish, 2026-10-24).
  * Its motion is our own: windows going on and off now and then, signs
  * flickering, beacons blinking on the rooftops, drones crossing, haze
  * drifting. Sizes are CSS px of the zoomed layout (types.ts zoomedSize):
- * zoomed in, the towers and windows grow; the figure keeps her place and
- * size on the screen.
+ * zoomed in, the towers and windows grow; the ledge keeps its place on
+ * the screen.
  */
 import type { GlowLevel } from '@/lib/layout';
 
@@ -77,19 +76,14 @@ export const WINDOW_PERIOD = 4000;
 export const TIME_WRAP = WINDOW_PERIOD * 16;
 
 /**
- * The figure and her ledge, in shares, on a tall screen (the reference's)
- * and a wide one: her height of the screen's, where her feet are (down the
- * screen) and her middle (across it). On a wide screen she stands smaller
- * and lower, her head clear of NAV and its open folders. The ledge runs out
- * past her by `ledgeOut` of her height; the glass railing behind her is
- * `railHeight` of her height, and stops `railEnd` of it before her middle.
+ * The rooftop ledge in the foreground, on a tall screen (the reference's)
+ * and a wide one: its top (a share of the height), where it ends (a share
+ * of the width plus a share of the height), and its glass railing's height
+ * (a share of the height). Lower on a wide screen, clear of NAV.
  */
-export const FIGURE = {
-  tall: { height: 0.6, feet: 0.855, x: 0.43 },
-  wide: { height: 0.52, feet: 0.875, x: 0.3 },
-  ledgeOut: 0.12,
-  railHeight: 0.11,
-  railEnd: 0.09,
+export const LEDGE = {
+  tall: { top: 0.855, right: [0.43, 0.072], rail: 0.066 },
+  wide: { top: 0.875, right: [0.3, 0.0624], rail: 0.0572 },
 } as const;
 
 /** Per glow level: the windows' halo (0–1), a sign's halo, a light's halo (CSS px). */

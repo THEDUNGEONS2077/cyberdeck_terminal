@@ -1,7 +1,6 @@
 /**
  * src/wallpaper/megacity/engine.ts: the MEGACITY wallpaper: a city of
- * towers in blue haze at night, seen from a rooftop where a lone figure
- * stands on the ledge, looking out over it.
+ * towers in blue haze at night, seen from a rooftop ledge.
  *
  * Layer: wallpaper (WebGL 2; no React, no stores, no DOM: it runs in the
  * wallpaper's worker, wallpaper/worker.ts, on an OffscreenCanvas).
@@ -11,13 +10,13 @@
  * city.frag) from a small texture of skylines (city.ts), its windows going
  * on and off by the clock. On top, a few dozen things per frame: the neon
  * signs, the haze drifting, the beacons and drones (sim.ts), then the
- * railing, the ledge and the figure (city.ts foreground). Nothing about the
+ * railing and the ledge (city.ts foreground). Nothing about the
  * city is sent per frame; the lights are a few kilobytes. Up to about 72
  * frames a second.
  *
  * The shaders are fluid_motion's too (its assets/shaders/mc_*): the phone
  * draws the same city the same way. If WebGL 2 isn't there, a still 2D
- * picture (the haze and the figure's ledge); if the graphics context is
+ * picture (the haze and the ledge); if the graphics context is
  * lost, it waits and starts again.
  */
 import type { GlowLevel } from '@/lib/layout';
@@ -132,7 +131,7 @@ function setUp(gl: WebGL2RenderingContext): Gpu | null {
   };
 }
 
-/** The still picture, when WebGL 2 isn't there: the haze, and the figure's ledge as a dark band. */
+/** The still picture, when WebGL 2 isn't there: the haze, and the ledge as a dark band. */
 function drawStill(ctx: OffscreenCanvasRenderingContext2D, w: number, h: number, ratio: number, t: CityTones): void {
   const css = (c: readonly number[]) => `rgb(${c.map((v) => Math.round(Math.min(1, v) * 255)).join(', ')})`;
   ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
@@ -173,10 +172,10 @@ function createMegacity(canvas: HTMLCanvasElement | OffscreenCanvas, options: Wa
     gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA32F, SKYLINE_WIDTH, skylineRows(city) * city.layers.length, 0, gl.RGBA, gl.FLOAT, skyline(city));
   };
 
-  /** The foreground's triangles (once per city, palette and pixel ratio). */
+  /** The foreground's triangles (once per city and palette). */
   const sendForeground = () => {
     if (!gl || !gpu || !city || !size) return;
-    const data = foreground(city, tones, size.dpr);
+    const data = foreground(city, tones);
     gl.bindBuffer(gl.ARRAY_BUFFER, gpu.shapes.buffer);
     gl.bufferData(gl.ARRAY_BUFFER, data, gl.STATIC_DRAW);
     gpu.shapes.count = data.length / SHAPE;

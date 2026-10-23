@@ -19,8 +19,7 @@ import { COVERAGE, MAIN_CHIP, PITCH } from '@/wallpaper/data-flow/params';
 import { diagonal, linkNodes, rgb, shade } from '@/wallpaper/neural-net/engine';
 import { tones } from '@/wallpaper/velocity/engine';
 import { zoomedSize } from '@/wallpaper/types';
-import { buildCity, cityTones, foreground, inSight, NO_TOWER, placeFigure, SHAPE, skyline, skylineRows } from '@/wallpaper/megacity/city';
-import { FIGURE_OUTLINES, FIGURE_TRIANGLES, FIGURE_VERTICES } from '@/wallpaper/megacity/figure';
+import { buildCity, cityTones, foreground, inSight, NO_TOWER, placeLedge, SHAPE, skyline, skylineRows } from '@/wallpaper/megacity/city';
 import { LAYERS as CITY_LAYERS, SKYLINE_WIDTH } from '@/wallpaper/megacity/params';
 import { CitySim, frameRoom, GLOW, MAX_DRONES, packGlows, packSigns } from '@/wallpaper/megacity/sim';
 import { memoryKV } from '@/store/kv';
@@ -333,31 +332,16 @@ describe('megacity', () => {
     }
   });
 
-  it('stands the figure on her ledge, on the screen, left of the middle, the railing behind her', () => {
+  it('puts the rooftop ledge across the bottom left, its railing on it, and draws it as whole triangles', () => {
     for (const [w, h] of screens) {
-      const f = placeFigure(w, h);
-      expect(f.feet - f.height).toBeGreaterThan(0);
-      expect(f.feet).toBeLessThan(h);
-      expect(f.x).toBeLessThan(w / 2);
-      expect(f.ledgeRight).toBeGreaterThan(f.x);
-      expect(f.railRight).toBeLessThan(f.x);
+      const l = placeLedge(w, h);
+      expect(l.top).toBeGreaterThan(h * 0.8);
+      expect(l.top).toBeLessThan(h);
+      expect(l.right).toBeGreaterThan(0);
+      expect(l.right).toBeLessThan(w);
+      expect(l.railTop).toBeLessThan(l.top);
     }
-  });
-
-  it('has a sound figure mesh, and draws the foreground as whole triangles', () => {
-    const verts = FIGURE_VERTICES.length / 2;
-    expect(Math.max(...FIGURE_TRIANGLES)).toBeLessThan(verts);
-    expect(FIGURE_OUTLINES.reduce((n, [, count]) => n + count, 0)).toBe(verts);
-    let area = 0;
-    for (let i = 0; i < FIGURE_TRIANGLES.length; i += 3) {
-      const [a, b, c] = [FIGURE_TRIANGLES[i]!, FIGURE_TRIANGLES[i + 1]!, FIGURE_TRIANGLES[i + 2]!];
-      area += Math.abs((FIGURE_VERTICES[2 * b]! - FIGURE_VERTICES[2 * a]!) * (FIGURE_VERTICES[2 * c + 1]! - FIGURE_VERTICES[2 * a + 1]!) - (FIGURE_VERTICES[2 * c]! - FIGURE_VERTICES[2 * a]!) * (FIGURE_VERTICES[2 * b + 1]! - FIGURE_VERTICES[2 * a + 1]!)) / 2;
-    }
-    // A slim figure: about a sixth of her height squared.
-    expect(area).toBeGreaterThan(0.1);
-    expect(area).toBeLessThan(0.25);
-    const city = buildCity(384, 832, seeded(5));
-    const fg = foreground(city, cityTones(neon), 2.8125);
+    const fg = foreground(buildCity(384, 832, seeded(5)), cityTones(neon));
     expect(fg.length % (SHAPE * 3)).toBe(0);
     for (let i = 5; i < fg.length; i += SHAPE) expect(fg[i]).toBeGreaterThanOrEqual(0);
   });
@@ -369,9 +353,9 @@ describe('megacity', () => {
     // Violet lower down: redder than the top, still blue.
     expect(t.skyLow[0]).toBeGreaterThan(t.skyTop[0]);
     expect(t.skyLow[2]).toBeGreaterThan(t.skyLow[1]);
-    // The figure near-black blue, darker than the near towers.
-    expect(t.figure[2]).toBeGreaterThan(t.figure[0]);
-    expect(t.figure[2]).toBeLessThan(t.faceNear[2] + 0.05);
+    // The ledge near-black blue, darker than the near towers.
+    expect(t.ledge[2]).toBeGreaterThan(t.ledge[0]);
+    expect(t.ledge[2]).toBeLessThan(t.faceNear[2]);
   });
 
   it('moves within its pools: signs between dark and lit, drones crossing, haze drifting, each frame packed', () => {

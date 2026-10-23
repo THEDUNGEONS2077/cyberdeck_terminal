@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.10.1 (build 17)
+- **MEGACITY without the figure** (your call): the city is seen from the rooftop ledge alone, its glass railing now running the length of it.
+
+
 ## 0.10.0 (build 16)
 - **MEGACITY wallpaper,** from your reference: a city of towers in blue haze at night, seen from a rooftop where a lone figure stands on the ledge, looking out over it.
   - **The city.** Five layers of towers, the far ones lost in the haze, the near ones dark; some step back to a narrower top, some carry spires. Tens of thousands of windows, lit floor by floor, a few blazing. Pink neon signs with glyphs on the middle towers, pale billboards far off. The haze turns from blue at the top to violet lower down, with a glow rising from below.

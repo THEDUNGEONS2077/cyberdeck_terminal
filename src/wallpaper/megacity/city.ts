@@ -1,7 +1,7 @@
 /**
  * src/wallpaper/megacity/city.ts: MEGACITY's city, laid out once per
  * screen size: the layers of towers, the signs and beacons on them, the
- * figure's place on her ledge; and what the GPU draws it from.
+ * rooftop ledge in front; and what the GPU draws it from.
  *
  * Layer: wallpaper (pure: no canvas, no DOM; seeded, so tests check it, and
  * fluid_motion's Kotlin port lays out the same way, lib/megacity/City.kt).
@@ -20,8 +20,7 @@
  * Built once per screen: it may allocate.
  */
 import type { WallpaperPalette } from '../types';
-import { FIGURE_OUTLINES, FIGURE_TRIANGLES, FIGURE_VERTICES } from './figure';
-import { BEACONS, BILLBOARDS, FIGURE, LAYERS, SETBACK, SIGNS, SKYLINE_WIDTH, SPIRE } from './params';
+import { BEACONS, BILLBOARDS, LAYERS, LEDGE, SETBACK, SIGNS, SKYLINE_WIDTH, SPIRE } from './params';
 
 /** A random number source returning 0 ≤ n < 1 (seeded in tests). */
 export type Rng = () => number;
@@ -63,14 +62,11 @@ export interface Beacon {
   phase: number;
 }
 
-/** The figure's place (CSS px): her middle, her feet, her height; the ledge's right end; the railing's top and right end. */
-export interface Placement {
-  x: number;
-  feet: number;
-  height: number;
-  ledgeRight: number;
+/** The rooftop ledge in front (CSS px): its top, its right end, the top of its glass railing. */
+export interface Ledge {
+  top: number;
+  right: number;
   railTop: number;
-  railRight: number;
 }
 
 /** A city on a w × h screen (CSS px). */
@@ -84,7 +80,7 @@ export interface City {
   tops: Float32Array[];
   signs: Sign[];
   beacons: Beacon[];
-  figure: Placement;
+  ledge: Ledge;
 }
 
 /** A column with no tower: no pixel is below it. */
@@ -187,20 +183,18 @@ function placeBeacons(city: City, rng: Rng): Beacon[] {
   return beacons;
 }
 
-/** Where the figure stands: left of the middle (smaller and lower on a wide screen); her ledge, her railing. */
-export function placeFigure(w: number, h: number): Placement {
-  const shape = w < h ? FIGURE.tall : FIGURE.wide;
-  const height = shape.height * h;
-  const x = shape.x * w;
-  const feet = shape.feet * h;
-  return { x, feet, height, ledgeRight: x + FIGURE.ledgeOut * height, railTop: feet - FIGURE.railHeight * height, railRight: x - FIGURE.railEnd * height };
+/** Where the rooftop ledge is: across the bottom left (lower on a wide screen), its railing on it. */
+export function placeLedge(w: number, h: number): Ledge {
+  const l = w < h ? LEDGE.tall : LEDGE.wide;
+  const top = l.top * h;
+  return { top, right: l.right[0] * w + l.right[1] * h, railTop: top - l.rail * h };
 }
 
 /** Lays out the city for a w × h screen (CSS px). */
 export function buildCity(w: number, h: number, rng: Rng): City {
   const cols = Math.ceil(w) + 1;
   const layers = LAYERS.map((_, l) => towersFor(l, w, h, rng));
-  const city: City = { w, h, cols, layers, tops: layers.map((t) => columnTops(t, cols)), signs: [], beacons: [], figure: placeFigure(w, h) };
+  const city: City = { w, h, cols, layers, tops: layers.map((t) => columnTops(t, cols)), signs: [], beacons: [], ledge: placeLedge(w, h) };
   city.signs = placeSigns(city, rng);
   city.beacons = placeBeacons(city, rng);
   return city;
@@ -276,8 +270,7 @@ export interface CityTones {
   beacon: Rgb;
   droneWhite: Rgb;
   droneCool: Rgb;
-  figure: Rgb;
-  rim: Rgb;
+  seam: Rgb;
   ledge: Rgb;
   ledgeTop: Rgb;
   rail: Rgb;
@@ -288,8 +281,8 @@ export interface CityTones {
  * The city's colours from a palette. With NEON they're the reference's:
  * the haze is --cool (blue) at the top, turning violet towards the accent
  * lower down, a pink glow rising from below; the windows pale blue, violet,
- * pink and white; the signs the accent (pink); the figure and her ledge
- * near-black blue.
+ * pink and white; the signs the accent (pink); the ledge near-black
+ * blue.
  */
 export function cityTones(p: WallpaperPalette): CityTones {
   const bg = rgb(p.bg);
@@ -313,8 +306,7 @@ export function cityTones(p: WallpaperPalette): CityTones {
     beacon: accent,
     droneWhite: mixRgb(bright, WHITE, 0.5),
     droneCool: mixRgb(cool, WHITE, 0.5),
-    figure: mixRgb(bg, cool, 0.16),
-    rim: mixRgb(cool, WHITE, 0.35),
+    seam: mixRgb(bg, cool, 0.16),
     ledge: mixRgb(bg, cool, 0.16),
     ledgeTop: mixRgb(mixRgb(cool, WHITE, 0.15), bg, 0.3),
     rail: mixRgb(bg, cool, 0.3),
@@ -335,13 +327,11 @@ export function hazeAt(t: CityTones, y: number, h: number): Rgb {
 export const SHAPE = 6;
 
 /**
- * The foreground as triangles (SHAPE floats a vertex): the glass railing,
- * the ledge with its lit edge and seams, the figure's rim of light (her
- * outline shifted up and towards the city), then the figure. `pxPerUnit`
- * is canvas px per CSS px: each outline gets a one-pixel edge fading out
- * (anti-aliasing, with no multisampling).
+ * The foreground as triangles (SHAPE floats a vertex): the glass railing
+ * (tinted glass, a top rail, posts), then the ledge with the light along
+ * its edge, a band and seams on its face.
  */
-export function foreground(city: City, t: CityTones, pxPerUnit: number): Float32Array {
+export function foreground(city: City, t: CityTones): Float32Array {
   const out: number[] = [];
   const vertex = (x: number, y: number, c: Rgb, a: number) => out.push(x, y, c[0] * a, c[1] * a, c[2] * a, a);
   const rect = (x0: number, y0: number, x1: number, y1: number, c: Rgb, a: number) => {
@@ -352,61 +342,15 @@ export function foreground(city: City, t: CityTones, pxPerUnit: number): Float32
     vertex(x1, y1, c, a);
     vertex(x0, y1, c, a);
   };
-  const f = city.figure;
+  const l = city.ledge;
   const { w, h } = city;
-  // The glass railing: tinted glass, a top rail, posts.
-  rect(-2, f.railTop, f.railRight, f.feet, t.glass, 0.3);
-  rect(-2, f.railTop, f.railRight, f.railTop + 2.2, t.rail, 1);
-  for (const x of [w * 0.02, (w * 0.02 + f.railRight) / 2, f.railRight - 3]) rect(x, f.railTop, x + 3, f.feet, t.rail, 1);
-  // The ledge: its block, the light along its edge, a band and seams on its face.
-  rect(-2, f.feet, f.ledgeRight, h + 2, t.ledge, 1);
-  rect(-2, f.feet, f.ledgeRight, f.feet + 1.6, t.ledgeTop, 0.85);
-  rect(-2, f.feet + h * 0.03, f.ledgeRight, f.feet + h * 0.042, t.figure, 0.6);
-  for (const k of [0.22, 0.51, 0.8]) rect(f.ledgeRight * k, f.feet + h * 0.042, f.ledgeRight * k + 1, h + 2, t.figure, 0.5);
-  // The figure: once as a rim of light, then herself.
-  const figure = (dx: number, dy: number, c: Rgb, a: number) => {
-    const X = (i: number) => f.x + FIGURE_VERTICES[2 * i]! * f.height + dx;
-    const Y = (i: number) => f.feet - f.height + FIGURE_VERTICES[2 * i + 1]! * f.height + dy;
-    for (const i of FIGURE_TRIANGLES) vertex(X(i), Y(i), c, a);
-    // The edge: a band one pixel wide outside each outline, fading from the colour to nothing.
-    const fringe = 1 / pxPerUnit;
-    for (const [first, count] of FIGURE_OUTLINES) {
-      const nx: number[] = [];
-      const ny: number[] = [];
-      for (let k = 0; k < count; k++) {
-        const a0 = first + ((k + count - 1) % count);
-        const a1 = first + k;
-        const a2 = first + ((k + 1) % count);
-        // Outward is to the left of travel on screen (y down) for these clockwise outlines: (dy, -dx).
-        const e1x = Y(a1) - Y(a0);
-        const e1y = -(X(a1) - X(a0));
-        const e2x = Y(a2) - Y(a1);
-        const e2y = -(X(a2) - X(a1));
-        const l1 = Math.hypot(e1x, e1y) || 1;
-        const l2 = Math.hypot(e2x, e2y) || 1;
-        const sx = e1x / l1 + e2x / l2;
-        const sy = e1y / l1 + e2y / l2;
-        const ls = Math.hypot(sx, sy) || 1;
-        nx.push(sx / ls);
-        ny.push(sy / ls);
-      }
-      for (let k = 0; k < count; k++) {
-        const k2 = (k + 1) % count;
-        const i1 = first + k;
-        const i2 = first + k2;
-        const o1 = [X(i1) + nx[k]! * fringe, Y(i1) + ny[k]! * fringe] as const;
-        const o2 = [X(i2) + nx[k2]! * fringe, Y(i2) + ny[k2]! * fringe] as const;
-        vertex(X(i1), Y(i1), c, a);
-        vertex(X(i2), Y(i2), c, a);
-        vertex(o2[0], o2[1], c, 0);
-        vertex(X(i1), Y(i1), c, a);
-        vertex(o2[0], o2[1], c, 0);
-        vertex(o1[0], o1[1], c, 0);
-      }
-    }
-  };
-  const rim = Math.max(1.2, f.height * 0.003);
-  figure(rim, -rim * 0.6, t.rim, 0.45);
-  figure(0, 0, t.figure, 1);
+  const railEnd = l.right - 3;
+  rect(-2, l.railTop, railEnd, l.top, t.glass, 0.3);
+  rect(-2, l.railTop, railEnd, l.railTop + 2.2, t.rail, 1);
+  for (const x of [w * 0.02, (w * 0.02 + railEnd) / 2, railEnd - 3]) rect(x, l.railTop, x + 3, l.top, t.rail, 1);
+  rect(-2, l.top, l.right, h + 2, t.ledge, 1);
+  rect(-2, l.top, l.right, l.top + 1.6, t.ledgeTop, 0.85);
+  rect(-2, l.top + h * 0.03, l.right, l.top + h * 0.042, t.seam, 0.6);
+  for (const k of [0.22, 0.51, 0.8]) rect(l.right * k, l.top + h * 0.042, l.right * k + 1, h + 2, t.seam, 0.5);
   return new Float32Array(out);
 }

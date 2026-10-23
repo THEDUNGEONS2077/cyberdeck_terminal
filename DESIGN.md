@@ -97,9 +97,9 @@ Reference: `IMG-20261023-WA0020_1792792421032.jpg` (the user's, 2026-10-24): a v
 | The towers | Tall slabs in depth, the far ones lost in the haze, the near ones dark blue, some stepping back, spires | Five layers of towers, far to near, each taking less of the haze (fog); setbacks and spires; a lit roof edge, a bright strip down some edges |
 | Windows | Small dashes, mostly pale blue, some violet, a few pink and white; some towers nearly dark | A grid of dashes per tower from its seed, lit by floors, a few floors blazing; pale, violet, pink, white |
 | Signs | Pink neon signs with glyphs on the middle towers, pale billboards far off | Upright and wide signs in the accent (some in the cool hue) with glyph strokes and a halo, on the middle layers where they can be seen; billboards far off |
-| The figure | A woman in silhouette, three-quarter view, a bob, looking down at the city; a dark ledge with a glass railing | Our own outline of the pose (not traced), near-black blue with a faint rim of light from the city; on a wide screen she stands a little smaller and lower, clear of NAV |
+| The foreground | A woman in silhouette on a dark ledge with a glass railing | The ledge and its railing only: the figure was left out at the user's wish (0.10.1). On a wide screen the ledge sits lower, clear of NAV |
 
-The motion is our own, and slow: a few windows go on or off every second, each at its own moment; a sign now and then stutters like a failing tube; beacons blink on the roofs; drones cross trailing short tails; patches of haze drift. ZOOM grows the towers and windows; she keeps her place.
+The motion is our own, and slow: a few windows go on or off every second, each at its own moment; a sign now and then stutters like a failing tube; beacons blink on the roofs; drones cross trailing short tails; patches of haze drift. ZOOM grows the towers and windows; the ledge keeps its place.
 
 ## The bookmarks deck
 - **Header bar:** titled **NAV**, in the desktop's centre-header look (scanlines, phosphor, a lit rule underneath).
