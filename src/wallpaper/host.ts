@@ -42,6 +42,7 @@ import { DEFAULT_RAIN_GLOW, DEFAULT_WALLPAPER_ID, GLOW_LEVELS, type GlowLevel } 
 import { DEFAULT_PALETTE, findPalette, PALETTE_TOKENS, type PaletteColors, type PaletteId } from '@/lib/palettes';
 
 import { knownWallpaperId } from './catalog';
+import { measurePixels } from './probe';
 import type { WallpaperInstance, WallpaperPalette } from './types';
 import type { FramesProbe, FromWorker, PixelsProbe, ToWorker } from './worker';
 // The worker's code, inlined into this chunk (it starts from a Blob URL): no extra request
@@ -241,15 +242,7 @@ function onPage(id: string, canvas: HTMLCanvasElement, s: Size): Omit<Running, '
       destroy: () => later((e) => e.destroy()),
     },
     probe: {
-      pixels: async () => {
-        const data = canvas.getContext('2d')?.getImageData(0, 0, canvas.width, canvas.height).data;
-        if (!data?.length) return { lit: 0, sig: 0 };
-        let lit = 0;
-        for (let i = 3; i < data.length; i += 4) if (data[i]! > 40) lit++;
-        let sig = 0;
-        for (let i = 3; i < data.length; i += 4 * 997) sig = (sig * 31 + data[i]! + data[i - 2]!) >>> 0;
-        return { lit: lit / (data.length / 4), sig };
-      },
+      pixels: async () => measurePixels(canvas),
       frames: (ms) =>
         new Promise((resolve) => {
           const gaps: number[] = [];

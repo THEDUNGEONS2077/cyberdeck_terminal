@@ -181,6 +181,11 @@ ul {
 .wallpaper[data-wallpaper='neural-net'] .wallpaper-floor {
   display: none;
 }
+/* ORBIT draws its whole scene itself (a shader): no light layers. */
+.wallpaper[data-wallpaper='orbit'] .wallpaper-haze,
+.wallpaper[data-wallpaper='orbit'] .wallpaper-floor {
+  display: none;
+}
 /* The reference's dark lower edge: the rain thins out to black at the bottom. */
 .wallpaper-floor {
   position: absolute;
@@ -241,18 +246,6 @@ ul {
 .hud-clock {
   color: var(--text-bright);
   font-variant-numeric: tabular-nums;
-}
-/* How the dashboard is linked to Chrome (app/Hud.tsx LinkStatus). */
-.hud-link {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-}
-.hud-link.live {
-  color: var(--accent);
-}
-.hud-link.down {
-  color: var(--text-dim);
 }
 /* The key hints, bottom right: buttons too (a click does what the key does). */
 .hud-keys {

@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.7.0 (build 12)
+- **ORBIT wallpaper,** animated from your reference: a sunrise over the Earth seen from orbit. The planet's curved edge glows with its thin atmosphere, the sun bursts over the horizon with glare and short shimmering rays, clouds drift over the surface as the planet turns (the near ones faster), and a few stars twinkle in the dark corner. It's drawn by the graphics card (a WebGL shader) in the wallpaper's worker, up to about 72 frames a second.
+- **AZURE palette:** the orbit's blues, for the wallpaper (or the dashboard). Every wallpaper still works with every palette.
+- **The brand panel** shows the time and date only: no more LINK LIVE (NAV's header still shows whether the bookmarks are live).
+
 ## 0.6.1 (build 11)
 - **APPEARANCE is first in SYSTEM.**
 - **The dashboard and the wallpaper have their own palettes:** DASHBOARD COLOURS and WALLPAPER COLOURS are chosen apart, any with any. Your current choice carries over to both.

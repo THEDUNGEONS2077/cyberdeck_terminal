@@ -6,12 +6,9 @@
  * everything works with the mouse too. The brand panel sits where you put
  * it (layout.panels.brand); in edit mode it has a grip to move it.
  *
- * Its status line says how the dashboard is linked to Chrome, live (UX
- * pass, 2026-10-22: it used to say LINK OK whatever was going on):
- *   ● LINK LIVE   the bridge is connected
- *   LINKING…      asking the bridge (just opened)
- *   LINK: COPY    no bridge; showing an imported copy
- *   NO LINK       no bridge and no copy
+ * Its status line is the time and date only (the link to Chrome is shown
+ * in NAV's header; the panel's own LINK LIVE was removed at the user's
+ * request, 2026-10-23).
  */
 import { useEffect, useRef, useState } from 'react';
 
@@ -20,7 +17,7 @@ import { uiStore } from '@/store/ui';
 import { useArrangeDrag } from './arrangeDrag';
 import { cx } from './cx';
 import { toggleFullscreen } from './fullscreen';
-import { useBookmarks, useEdit, useLayout } from './hooks';
+import { useEdit, useLayout } from './hooks';
 import { MoveGrip, placeStyle } from './panels';
 
 // The clock's formatters, made once: toLocale…String with options builds a new one on every
@@ -55,21 +52,6 @@ function Clock() {
   );
 }
 
-/** How the dashboard is linked to Chrome (see the file header). */
-function LinkStatus() {
-  const status = useBookmarks((s) => s.status);
-  const hasCopy = useLayout((s) => s.layout.bookmarks.imported !== null);
-  if (status === 'live') {
-    return (
-      <span className="hud-link live">
-        <span className="live-dot" aria-hidden /> LINK LIVE
-      </span>
-    );
-  }
-  if (status === 'checking') return <span className="hud-link">LINKING…</span>;
-  return <span className={cx('hud-link', !hasCopy && 'down')}>{hasCopy ? 'LINK: COPY' : 'NO LINK'}</span>;
-}
-
 /** The HUD. */
 export function Hud() {
   const place = useLayout((s) => s.layout.panels.brand);
@@ -89,8 +71,6 @@ export function Hud() {
         </h1>
         <p className="hud-status">
           <Clock />
-          <span aria-hidden>·</span>
-          <LinkStatus />
         </p>
       </header>
       <nav className="hud-keys" aria-label="Controls">

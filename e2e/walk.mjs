@@ -540,6 +540,19 @@ try {
     const b = await rain();
     expect(a.lit > 0.002, `the network is only ${(a.lit * 100).toFixed(2)}% lit`);
     expect(a.sig !== b.sig, 'the neural net doesn’t move');
+    // ORBIT: a WebGL scene in the same worker; it fills the screen and moves.
+    await page.keyboard.press('s');
+    await page.getByRole('radio', { name: 'ORBIT' }).check({ force: true });
+    await page.keyboard.press('Escape');
+    await page.waitForFunction(() => document.querySelector('.wallpaper')?.getAttribute('data-wallpaper') === 'orbit');
+    await page.locator('.wallpaper-canvas[data-ready]').waitFor({ state: 'attached', timeout: 10000 });
+    expect((await page.evaluate(() => window.__cyberdeckRain.mode())) === 'worker', 'ORBIT isn’t in the worker');
+    const o1 = await rain();
+    await page.waitForTimeout(800);
+    const o2 = await rain();
+    expect(o1.lit > 0.3, `ORBIT is only ${(o1.lit * 100).toFixed(1)}% lit`);
+    expect(o1.sig !== o2.sig, 'ORBIT doesn’t move');
+    await shot('14-orbit');
     // Accessibility in another palette (contrast especially), with SYSTEM open.
     await page.addScriptTag({ path: join(root, 'node_modules/axe-core/axe.min.js') });
     await page.keyboard.press('s');

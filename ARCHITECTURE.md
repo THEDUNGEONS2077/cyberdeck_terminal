@@ -160,6 +160,11 @@ The contract is `src/wallpaper/types.ts`: `create(canvas, { palette, glow, still
 
 **To add a wallpaper:** create a folder under `src/wallpaper/`, export a `Wallpaper` from it, add it to `WALLPAPERS` in `registry.ts`, and its name card to `catalog.ts`. Its `id` is stored in layouts and backups, so it must never change once released.
 
+### Orbit (`src/wallpaper/orbit/`)
+- A WebGL 2 fragment shader (`shader.ts`) draws the whole scene per pixel each frame (soft clouds over a curved, foreshortened surface need it); the engine (`engine.ts`) sets the geometry (`fit`: the reference's circle and sun on the screen) and the palette's colours as uniforms and draws one screen-covering triangle, up to about 72 times a second, at up to 1.25 device px per CSS px.
+- If WebGL 2 isn't there it draws a still 2D picture; a lost graphics context pauses it until restored.
+- The tests' probe reads WebGL canvases too (`wallpaper/probe.ts`).
+
 ### Neural net (`src/wallpaper/neural-net/`)
 - **`params.ts`** holds every tunable number, matched to its reference (DESIGN.md).
 - **`engine.ts`** builds a scene per screen size (`scene`): node homes (a scatter plus clusters, past the screen's edges), links (`linkNodes`: each node's picks from its nearer neighbours, so some reach far), and bokeh. Each frame it redraws everything, cheaply:

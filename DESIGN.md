@@ -9,7 +9,7 @@ The design system comes from **quest_log_desktop**: `src/styles/theme.css` was c
 - **Motion** moves `transform` and `opacity` only. Endless loops use `animation-play-state: var(--loops)`, so Reduce Motion pauses them. Prefer a one-shot accent to a loop: a running loop makes the page draw every frame, and costs more the more bookmarks are on it.
 - **Icons** are text glyphs (`src/app/glyphs.ts`), not images.
 - **Components** use tokens only, never raw colours. That includes the wallpaper engines, which read their palette from the tokens.
-- **Palettes** (SYSTEM ▸ APPEARANCE ▸ DASHBOARD COLOURS and WALLPAPER COLOURS, chosen apart; `src/lib/palettes.ts`): PHOSPHOR (the original green), AMBER, ICE, NEON, BLOOD. A palette sets only the base tokens (`--bg`, the surfaces, `--line`, `--line-lit`, `--xp-wash`, the four text tones, `--accent-deep`, and `--cool`, a contrasting hue for two-tone wallpapers). Every glow, tint, rule and scanline is mixed from those in theme.css (`color-mix`), so nothing stays green. Each palette keeps the colour rule above, and a unit test checks it (dim, text, accent and bright text at 4.5:1 or better on the background and both surfaces; bright text on the wash). The swatches in SYSTEM preview each palette in its own colours.
+- **Palettes** (SYSTEM ▸ APPEARANCE ▸ DASHBOARD COLOURS and WALLPAPER COLOURS, chosen apart; `src/lib/palettes.ts`): PHOSPHOR (the original green), AMBER, ICE, NEON, BLOOD, AZURE (the orbit's blues). A palette sets only the base tokens (`--bg`, the surfaces, `--line`, `--line-lit`, `--xp-wash`, the four text tones, `--accent-deep`, and `--cool`, a contrasting hue for two-tone wallpapers). Every glow, tint, rule and scanline is mixed from those in theme.css (`color-mix`), so nothing stays green. Each palette keeps the colour rule above, and a unit test checks it (dim, text, accent and bright text at 4.5:1 or better on the background and both surfaces; bright text on the wash). The swatches in SYSTEM preview each palette in its own colours.
 
 ## The wallpaper's look
 Reference: `wallhaven-01ye3v2.jpg`, a dense matrix rain. Measured from it, at 1920×1080:
@@ -50,6 +50,18 @@ Reference: `neural net pape.jpg`, a plexus: glowing nodes joined by long thin li
 
 The motion is its own (drawn on every frame the screen shows, each link at its exact opacity, so nothing steps or pops): each node drifts round its home on a slow loop (10–38 px, 26–70 s), the bokeh drift upwards, and about once a second a signal runs along one to four links and lights each node it reaches. The glow levels set the nodes' halos and a soft second stroke on the links. With BLOOD it looks like the reference; with any other palette it takes that palette's two hues.
 
+## The orbit's look
+Reference: `wallhaven-g8o86d.jpg`, a sunrise over the Earth seen from orbit (21:9). Measured on a 1600 × 669 copy:
+
+| Property | Reference | How it's matched |
+|---|---|---|
+| The planet's edge | A huge circle, its top just under the sun | A least-squares fit through the edge: centre (386, 2605), radius 2377 (`params.ts`); scaled to cover the screen, cropped from the left a little, the sun kept at least a fifth of the way in |
+| The sun | On the horizon, left of centre: white core, glare along the horizon, short rays | Core, glow and glare in the shader; two sets of rays plus finer noise rays, short and fading fast, shimmering slowly |
+| The sky | A thin bright haze along the edge, deep blue above, near-black space top right | `--cool` and `--accent` mixed into bands above the edge; lit towards the sun, dark on the far side; a few faint stars twinkle where it's darkest |
+| The surface | Wispy clouds over dark blue, squeezed towards the edge, a bright cloud mass by the sun, darker towards the bottom | Fractal noise on a ground plane in perspective (far clouds squeezed to the edge), warped and masked into patches, lit by the sun's side, darkened towards the bottom |
+
+With AZURE the mean colour per sixteenth of the screen tracks the reference (within about 10–30%: the clouds are procedural, not the photo's). The motion is its own: the clouds drift as the planet turns (nearer ones faster), the rays shimmer, the stars twinkle. The glow levels set the sun's and the air's strength.
+
 ## The bookmarks deck
 - **Header bar:** titled **NAV**, in the desktop's centre-header look (scanlines, phosphor, a lit rule underneath).
   - A soft band of light sweeps across it once when NAV appears, and again each time the layout is locked (the brand panel's refresh band, turned sideways). It never loops.
@@ -63,7 +75,7 @@ The motion is its own (drawn on every frame the screen shows, each link at its e
 - **Surfaces are solid.** The rain shows only in the gaps between pieces, and there's no backdrop blur, which would re-blur the animating canvas every frame.
 
 ## Principles (UX pass, 2026-10-22)
-- **System status is always true.** The brand's status line shows the real link to Chrome, NAV's header shows LIVE / SYNCING / COPY, and new bookmarks are lit as they arrive (`.fresh`, 4 s).
+- **System status is always true.** NAV's header shows the real link to Chrome (LIVE / SYNCING / COPY; the brand panel shows only the time and date since 0.6.2), and new bookmarks are lit as they arrive (`.fresh`, 4 s).
 - **Title and state on the left, actions on the right** (NAV's header). EDIT comes last. Anything that opens elsewhere carries ↗.
 - **Motion explains change.**
   - Rearrangements glide: FLIP (`app/deck/useFlip.ts`), 220 ms with the out-cubic ease, transforms only.

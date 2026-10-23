@@ -37,7 +37,7 @@ export interface PaletteColors {
 }
 
 /** The palettes' ids. Stored in layouts: never change one once released. */
-export type PaletteId = 'phosphor' | 'amber' | 'ice' | 'neon' | 'blood';
+export type PaletteId = 'phosphor' | 'amber' | 'ice' | 'neon' | 'blood' | 'azure';
 
 /** A palette: its id, its name in SYSTEM, its colours. */
 export interface Palette {
@@ -136,6 +136,25 @@ export const PALETTES: readonly Palette[] = [
       accentDeep: '#a0181f',
       textBright: '#ffc8cc',
       cool: '#1f6894',
+    },
+  },
+  {
+    // The blues of the ORBIT wallpaper's reference (a sunrise over the Earth from orbit).
+    id: 'azure',
+    label: 'AZURE',
+    colors: {
+      bg: '#000000',
+      surface: '#04080f',
+      surfaceRaised: '#08101c',
+      line: '#12264a',
+      lineLit: '#0b3a7a',
+      wash: '#001a40',
+      textDim: '#3d84d0',
+      text: '#55a2ee',
+      accent: '#3ca0ff',
+      accentDeep: '#1a5fb0',
+      textBright: '#cfe4ff',
+      cool: '#0b3c99',
     },
   },
 ];

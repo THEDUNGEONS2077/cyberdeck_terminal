@@ -16,6 +16,7 @@
  */
 import type { GlowLevel } from '@/lib/layout';
 
+import { measurePixels, type PixelsProbe } from './probe';
 import { findWallpaper } from './registry';
 import type { WallpaperInstance, WallpaperPalette } from './types';
 
@@ -48,11 +49,8 @@ export type FromWorker =
   | { type: 'measure'; name: string; start: number; duration: number; origin: number }
   | { type: 'probe'; id: number; result: PixelsProbe | FramesProbe };
 
-/** How much of the canvas is lit (alpha above a faint residue), and a fingerprint of it (changes when the rain moves). */
-export interface PixelsProbe {
-  lit: number;
-  sig: number;
-}
+export type { PixelsProbe };
+
 
 /** The gaps between animation frames over a while, and the time spent drawing in them (ms). */
 export interface FramesProbe {
@@ -93,16 +91,9 @@ new PerformanceObserver((list) => {
 let canvas: OffscreenCanvas | null = null;
 let instance: WallpaperInstance | null = null;
 
-/** Answers a pixels probe from the canvas as it is now. */
+/** Answers a pixels probe from the canvas as it is now (2D or WebGL: probe.ts). */
 function pixels(): PixelsProbe {
-  if (!canvas?.width || !canvas.height) return { lit: 0, sig: 0 };
-  const data = (canvas.getContext('2d') as OffscreenCanvasRenderingContext2D).getImageData(0, 0, canvas.width, canvas.height).data;
-  let lit = 0;
-  for (let i = 3; i < data.length; i += 4) if (data[i]! > 40) lit++;
-  // A fingerprint from a sample of pixels (every 997th): enough to tell two moments apart.
-  let sig = 0;
-  for (let i = 3; i < data.length; i += 4 * 997) sig = (sig * 31 + data[i]! + data[i - 2]!) >>> 0;
-  return { lit: lit / (data.length / 4), sig };
+  return measurePixels(canvas);
 }
 
 /** Records frame gaps and drawing time for `ms`, then answers. */
