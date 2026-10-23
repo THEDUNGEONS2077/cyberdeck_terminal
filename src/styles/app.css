@@ -181,9 +181,18 @@ ul {
 .wallpaper[data-wallpaper='neural-net'] .wallpaper-floor {
   display: none;
 }
-/* ORBIT draws its whole scene itself (a shader): no light layers. */
-.wallpaper[data-wallpaper='orbit'] .wallpaper-haze,
-.wallpaper[data-wallpaper='orbit'] .wallpaper-floor {
+/*
+ * VELOCITY's dark (its reference: near-black, a little cool light on the
+ * left, darkest on the right); the canvas adds all the light.
+ */
+.wallpaper[data-wallpaper='velocity'] {
+  background:
+    radial-gradient(55% 40% at 80% 0%, color-mix(in srgb, var(--accent) 9%, transparent), transparent),
+    radial-gradient(70% 90% at 15% 45%, color-mix(in srgb, var(--cool) 18%, var(--bg)), transparent),
+    var(--bg);
+}
+.wallpaper[data-wallpaper='velocity'] .wallpaper-haze,
+.wallpaper[data-wallpaper='velocity'] .wallpaper-floor {
   display: none;
 }
 /* The reference's dark lower edge: the rain thins out to black at the bottom. */

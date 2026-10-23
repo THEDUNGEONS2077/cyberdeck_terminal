@@ -12,7 +12,7 @@ import { defaultLayout } from '@/lib/layout';
 import { migrateLayout } from '@/lib/migrations';
 import { contrast, DEFAULT_PALETTE, findPalette, PALETTE_IDS, PALETTE_TOKENS, PALETTES } from '@/lib/palettes';
 import { diagonal, linkNodes, rgb, shade } from '@/wallpaper/neural-net/engine';
-import { fit, vec3 } from '@/wallpaper/orbit/engine';
+import { tones } from '@/wallpaper/velocity/engine';
 
 describe('palettes', () => {
   it('have unique ids, every colour, and the default first', () => {
@@ -88,28 +88,14 @@ describe('neural net', () => {
   });
 });
 
-describe('orbit', () => {
-  it.each([
-    [1920, 1080],
-    [3440, 1440],
-    [1280, 1024],
-    [800, 1200],
-  ])('fits the scene to %i × %i: the sun on screen, just above the planet’s edge', (w, h) => {
-    const g = fit(w, h);
-    const [sx, sy] = g.sun;
-    expect(sx).toBeGreaterThan(0);
-    expect(sx).toBeLessThan(w);
-    expect(sy).toBeGreaterThan(0);
-    expect(sy).toBeLessThan(h / 2);
-    // The sun sits a little above the edge (as in the reference: its glare spills over it).
-    const above = g.radius - Math.hypot(sx - g.center[0], sy - g.center[1]);
-    expect(above / g.scale).toBeGreaterThan(-40);
-    expect(above / g.scale).toBeLessThan(0);
-    // The planet's centre is far below the screen (a gentle curve).
-    expect(g.center[1]).toBeGreaterThan(h);
-  });
-
-  it('hands colours to the shader in 0–1', () => {
-    expect(vec3('#ff8000')).toEqual([1, 128 / 255, 0]);
+describe('velocity', () => {
+  it('takes its light from the palette: pale from the cool hue (leaning blue), red from the accent', () => {
+    const palette = { bg: '#000000', line: '#111111', dim: '#222222', text: '#333333', accent: '#ff3040', bright: '#ffc8cc', cool: '#1f6894' };
+    const t = tones(palette);
+    expect(t.red).toBe('255, 48, 64');
+    const [r, g, b] = t.pale.split(', ').map(Number) as [number, number, number];
+    expect(b).toBeGreaterThan(g);
+    expect(g).toBeGreaterThan(r);
+    expect(r).toBeGreaterThan(150);
   });
 });

@@ -139,7 +139,7 @@ export const PALETTES: readonly Palette[] = [
     },
   },
   {
-    // The blues of the ORBIT wallpaper's reference (a sunrise over the Earth from orbit).
+    // Deep blues (made for a wallpaper since removed; kept as a palette).
     id: 'azure',
     label: 'AZURE',
     colors: {

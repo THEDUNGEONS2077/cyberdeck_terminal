@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.8.0 (build 13)
+- **VELOCITY wallpaper,** animated from your reference: light caught in motion. Soft slanted panels of light (a bright pale one, dimmer red ones) drift across at different speeds and come round again, with fine motion-blur lines through them; thin streaks race past along the top; long faint lines flicker; a flare breathes in the corner. With BLOOD it has the reference's pale blue and red. It runs in the wallpaper's worker like the others.
+- **ORBIT removed** (replaced by VELOCITY). A layout that had it shows MATRIX RAIN instead. The AZURE palette stays.
+
 ## 0.7.0 (build 12)
 - **ORBIT wallpaper,** animated from your reference: a sunrise over the Earth seen from orbit. The planet's curved edge glows with its thin atmosphere, the sun bursts over the horizon with glare and short shimmering rays, clouds drift over the surface as the planet turns (the near ones faster), and a few stars twinkle in the dark corner. It's drawn by the graphics card (a WebGL shader) in the wallpaper's worker, up to about 72 frames a second.
 - **AZURE palette:** the orbit's blues, for the wallpaper (or the dashboard). Every wallpaper still works with every palette.
