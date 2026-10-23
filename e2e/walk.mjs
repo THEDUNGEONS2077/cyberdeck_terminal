@@ -187,7 +187,7 @@ try {
     await page.getByRole('dialog', { name: 'Find' }).waitFor({ state: 'detached' });
   });
 
-  await path('arrow keys move between tiles and folders; an open folder takes a full row', async () => {
+  await path('arrow keys move between tiles and folders; an open folder drops down as a list', async () => {
     await page.locator('.tile', { hasText: 'GitHub' }).focus();
     await page.keyboard.press('ArrowRight');
     expect(await page.evaluate(() => document.activeElement?.textContent?.includes('Mail & more')), '→ didn’t move to the next tile');
@@ -196,8 +196,12 @@ try {
     expect(/folder-head|row-link|tile/.test(below ?? ''), `↓ went to ${below}`);
     await page.keyboard.press('Home');
     expect(await page.evaluate(() => document.activeElement?.textContent?.includes('GitHub')), 'Home didn’t go to the first item');
-    const span = await page.locator('[data-item-key="f:Dev"]').evaluate((el) => getComputedStyle(el).gridColumnStart + ' / ' + getComputedStyle(el).gridColumnEnd);
-    expect(span === '1 / -1', `the open folder spans ${span}`);
+    // A dropdown in its own grid cell, one link per row (user's choice, 2026-10-23).
+    const span = await page.locator('[data-item-key="f:Dev"]').evaluate((el) => getComputedStyle(el).gridColumnStart);
+    expect(span === 'auto', `the open folder spans ${span}`);
+    // Every link on a line of its own: each one starts below the one before.
+    const ys = await page.locator('[data-item-key="f:Dev"] .row-link').evaluateAll((links) => links.map((a) => Math.round(a.getBoundingClientRect().top)));
+    expect(ys.length > 1 && ys.every((y, i) => i === 0 || y > ys[i - 1]), `the folder's links aren't one per line (tops: ${ys})`);
   });
 
   // --- Edit mode (on the imported bar: GitHub, Mail & more, Hacker News; folders Dev > Tools / Utils) ---

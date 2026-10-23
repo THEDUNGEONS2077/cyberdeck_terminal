@@ -72,7 +72,7 @@ bridge/background.js ──(externally_connectable)──▶ src/bridge/client.t
 3. With no bridge, the imported copy (`layout.bookmarks.imported`).
 4. With none of these, the CONNECT prompt.
 
-**Folders:** which are open is stored in `layout.bookmarks.open`, keyed by folder path (`lib/bookmarks.ts` `folderKey`), so the same folder matches across the live bar and an imported copy. A folder's contents are first rendered when it first opens. An open folder card takes NAV's full width, its links in CSS columns (`app.css`).
+**Folders:** which are open is stored in `layout.bookmarks.open`, keyed by folder path (`lib/bookmarks.ts` `folderKey`), so the same folder matches across the live bar and an imported copy. A folder's contents are first rendered when it first opens. An open folder drops down in its own grid cell, one link per row.
 
 **Finding (`/`, `app/Finder.tsx`):** a combobox over a listbox (`aria-activedescendant`).
 - `lib/find.ts` `findEntries` lists every openable link in dashboard order, skipping hidden items and anything in a hidden folder. `search` scores each typed word: title start, word start, inside the title, host start, host, folder, then letters in order. Ties go to the shorter title, then dashboard order.

@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.5.1 (build 9)
+- **Folders drop down again:** an open folder opens in place as a list, one link per row, as before 0.5.0 (0.5.0 spread it across NAV's full width with its links in columns).
+
 ## 0.5.0 (build 8)
 **Find anything, more glow, and the rain on a thread of its own.**
 - **Find (`/`):** type a few letters of any bookmark, in any folder, and Enter opens the best match (in a new tab). It's chosen already, with the matched letters lit. Commands sit below the links: edit or lock the layout, SYSTEM, fullscreen, export a backup, and with the bridge Chrome's New Tab and Bookmark manager. ↑ ↓ choose; Esc clears, then closes.

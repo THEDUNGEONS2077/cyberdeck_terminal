@@ -1087,20 +1087,6 @@ kbd {
   min-height: 0;
   overflow: hidden;
 }
-/* An open folder card takes NAV's full width, its contents in columns: the cards beside it
-   no longer leave empty space under them (UX pass, 2026-10-22). */
-.folders > [data-item-key]:has(> .folder.card:not(.collapsed)) {
-  grid-column: 1 / -1;
-}
-.folder.card > .folder-body > .folder-inner > .rows {
-  display: block;
-  columns: 232px;
-  column-gap: var(--s-md);
-}
-.folder.card > .folder-body > .folder-inner > .rows > li {
-  break-inside: avoid;
-}
-
 /* Rows inside a folder; a nested folder's rows hang off a tree line. */
 .rows {
   display: flex;
@@ -1548,7 +1534,7 @@ a.text-btn {
   border-color: var(--accent-35);
   padding-right: 40px;
 }
-/* While editing, NAV's content keeps clear of its resize edge (a full-width folder's ⋯ sat under it). */
+/* While editing, NAV's content keeps clear of its resize edge (the rightmost card's ⋯ sat under it). */
 .deck-area:has(> .deck.editing) {
   padding-right: 14px;
 }

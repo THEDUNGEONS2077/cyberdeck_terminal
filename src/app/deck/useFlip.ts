@@ -14,8 +14,8 @@
  *     so the compositor does the motion; nothing is laid out again.
  * Items that weren't there before fade in. Covers drops, ⋯ menu moves,
  * hiding and showing, areas, live bookmark changes, the edit bar sliding
- * in, and folders opening and closing (an open folder takes a full row,
- * so the cards around it move). Reduce Motion: nothing animates.
+ * in, and folders opening and closing (the cards below an opening folder
+ * move down). Reduce Motion: nothing animates.
  *
  * Positions are taken relative to NAV's scrolling box (and its scroll), so
  * moving the NAV panel or scrolling it doesn't count as items moving.
