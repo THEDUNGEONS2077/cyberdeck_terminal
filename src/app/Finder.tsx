@@ -32,6 +32,7 @@ import { G } from './glyphs';
 import { useBookmarks, useEdit, useLayout, useUi } from './hooks';
 import { usePresence } from './usePresence';
 import { useShownBar } from './useShownBar';
+import { zoomWallpaper } from './zoom';
 
 /** How long the finder takes to fade out (matches --fast in theme.css). */
 const EXIT_MS = 120;
@@ -84,6 +85,9 @@ function FinderPanel({ leaving }: { leaving: boolean }) {
     { id: 'system', glyph: G.system, label: 'OPEN SYSTEM', key: 'S', run: () => uiStore.getState().setPanelOpen(true) },
     { id: 'fullscreen', glyph: G.fullscreen, label: 'FULLSCREEN', key: 'F', run: () => void toggleFullscreen() },
     { id: 'backup', glyph: '↓', label: 'EXPORT A BACKUP', run: () => downloadBackup() },
+    { id: 'zoom-in', glyph: '+', label: 'ZOOM THE WALLPAPER IN', key: '+', run: () => zoomWallpaper('in') },
+    { id: 'zoom-out', glyph: '−', label: 'ZOOM THE WALLPAPER OUT', key: '−', run: () => zoomWallpaper('out') },
+    { id: 'zoom-reset', glyph: '0', label: 'WALLPAPER ZOOM 100%', key: '0', run: () => zoomWallpaper('reset') },
     ...(canOpenChrome
       ? [
           { id: 'ntp', glyph: G.external, label: 'CHROME NEW TAB', run: () => void openChromePage('ntp') },

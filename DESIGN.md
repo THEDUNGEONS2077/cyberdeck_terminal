@@ -75,6 +75,19 @@ There's no reference image this time (the user's choice of idea, 2026-10-23: cir
 
 The glow levels set the board's soft glow and the packets' halo and head. With BLOOD it reads red and blue; with every palette it takes that palette's two hues.
 
+## Zoom
+SYSTEM ▸ APPEARANCE ▸ ZOOM (user request, 2026-10-23: zoom in, and set each wallpaper's default zoom).
+
+| | |
+|---|---|
+| What it is | A wallpaper laid out as if the screen were 1/zoom as big, drawn zoom times as large: browser zoom for the wallpaper alone. Bigger glyphs, nodes, traces and chips, fewer of them on the screen; smaller and more of them below 100% |
+| Steps | Chrome's own, 50% to 200%: 50 · 67 · 75 · 80 · 90 · 100 · 110 · 125 · 150 · 175 · 200 |
+| Kept | Per wallpaper, with the layout and its backups: the zoom a wallpaper opens at from then on |
+| Sharpness | The same at every zoom: the canvas keeps its pixels (drawn larger, not scaled up) |
+| VELOCITY | Laid out in shares of the screen, so it grows its panels, streaks and flare instead (the flare and its arc about the corner); the panels keep their slant |
+
+fluid_motion's wallpapers zoom the same way.
+
 ## The bookmarks deck
 - **Header bar:** titled **NAV**, in the desktop's centre-header look (scanlines, phosphor, a lit rule underneath).
   - A soft band of light sweeps across it once when NAV appears, and again each time the layout is locked (the brand panel's refresh band, turned sideways). It never loops.

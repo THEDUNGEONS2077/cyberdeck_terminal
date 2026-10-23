@@ -14,6 +14,11 @@
  * for its fine motion-blur lines, and a thin rectangle per streak.
  * Colours come from the wallpaper's palette: the pale light is --cool lifted
  * towards white, the red is --accent (BLOOD gives the reference's).
+ *
+ * ZOOM: the scene is laid out in shares of the screen, so zooming it
+ * doesn't re-lay it out (as the others do) but scales what's in it: the
+ * panels' widths and drift, the streaks, the fine lines, and the flare and
+ * its arc about the flare's corner. A panel keeps its slant.
  */
 import type { GlowLevel } from '@/lib/layout';
 
@@ -100,6 +105,7 @@ function createVelocity(canvas: HTMLCanvasElement | OffscreenCanvas, options: Wa
   let w = 0;
   let h = 0;
   let dpr = 1;
+  let zoom = 1;
   let running = false;
   let announced = false;
   let frame = 0;
@@ -111,11 +117,15 @@ function createVelocity(canvas: HTMLCanvasElement | OffscreenCanvas, options: Wa
   let lines: Line[] = [];
   let striation: CanvasPattern | null = null;
 
-  /** A new panel of a kind; `anywhere` places it on screen (the start), else just off the left edge. */
+  /**
+   * A new panel of a kind; `anywhere` places it on screen (the start), else
+   * just off the left edge. Its width and drift are zoomed; its lean isn't
+   * (it leans over the whole height: zoomed, the slant is the same).
+   */
   const panel = (kind: 'pale' | 'red', spec: PanelKind, anywhere: boolean): Panel => {
-    const width = between(rng, spec.width) * w;
+    const width = between(rng, spec.width) * w * zoom;
     const lean = between(rng, spec.lean) * w;
-    return { kind, width, lean, x: anywhere ? rng() * w : -width - lean, alpha: between(rng, spec.alpha), speed: between(rng, spec.speed) * w, phase: rng() * 6.28 };
+    return { kind, width, lean, x: anywhere ? rng() * w : -width - lean, alpha: between(rng, spec.alpha), speed: between(rng, spec.speed) * w * zoom, phase: rng() * 6.28 };
   };
 
   /** The fine horizontal lines of motion blur, as a pattern (one tile, repeated). */
@@ -146,6 +156,8 @@ function createVelocity(canvas: HTMLCanvasElement | OffscreenCanvas, options: Wa
     streaks = [];
     lines = Array.from({ length: LONG_LINES }, () => ({ y: h * rng() ** 1.5, alpha: between(rng, LONG_LINE_ALPHA), rate: 0.3 + rng() * 1.2, phase: rng() * 6.28 }));
     striation = makeStriation();
+    // The motion-blur lines, zoomed with the rest.
+    striation?.setTransform({ a: zoom, b: 0, c: 0, d: zoom, e: 0, f: 0 });
   };
 
   /** Moves everything on by `dt` seconds. */
@@ -160,7 +172,7 @@ function createVelocity(canvas: HTMLCanvasElement | OffscreenCanvas, options: Wa
       streakDebt -= 1;
       // More streaks near the top, as the reference.
       const y = h * Math.min(1, rng() ** 2.6);
-      streaks.push({ x: 0, y, speed: between(rng, STREAK_SPEED) * w, length: between(rng, STREAK_LENGTH) * w, width: between(rng, STREAK_WIDTH), pale: rng() < PALE_STREAKS, alpha: 0.35 + rng() * 0.6 });
+      streaks.push({ x: 0, y, speed: between(rng, STREAK_SPEED) * w * zoom, length: between(rng, STREAK_LENGTH) * w * zoom, width: between(rng, STREAK_WIDTH) * zoom, pale: rng() < PALE_STREAKS, alpha: 0.35 + rng() * 0.6 });
     }
     for (const s of streaks) s.x += s.speed * dt;
     streaks = streaks.filter((s) => s.x - s.length < w);
@@ -226,7 +238,7 @@ function createVelocity(canvas: HTMLCanvasElement | OffscreenCanvas, options: Wa
       grad.addColorStop(0.45, `rgba(${colours.red}, ${a})`);
       grad.addColorStop(1, `rgba(${colours.red}, ${a * 0.4})`);
       ctx.fillStyle = grad;
-      ctx.fillRect(0, l.y, w, 1);
+      ctx.fillRect(0, l.y, w, zoom);
     }
 
     // 3. Streaks: a bright head trailing a fading tail, with a soft glow round it.
@@ -242,11 +254,11 @@ function createVelocity(canvas: HTMLCanvasElement | OffscreenCanvas, options: Wa
       ctx.globalAlpha = 1;
     }
 
-    // 4. The corner flare: a soft bloom and an arc of light, breathing.
+    // 4. The corner flare: a soft bloom and an arc of light, breathing (zoomed about the flare).
     const breathe = 0.85 + 0.15 * Math.sin(t * 0.25);
     const fx = w * 0.995;
     const fy = h * 0.88;
-    const r = w * 0.17;
+    const r = w * 0.17 * zoom;
     const bloom = ctx.createRadialGradient(fx, fy, 0, fx, fy, r);
     bloom.addColorStop(0, `rgba(${colours.pale}, ${0.95 * g * breathe})`);
     bloom.addColorStop(0.18, `rgba(${colours.flare}, ${0.6 * g * breathe})`);
@@ -255,9 +267,9 @@ function createVelocity(canvas: HTMLCanvasElement | OffscreenCanvas, options: Wa
     ctx.fillStyle = bloom;
     ctx.fillRect(fx - r, fy - r, 2 * r, 2 * r);
     ctx.strokeStyle = `rgba(${colours.flare}, ${0.45 * g * breathe})`;
-    ctx.lineWidth = 4;
+    ctx.lineWidth = 4 * zoom;
     ctx.beginPath();
-    ctx.arc(w * 0.72, h * 0.5, w * 0.36, Math.PI * 0.08, Math.PI * 0.4);
+    ctx.arc(fx + (w * 0.72 - fx) * zoom, fy + (h * 0.5 - fy) * zoom, w * 0.36 * zoom, Math.PI * 0.08, Math.PI * 0.4);
     ctx.stroke();
 
     ctx.globalCompositeOperation = 'source-over';
@@ -283,14 +295,17 @@ function createVelocity(canvas: HTMLCanvasElement | OffscreenCanvas, options: Wa
   };
 
   const instance: WallpaperInstance = {
-    resize(cw, ch, ratio) {
+    resize(cw, ch, ratio, nextZoom) {
       const next = Math.min(MAX_DPR, Math.max(1, ratio));
       canvas.width = Math.round(cw * next);
       canvas.height = Math.round(ch * next);
-      const rebuild = cw !== w || ch !== h;
+      // Laid out at the screen's own size; the zoom scales what's drawn (see the header).
+      const z = nextZoom > 0 && Number.isFinite(nextZoom) ? nextZoom : 1;
+      const rebuild = cw !== w || ch !== h || z !== zoom;
       w = cw;
       h = ch;
       dpr = next;
+      zoom = z;
       // Changing the canvas's size dropped its pattern's context state: make it again with the scene.
       if (rebuild || !striation) build();
       draw(performance.now() / 1000);

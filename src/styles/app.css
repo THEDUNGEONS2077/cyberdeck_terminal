@@ -646,6 +646,25 @@ kbd {
   outline: var(--hairline) solid var(--accent);
   outline-offset: -2px;
 }
+/* A value stepped with buttons: − 125% + RESET (SYSTEM ▸ APPEARANCE ▸ ZOOM). */
+.stepper {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: var(--s-xs);
+}
+.stepper .text-btn {
+  min-width: var(--control);
+  padding: 0 var(--s-sm);
+}
+.stepper-value {
+  min-width: 5ch;
+  color: var(--text-bright);
+  font-size: var(--fs-meta);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.5px;
+  text-align: center;
+}
 .import-preview {
   display: flex;
   flex-direction: column;

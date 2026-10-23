@@ -20,7 +20,7 @@ import { type ChangeEvent, type CSSProperties, useId, useRef, useState } from 'r
 import { BRIDGE_VERSION } from '@/bridge/client';
 import { BackupError, type ParsedBackup, formatStamp } from '@/lib/backup';
 import { countLinks } from '@/lib/bookmarks';
-import { GLOW_LEVELS, REMINDER_DAY_CHOICES, summarizeLayout } from '@/lib/layout';
+import { DEFAULT_ZOOM, GLOW_LEVELS, REMINDER_DAY_CHOICES, ZOOM_STEPS, stepZoom, summarizeLayout, zoomLabel, zoomOf } from '@/lib/layout';
 import { type PaletteId, PALETTES } from '@/lib/palettes';
 import { exportAge } from '@/lib/reminder';
 import { reasonLabel, type SnapshotInfo } from '@/lib/snapshots';
@@ -287,16 +287,22 @@ function RestoreSection() {
 
 /**
  * APPEARANCE (first in SYSTEM): the dashboard's colours, the wallpaper, the
- * wallpaper's colours and the glow. The two palettes are chosen apart (user
- * request, 2026-10-23): any dashboard colours with any wallpaper colours.
+ * wallpaper's colours, the glow and the wallpaper's zoom. The two palettes
+ * are chosen apart (user request, 2026-10-23): any dashboard colours with
+ * any wallpaper colours. The zoom is the shown wallpaper's own: each keeps
+ * its zoom, and opens at it from then on.
  */
 function AppearanceSection() {
   const current = useLayout((s) => s.layout.wallpaper);
   const glow = useLayout((s) => s.layout.prefs.rainGlow);
   const palette = useLayout((s) => s.layout.prefs.palette);
   const wallpaperPalette = useLayout((s) => s.layout.prefs.wallpaperPalette);
+  const zoom = useLayout((s) => zoomOf(s.layout.prefs.wallpaperZoom, s.layout.wallpaper));
   const glowId = useId();
   const wallpaperId = useId();
+  const zoomId = useId();
+  const setZoom = (next: number) => layoutStore().getState().setWallpaperZoom(current, next);
+  const shownLabel = WALLPAPER_LIST.find((w) => w.id === current)?.label ?? current.toUpperCase();
   return (
     <section className="settings-group" aria-label="Appearance">
       <h3 className="section-title">APPEARANCE</h3>
@@ -325,6 +331,24 @@ function AppearanceSection() {
           ))}
         </div>
       </div>
+      {/* The shown wallpaper's zoom, a step at a time (+ − 0 on the keyboard do the same). */}
+      <div className="setting">
+        <span id={zoomId}>ZOOM · {shownLabel}</span>
+        <div className="stepper" role="group" aria-labelledby={zoomId}>
+          <button type="button" className="text-btn" aria-label="Zoom the wallpaper out" disabled={zoom <= ZOOM_STEPS[0]!} onClick={() => setZoom(stepZoom(zoom, -1))}>
+            −
+          </button>
+          <output className="stepper-value" aria-live="polite">
+            {zoomLabel(zoom)}
+          </output>
+          <button type="button" className="text-btn" aria-label="Zoom the wallpaper in" disabled={zoom >= ZOOM_STEPS[ZOOM_STEPS.length - 1]!} onClick={() => setZoom(stepZoom(zoom, 1))}>
+            +
+          </button>
+          <button type="button" className="text-btn" aria-label="Reset the zoom to 100%" disabled={zoom === DEFAULT_ZOOM} onClick={() => setZoom(DEFAULT_ZOOM)}>
+            RESET
+          </button>
+        </div>
+      </div>
     </section>
   );
 }
@@ -346,6 +370,10 @@ function KeysSection() {
         <div>
           <dt>/</dt>
           <dd>FIND: TYPE TO FIND A BOOKMARK OR A COMMAND; ↑↓ CHOOSE, ENTER OPENS.</dd>
+        </div>
+        <div>
+          <dt>+ −</dt>
+          <dd>ZOOM THE WALLPAPER IN / OUT; 0 BACK TO 100%. EACH WALLPAPER KEEPS ITS OWN ZOOM.</dd>
         </div>
         <div>
           <dt>← ↑ → ↓</dt>

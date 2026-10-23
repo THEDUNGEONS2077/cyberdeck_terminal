@@ -25,7 +25,7 @@
  */
 import type { GlowLevel } from '@/lib/layout';
 
-import type { Wallpaper, WallpaperInstance, WallpaperOptions, WallpaperPalette } from '../types';
+import { type Wallpaper, type WallpaperInstance, type WallpaperOptions, type WallpaperPalette, zoomedSize } from '../types';
 import {
   BOKEH_ALPHA,
   BOKEH_PER_MPX,
@@ -477,9 +477,10 @@ function createNeuralNet(canvas: HTMLCanvasElement | OffscreenCanvas, options: W
   };
 
   const instance: WallpaperInstance = {
-    resize(w, h, ratio) {
+    resize(cw, ch, ratio, zoom) {
       if (destroyed || !ctx) return;
-      const nextDpr = Math.min(MAX_DPR, Math.max(1, ratio));
+      // Zoomed: laid out for a screen 1/zoom as big, drawn zoom times as large (the canvas keeps its pixels).
+      const { w, h, dpr: nextDpr } = zoomedSize(cw, ch, ratio, zoom, MAX_DPR);
       canvas.width = Math.round(w * nextDpr);
       canvas.height = Math.round(h * nextDpr);
       if (!art || nextDpr !== dpr) art = sprites(palette, glow, nextDpr);

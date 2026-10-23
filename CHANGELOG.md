@@ -6,7 +6,12 @@
   - **The data.** Packets of light run along the traces and round the bends, trailing fading tails. A trace that just carried one keeps an afterglow; a via reached flashes; a chip glows as data arrives; now and then a whole bus fires a volley.
   - **The look in every palette.** Warm traces and packets come from the palette's accent, about a third from its cool hue: red and blue in BLOOD, green and teal in PHOSPHOR.
   - **Where it runs.** The still board is drawn once and only the light is drawn each frame. It runs in the wallpaper's worker like the others, on every frame the screen shows.
-- It's coming to fluid_motion next.
+- **ZOOM, for every wallpaper** (SYSTEM ▸ APPEARANCE ▸ ZOOM: **−** · 125% · **+** · RESET).
+  - **Each wallpaper keeps its own zoom,** with your layout and its backups, and opens at it from then on: the zoom you set is its default.
+  - **From 50% to 200%,** in a browser's zoom steps. Zoomed in, the wallpaper is laid out as if the screen were smaller and drawn larger: bigger glyphs, nodes, traces and chips, and fewer of them. VELOCITY grows its panels, streaks and flare instead. Below 100%, everything is smaller and there's more of it.
+  - **As sharp at every zoom:** the wallpaper is drawn larger, not scaled up, and its canvas keeps every pixel.
+  - **Keys:** **+** and **−** zoom the wallpaper shown, **0** goes back to 100%; they work in fullscreen too. The finder has them as commands.
+- DATA FLOW and ZOOM are in fluid_motion 0.5.0 too.
 
 ## 0.8.1 (build 14)
 - **NAV's bar** no longer shows LIVE or the link count. It still says SYNCING… while it catches up, and COPY · GO LIVE without the bridge.

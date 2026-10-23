@@ -20,7 +20,7 @@
  */
 import type { GlowLevel } from '@/lib/layout';
 
-import type { Wallpaper, WallpaperInstance, WallpaperOptions, WallpaperPalette } from '../types';
+import { type Wallpaper, type WallpaperInstance, type WallpaperOptions, type WallpaperPalette, zoomedSize } from '../types';
 import { type Board, buildBoard, pointAt, type Rng, type Trace, traceLength } from './board';
 import {
   AFTERGLOW_SECONDS,
@@ -466,8 +466,9 @@ function createDataFlow(canvas: HTMLCanvasElement | OffscreenCanvas, options: Wa
   };
 
   const instance: WallpaperInstance = {
-    resize(cw, ch, ratio) {
-      const next = Math.min(MAX_DPR, Math.max(1, ratio));
+    resize(cssW, cssH, ratio, zoom) {
+      // Zoomed: the board laid out for a screen 1/zoom as big, drawn zoom times as large (the canvas keeps its pixels).
+      const { w: cw, h: ch, dpr: next } = zoomedSize(cssW, cssH, ratio, zoom, MAX_DPR);
       canvas.width = Math.round(cw * next);
       canvas.height = Math.round(ch * next);
       const rebuild = cw !== w || ch !== h || !board;

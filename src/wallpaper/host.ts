@@ -32,13 +32,13 @@
  *   - copies the wallpaper's performance measures into the page's
  *     timeline, and gives the browser tests a probe (window.__cyberdeckRain).
  *
- * Which wallpaper to start with, its palette and how strongly it glows, are
- * remembered in localStorage (hints only, written by the app whenever the
- * layout's choices change), because the layout itself is read later, from
- * IndexedDB.
+ * Which wallpaper to start with, its palette, how strongly it glows and
+ * each wallpaper's zoom are remembered in localStorage (hints only, written
+ * by the app whenever the layout's choices change), because the layout
+ * itself is read later, from IndexedDB.
  */
 import fontUrl from '@/assets/fonts/JetBrainsMono-Regular.woff2?url';
-import { DEFAULT_RAIN_GLOW, DEFAULT_WALLPAPER_ID, GLOW_LEVELS, type GlowLevel } from '@/lib/layout';
+import { DEFAULT_RAIN_GLOW, DEFAULT_WALLPAPER_ID, GLOW_LEVELS, type GlowLevel, normalizeZooms, zoomOf } from '@/lib/layout';
 import { DEFAULT_PALETTE, findPalette, PALETTE_TOKENS, type PaletteColors, type PaletteId } from '@/lib/palettes';
 
 import { knownWallpaperId } from './catalog';
@@ -56,6 +56,7 @@ const RESIZE_DEBOUNCE_MS = 150;
 const HINT_KEY = 'cyberdeck_terminal:wallpaper';
 const GLOW_KEY = 'cyberdeck_terminal:glow';
 const COLORS_KEY = 'cyberdeck_terminal:wallpaper-palette';
+const ZOOM_KEY = 'cyberdeck_terminal:zoom';
 
 /** A canvas size: CSS px, and the device pixel ratio. */
 interface Size {
@@ -115,6 +116,21 @@ let glow: GlowLevel = GLOW_LEVELS.find((g) => g === readHint(GLOW_KEY)) ?? DEFAU
  */
 let colors: PaletteId = findPalette(readHint(COLORS_KEY) ?? DEFAULT_PALETTE).id;
 
+/** Each wallpaper's zoom (lib/layout.ts): the last visit's, until the layout says otherwise. */
+let zooms: Record<string, number> = readZooms();
+
+/** The zooms hint (a JSON map, checked as the layout's own is). */
+function readZooms(): Record<string, number> {
+  try {
+    return normalizeZooms(JSON.parse(readHint(ZOOM_KEY) ?? '{}'));
+  } catch {
+    return {};
+  }
+}
+
+/** Wallpaper `id`'s zoom. */
+const zoomFor = (id: string) => zoomOf(zooms, id);
+
 /** The wallpaper's colours, for the engine. */
 function readPalette(): WallpaperPalette {
   const c = findPalette(colors).colors;
@@ -161,7 +177,7 @@ function measure(): void {
   if (size && next.w === size.w && next.h === size.h && next.dpr === size.dpr) return;
   size = next;
   sizeCanvas(current.canvas, next);
-  current.instance.resize(next.w, next.h, next.dpr);
+  current.instance.resize(next.w, next.h, next.dpr, zoomFor(current.id));
 }
 
 /** Can a wallpaper run in a worker here? */
@@ -197,13 +213,13 @@ function inWorker(id: string, canvas: HTMLCanvasElement, s: Size, onFail: () => 
 
   const offscreen = canvas.transferControlToOffscreen();
   send(
-    { type: 'init', id, canvas: offscreen, fontUrl: new URL(fontUrl, document.baseURI).href, palette: readPalette(), glow, still: reduceMotion(), size: s },
+    { type: 'init', id, canvas: offscreen, fontUrl: new URL(fontUrl, document.baseURI).href, palette: readPalette(), glow, still: reduceMotion(), size: s, zoom: zoomFor(id) },
     [offscreen],
   );
   return {
     mode: 'worker',
     instance: {
-      resize: (w, h, dpr) => send({ type: 'resize', w, h, dpr }),
+      resize: (w, h, dpr, zoom) => send({ type: 'resize', w, h, dpr, zoom }),
       start: () => send({ type: 'start' }),
       stop: () => send({ type: 'stop' }),
       setStill: (still) => send({ type: 'still', still }),
@@ -226,14 +242,14 @@ function inWorker(id: string, canvas: HTMLCanvasElement, s: Size, onFail: () => 
 function onPage(id: string, canvas: HTMLCanvasElement, s: Size): Omit<Running, 'id' | 'canvas'> {
   const loading = import('./registry').then(({ findWallpaper }) => {
     const engine = findWallpaper(id).create(canvas, { palette: readPalette(), glow, still: reduceMotion(), onReady: () => (canvas.dataset.ready = '') });
-    engine.resize(s.w, s.h, s.dpr);
+    engine.resize(s.w, s.h, s.dpr, zoomFor(id));
     return engine;
   });
   const later = (call: (engine: WallpaperInstance) => void) => void loading.then(call);
   return {
     mode: 'page',
     instance: {
-      resize: (w, h, dpr) => later((e) => e.resize(w, h, dpr)),
+      resize: (w, h, dpr, zoom) => later((e) => e.resize(w, h, dpr, zoom)),
       start: () => later((e) => e.start()),
       stop: () => later((e) => e.stop()),
       setStill: (still) => later((e) => e.setStill(still)),
@@ -300,6 +316,18 @@ export function setWallpaperColors(id: string): void {
 }
 
 /**
+ * Sets every wallpaper's zoom (the app, when the layout's choice is known or
+ * changes): the running one re-lays itself out if its zoom changed, and a
+ * wallpaper shown later starts at its own.
+ */
+export function setWallpaperZooms(next: Record<string, number>): void {
+  saveHint(ZOOM_KEY, JSON.stringify(next));
+  const before = current ? zoomFor(current.id) : null;
+  zooms = next;
+  if (current && size && zoomFor(current.id) !== before) current.instance.resize(size.w, size.h, size.dpr, zoomFor(current.id));
+}
+
+/**
  * Shows wallpaper `id`, starting it if nothing runs yet, or swapping to it.
  * Called by main.tsx at the very start, and by the app when the layout's
  * choice is known or changes. Does nothing if `id` is already showing.
@@ -330,9 +358,11 @@ export function showWallpaper(id: string): void {
 
 // For the browser tests (e2e/): ask the running wallpaper how it's doing.
 (window as unknown as { __cyberdeckRain: object }).__cyberdeckRain = {
-  pixels: () => current?.probe.pixels() ?? Promise.resolve({ lit: 0, sig: 0 }),
+  pixels: () => current?.probe.pixels() ?? Promise.resolve({ lit: 0, sig: 0, w: 0, h: 0 }),
   frames: (ms: number) => current?.probe.frames(ms) ?? Promise.resolve({ gaps: [], busy: 0 }),
   mode: () => current?.mode ?? null,
+  /** The running wallpaper's zoom (null when none runs). */
+  zoom: () => (current ? zoomFor(current.id) : null),
 };
 
 // The window's events, installed once for whichever wallpaper is running.

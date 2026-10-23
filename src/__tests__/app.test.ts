@@ -30,6 +30,17 @@ describe('shortcuts', () => {
     expect(shortcutFor(key('x'))).toBeNull();
   });
 
+  it('+ = − _ zoom the wallpaper in and out, 0 back to 100%; with Ctrl they stay the browser’s zoom', () => {
+    expect(shortcutFor(key('+'))).toBe('zoom-in');
+    expect(shortcutFor(key('='))).toBe('zoom-in');
+    expect(shortcutFor(key('-'))).toBe('zoom-out');
+    expect(shortcutFor(key('_'))).toBe('zoom-out');
+    expect(shortcutFor(key('0'))).toBe('zoom-reset');
+    expect(shortcutFor(key('+', { ctrlKey: true }))).toBeNull();
+    expect(shortcutFor(key('0', { ctrlKey: true }))).toBeNull();
+    expect(shortcutFor(key('-', { tag: 'INPUT' }))).toBeNull();
+  });
+
   it('leaves typing, held keys and browser shortcuts alone', () => {
     expect(shortcutFor(key('f', { tag: 'INPUT' }))).toBeNull();
     expect(shortcutFor(key('f', { tag: 'TEXTAREA' }))).toBeNull();

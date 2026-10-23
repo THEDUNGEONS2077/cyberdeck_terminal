@@ -37,6 +37,67 @@ export const DEFAULT_RAIN_GLOW: GlowLevel = 'high';
 /** Backup reminder choices, in days (0 = never remind). */
 export const REMINDER_DAY_CHOICES: readonly number[] = [0, 7, 14, 30, 90];
 
+/**
+ * The wallpaper zooms (1 = as designed), smallest first: Chrome's own zoom
+ * levels from 50% to 200%, so + and − step as a browser's zoom does.
+ * ZOOM lays the wallpaper out for a screen 1/zoom as big and draws it zoom
+ * times as large (wallpaper/types.ts zoomedSize).
+ */
+export const ZOOM_STEPS: readonly number[] = [0.5, 0.67, 0.75, 0.8, 0.9, 1, 1.1, 1.25, 1.5, 1.75, 2];
+/** A wallpaper's zoom until one is chosen for it. */
+export const DEFAULT_ZOOM = 1;
+/** Most wallpapers a layout keeps a zoom for (ids no longer known are kept too, up to this). */
+export const MAX_ZOOMS = 32;
+
+/** The zoom step nearest `zoom` (anything out of range comes back in it). */
+export function nearestZoom(zoom: number): number {
+  if (!Number.isFinite(zoom)) return DEFAULT_ZOOM;
+  return ZOOM_STEPS.reduce((best, step) => (Math.abs(step - zoom) < Math.abs(best - zoom) ? step : best), DEFAULT_ZOOM);
+}
+
+/** The next zoom step in (`direction` 1) or out (-1) from `zoom`; at either end, the end. */
+export function stepZoom(zoom: number, direction: 1 | -1): number {
+  const at = ZOOM_STEPS.indexOf(nearestZoom(zoom));
+  return ZOOM_STEPS[Math.min(ZOOM_STEPS.length - 1, Math.max(0, at + direction))] ?? DEFAULT_ZOOM;
+}
+
+/** A zoom as the panel shows it: `125%`. */
+export function zoomLabel(zoom: number): string {
+  return `${Math.round(zoom * 100)}%`;
+}
+
+/**
+ * A map of wallpaper zooms, checked: string ids (short ones), each zoom
+ * snapped to a step, and the default left out (a wallpaper without an entry
+ * shows at 100%), so a layout zoomed and set back is the same document as
+ * before. Anything else is dropped.
+ */
+export function normalizeZooms(v: unknown): Record<string, number> {
+  const zooms: Record<string, number> = {};
+  if (!v || typeof v !== 'object' || Array.isArray(v)) return zooms;
+  for (const [id, zoom] of Object.entries(v as Record<string, unknown>)) {
+    if (Object.keys(zooms).length >= MAX_ZOOMS) break;
+    if (!id || id.length > 64 || typeof zoom !== 'number' || !Number.isFinite(zoom)) continue;
+    const step = nearestZoom(zoom);
+    if (step !== DEFAULT_ZOOM) zooms[id] = step;
+  }
+  return zooms;
+}
+
+/** Wallpaper `id`'s zoom in a map of them. */
+export function zoomOf(zooms: Readonly<Record<string, number>>, id: string): number {
+  return zooms[id] ?? DEFAULT_ZOOM;
+}
+
+/** The map with wallpaper `id`'s zoom set (removed, if it's back to the default). */
+export function withZoom(zooms: Readonly<Record<string, number>>, id: string, zoom: number): Record<string, number> {
+  const next = { ...zooms };
+  const step = nearestZoom(zoom);
+  if (step === DEFAULT_ZOOM) delete next[id];
+  else next[id] = step;
+  return next;
+}
+
 /** Preferences that belong to the layout (and so travel with its backups). */
 export interface LayoutPrefs {
   /** Remind to export a backup when the last one is older than this many days; 0 turns it off. */
@@ -47,6 +108,11 @@ export interface LayoutPrefs {
   palette: PaletteId;
   /** The wallpaper's colour palette: chosen on its own, not tied to the dashboard's (user request, 2026-10-23). */
   wallpaperPalette: PaletteId;
+  /**
+   * Each wallpaper's zoom, by wallpaper id (user request, 2026-10-23): the
+   * zoom it opens at. Only zooms other than 100% are kept (normalizeZooms).
+   */
+  wallpaperZoom: Record<string, number>;
 }
 
 /** The bookmarks part of the layout. */
@@ -85,7 +151,7 @@ export function defaultBookmarks(): BookmarksLayout {
 
 /** Preferences a new layout starts with. */
 export function defaultPrefs(): LayoutPrefs {
-  return { backupReminderDays: 14, rainGlow: DEFAULT_RAIN_GLOW, palette: DEFAULT_PALETTE, wallpaperPalette: DEFAULT_PALETTE };
+  return { backupReminderDays: 14, rainGlow: DEFAULT_RAIN_GLOW, palette: DEFAULT_PALETTE, wallpaperPalette: DEFAULT_PALETTE, wallpaperZoom: {} };
 }
 
 /** A new, empty layout. */
@@ -161,6 +227,9 @@ export function summarizeLayout(doc: LayoutDocument): string {
   if (imported) parts.push(`BAR COPY ${countLinks(imported)} LINKS`);
   if (open.length) parts.push(`${open.length} OPEN`);
   parts.push(`WALLPAPER ${doc.wallpaper.toUpperCase()}`);
+  // The shown wallpaper's zoom, when it isn't 100%.
+  const zoom = zoomOf(doc.prefs.wallpaperZoom, doc.wallpaper);
+  if (zoom !== DEFAULT_ZOOM) parts.push(`ZOOM ${zoomLabel(zoom)}`);
   // The glow only when it isn't the default (keeps the usual summary short).
   if (doc.prefs.palette !== DEFAULT_PALETTE) parts.push(`COLOURS ${doc.prefs.palette.toUpperCase()}`);
   if (doc.prefs.wallpaperPalette !== DEFAULT_PALETTE) parts.push(`WALLPAPER COLOURS ${doc.prefs.wallpaperPalette.toUpperCase()}`);

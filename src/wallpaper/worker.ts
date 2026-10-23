@@ -9,7 +9,7 @@
  * and a frame of rain no longer costs the page a frame of work.
  *
  * Messages in (ToWorker): init (the canvas, the app's font, the options,
- * the size), then resize, start, stop, still, glow, probe, destroy.
+ * the size and zoom), then resize, start, stop, still, glow, probe, destroy.
  * Messages out (FromWorker): ready (the first full frame is drawn: the host
  * fades the canvas in), measure (the wallpaper's performance measures, for
  * the page's timeline), and probe answers (for the browser tests).
@@ -32,8 +32,10 @@ export type ToWorker =
       glow: GlowLevel;
       still: boolean;
       size: { w: number; h: number; dpr: number };
+      /** The wallpaper's ZOOM (1 = as designed). */
+      zoom: number;
     }
-  | { type: 'resize'; w: number; h: number; dpr: number }
+  | { type: 'resize'; w: number; h: number; dpr: number; zoom: number }
   | { type: 'start' }
   | { type: 'stop' }
   | { type: 'still'; still: boolean }
@@ -123,11 +125,11 @@ scope.onmessage = ({ data: m }) => {
       }
       canvas = m.canvas;
       instance = findWallpaper(m.id).create(m.canvas, { palette: m.palette, glow: m.glow, still: m.still, onReady: () => scope.postMessage({ type: 'ready' }) });
-      instance.resize(m.size.w, m.size.h, m.size.dpr);
+      instance.resize(m.size.w, m.size.h, m.size.dpr, m.zoom);
       break;
     }
     case 'resize':
-      instance?.resize(m.w, m.h, m.dpr);
+      instance?.resize(m.w, m.h, m.dpr, m.zoom);
       break;
     case 'start':
       instance?.start();

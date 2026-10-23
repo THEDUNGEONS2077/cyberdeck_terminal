@@ -580,6 +580,60 @@ try {
     await page.keyboard.press('Escape');
   });
 
+  await path('ZOOM: each wallpaper keeps its own zoom (and opens at it after a reload); zoomed, the canvas is as sharp; + − 0 work with the panel shut', async () => {
+    const zoom = () => page.evaluate(() => window.__cyberdeckRain.zoom());
+    const shown = (id) => page.waitForFunction((want) => document.querySelector('.wallpaper')?.getAttribute('data-wallpaper') === want, id);
+    const before = await rain();
+    await page.keyboard.press('s');
+    const stepper = page.getByRole('group', { name: 'ZOOM · MATRIX RAIN' });
+    expect((await stepper.getByRole('button', { name: 'Reset the zoom to 100%' }).isDisabled()) === true, 'RESET is enabled at 100%');
+    await stepper.getByRole('button', { name: 'Zoom the wallpaper in' }).click();
+    await stepper.getByRole('button', { name: 'Zoom the wallpaper in' }).click();
+    await stepper.getByText('125%').waitFor();
+    await settled();
+    expect((await zoom()) === 1.25, `the rain's zoom is ${await zoom()}`);
+    await page.waitForTimeout(600);
+    const zoomed = await rain();
+    // Zoomed, the canvas keeps every pixel (laid out smaller, drawn larger: not scaled up).
+    expect(zoomed.w === before.w && zoomed.h === before.h, `zoomed, the canvas is ${zoomed.w}×${zoomed.h}, was ${before.w}×${before.h}`);
+    expect(zoomed.lit > 0.05, `zoomed, the rain is only ${(zoomed.lit * 100).toFixed(1)}% lit`);
+    await page.keyboard.press('Escape');
+    await shot('16-zoom-rain-125');
+    await page.keyboard.press('s');
+    // Another wallpaper keeps its own (100%), and the keys zoom it with the panel shut.
+    await page.getByRole('radio', { name: 'DATA FLOW' }).check({ force: true });
+    await shown('data-flow');
+    await page.getByRole('group', { name: 'ZOOM · DATA FLOW' }).getByText('100%').waitFor();
+    expect((await zoom()) === 1, 'DATA FLOW took the rain’s zoom');
+    await page.keyboard.press('Escape');
+    await page.keyboard.press('+');
+    await page.waitForFunction(() => window.__cyberdeckRain.zoom() === 1.1);
+    await page.keyboard.press('-');
+    await page.keyboard.press('-');
+    await page.waitForFunction(() => window.__cyberdeckRain.zoom() === 0.9);
+    await page.keyboard.press('0');
+    await page.waitForFunction(() => window.__cyberdeckRain.zoom() === 1);
+    // Back to the rain: at its own zoom again; after a reload too (the hint starts it there at once).
+    await page.keyboard.press('s');
+    await page.getByRole('radio', { name: 'MATRIX RAIN' }).check({ force: true });
+    await shown('matrix-rain');
+    expect((await zoom()) === 1.25, `back on the rain, its zoom is ${await zoom()}`);
+    await settled();
+    expect((await page.evaluate(() => localStorage.getItem('cyberdeck_terminal:zoom'))) === '{"matrix-rain":1.25}', 'the zoom hint wasn’t saved');
+    await page.keyboard.press('Escape');
+    await page.reload();
+    await page.locator('.brand').waitFor();
+    expect((await zoom()) === 1.25, `after a reload the rain's zoom is ${await zoom()}`);
+    await page.locator('.wallpaper-canvas[data-ready]').waitFor({ state: 'attached', timeout: 5000 });
+    // RESET: back to 100% for the paths after this one.
+    await page.keyboard.press('s');
+    await page.getByRole('group', { name: 'ZOOM · MATRIX RAIN' }).getByRole('button', { name: 'Reset the zoom to 100%' }).click();
+    await page.waitForFunction(() => window.__cyberdeckRain.zoom() === 1);
+    await settled();
+    expect((await page.evaluate(() => localStorage.getItem('cyberdeck_terminal:zoom'))) === '{}', 'RESET left a zoom behind');
+    await page.keyboard.press('Escape');
+  });
+
   await path('no accessibility violations (axe: WCAG 2.2 A/AA and best practice), with and without SYSTEM', async () => {
     await page.addScriptTag({ path: join(root, 'node_modules/axe-core/axe.min.js') });
     await audit('the page');

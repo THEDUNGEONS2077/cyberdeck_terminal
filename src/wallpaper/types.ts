@@ -43,11 +43,14 @@ export interface WallpaperOptions {
 /** A running wallpaper on one canvas. */
 export interface WallpaperInstance {
   /**
-   * The canvas's CSS size and device pixel ratio changed (also called once
-   * right after create). The wallpaper sizes the canvas's pixels (CSS size
-   * × pixel ratio); the host has already set its CSS size.
+   * The canvas's CSS size, device pixel ratio or zoom changed (also called
+   * once right after create). The wallpaper sizes the canvas's pixels (CSS
+   * size × pixel ratio, capped as it likes); the host has already set its
+   * CSS size. `zoom` is the wallpaper's ZOOM (lib/layout.ts ZOOM_STEPS, 1 =
+   * as designed): most wallpapers lay out with zoomedSize; one whose layout
+   * is shares of the screen scales its sizes by it instead.
    */
-  resize(width: number, height: number, dpr: number): void;
+  resize(width: number, height: number, dpr: number, zoom: number): void;
   /** Starts (or resumes) animating. */
   start(): void;
   /** Stops animating; the last frame stays on the canvas. */
@@ -60,6 +63,19 @@ export interface WallpaperInstance {
   setStill(still: boolean): void;
   /** Stops for good and releases everything. */
   destroy(): void;
+}
+
+/**
+ * The size a wallpaper lays itself out at, zoomed: a `width` × `height`
+ * CSS px canvas at pixel ratio `dpr`, as if the screen were 1/zoom as big,
+ * drawn zoom times as large (browser zoom, for the wallpaper alone). The
+ * ratio is capped first (`maxDpr`, the engine's limit on canvas pixels),
+ * then zoomed, so the canvas keeps the same pixels at any zoom: zoomed in,
+ * the wallpaper is as sharp as ever, not scaled up.
+ */
+export function zoomedSize(width: number, height: number, dpr: number, zoom: number, maxDpr: number): { w: number; h: number; dpr: number } {
+  const z = zoom > 0 && Number.isFinite(zoom) ? zoom : 1;
+  return { w: width / z, h: height / z, dpr: Math.min(maxDpr, Math.max(1, dpr)) * z };
 }
 
 /** A wallpaper's engine (its name card, with the label, is in catalog.ts). */

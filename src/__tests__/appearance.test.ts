@@ -5,11 +5,12 @@
  * Every palette must keep the design system's rule (DESIGN.md): every text
  * colour passes WCAG AA on every background it's drawn on. The neural net's
  * links and colours, VELOCITY's colours and DATA FLOW's board are checked
- * without a canvas.
+ * without a canvas. ZOOM's steps, how it's kept, and the size a zoomed
+ * wallpaper lays itself out at, too.
  */
 import { describe, expect, it } from 'vitest';
 
-import { defaultLayout } from '@/lib/layout';
+import { DEFAULT_ZOOM, defaultLayout, MAX_ZOOMS, nearestZoom, normalizeZooms, stepZoom, summarizeLayout, withZoom, ZOOM_STEPS, zoomLabel, zoomOf } from '@/lib/layout';
 import { migrateLayout } from '@/lib/migrations';
 import { contrast, DEFAULT_PALETTE, findPalette, PALETTE_IDS, PALETTE_TOKENS, PALETTES } from '@/lib/palettes';
 import { type Board, buildBoard, DIRS, pointAt, traceLength } from '@/wallpaper/data-flow/board';
@@ -17,6 +18,67 @@ import { flowTones } from '@/wallpaper/data-flow/engine';
 import { COVERAGE, MAIN_CHIP, PITCH } from '@/wallpaper/data-flow/params';
 import { diagonal, linkNodes, rgb, shade } from '@/wallpaper/neural-net/engine';
 import { tones } from '@/wallpaper/velocity/engine';
+import { zoomedSize } from '@/wallpaper/types';
+import { memoryKV } from '@/store/kv';
+import { createLayoutStore } from '@/store/layout';
+import { boot } from '@/store/persist';
+
+describe('zoom', () => {
+  it('steps as a browser zooms, from 50% to 200%, with 100% among them', () => {
+    expect(ZOOM_STEPS[0]).toBe(0.5);
+    expect(ZOOM_STEPS[ZOOM_STEPS.length - 1]).toBe(2);
+    expect(ZOOM_STEPS).toContain(DEFAULT_ZOOM);
+    for (let i = 1; i < ZOOM_STEPS.length; i++) expect(ZOOM_STEPS[i]!).toBeGreaterThan(ZOOM_STEPS[i - 1]!);
+    expect(stepZoom(1, 1)).toBe(1.1);
+    expect(stepZoom(1, -1)).toBe(0.9);
+    expect(stepZoom(2, 1)).toBe(2);
+    expect(stepZoom(0.5, -1)).toBe(0.5);
+    // From between steps: the nearest one.
+    expect(nearestZoom(1.3)).toBe(1.25);
+    expect(nearestZoom(9)).toBe(2);
+    expect(nearestZoom(Number.NaN)).toBe(DEFAULT_ZOOM);
+    expect(zoomLabel(1.25)).toBe('125%');
+    expect(zoomLabel(0.67)).toBe('67%');
+  });
+
+  it('is kept per wallpaper in the layout, only where it isn’t 100%; an older layout has none', () => {
+    expect(defaultLayout().prefs.wallpaperZoom).toEqual({});
+    expect(migrateLayout({ ...defaultLayout(), prefs: { backupReminderDays: 14 } }).doc.prefs.wallpaperZoom).toEqual({});
+    const odd = { 'data-flow': 1.3, 'matrix-rain': 1, velocity: 'big', '': 2, 'neural-net': 0.1 };
+    expect(migrateLayout({ ...defaultLayout(), prefs: { ...defaultLayout().prefs, wallpaperZoom: odd } }).doc.prefs.wallpaperZoom).toEqual({ 'data-flow': 1.25, 'neural-net': 0.5 });
+    expect(normalizeZooms([1.5])).toEqual({});
+    expect(Object.keys(normalizeZooms(Object.fromEntries(Array.from({ length: 50 }, (_, i) => [`w${i}`, 1.5]))))).toHaveLength(MAX_ZOOMS);
+    // Zoomed and set back: the same document as before.
+    const zoomed = withZoom({}, 'data-flow', 1.5);
+    expect(zoomOf(zoomed, 'data-flow')).toBe(1.5);
+    expect(zoomOf(zoomed, 'velocity')).toBe(DEFAULT_ZOOM);
+    expect(withZoom(zoomed, 'data-flow', 1)).toEqual({});
+    expect(summarizeLayout({ ...defaultLayout(), wallpaper: 'data-flow', prefs: { ...defaultLayout().prefs, wallpaperZoom: zoomed } })).toContain('ZOOM 150%');
+    expect(summarizeLayout({ ...defaultLayout(), prefs: { ...defaultLayout().prefs, wallpaperZoom: zoomed } })).not.toContain('ZOOM');
+  });
+
+  it('is set through the store a step at a time; 100% takes the entry away', async () => {
+    const kv = memoryKV();
+    const store = createLayoutStore(kv, await boot(kv, 0), undefined, () => 0);
+    store.getState().setWallpaperZoom('velocity', 1.6);
+    expect(store.getState().layout.prefs.wallpaperZoom).toEqual({ velocity: 1.5 });
+    store.getState().setWallpaperZoom('velocity', DEFAULT_ZOOM);
+    expect(store.getState().layout.prefs.wallpaperZoom).toEqual({});
+    await store.getState().settled();
+  });
+
+  it('lays a wallpaper out for a smaller screen and draws it larger: the canvas keeps its pixels', () => {
+    for (const zoom of ZOOM_STEPS) {
+      const s = zoomedSize(1920, 1080, 1, zoom, 2);
+      expect(Math.round(s.w * s.dpr)).toBe(1920);
+      expect(Math.round(s.h * s.dpr)).toBe(1080);
+      expect(s.w).toBeCloseTo(1920 / zoom);
+    }
+    // The ratio is capped before it's zoomed: zooming in never lowers the canvas's resolution.
+    expect(zoomedSize(1280, 800, 3, 2, 2)).toEqual({ w: 640, h: 400, dpr: 4 });
+    expect(zoomedSize(100, 100, 1, 0, 2)).toEqual({ w: 100, h: 100, dpr: 1 });
+  });
+});
 
 describe('palettes', () => {
   it('have unique ids, every colour, and the default first', () => {

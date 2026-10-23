@@ -14,7 +14,7 @@ import { createStore, type StoreApi } from 'zustand/vanilla';
 
 import type { Arrangement, Panels } from '@/lib/arrange';
 import type { BookmarkNode } from '@/lib/bookmarks';
-import type { GlowLevel, LayoutDocument } from '@/lib/layout';
+import { type GlowLevel, type LayoutDocument, withZoom, zoomOf } from '@/lib/layout';
 import type { PaletteId } from '@/lib/palettes';
 import { type BackupMeta, SNOOZE_MS } from '@/lib/reminder';
 import { CHANGE_DEBOUNCE_MS, type SnapshotInfo, type SnapshotReason } from '@/lib/snapshots';
@@ -38,6 +38,8 @@ export interface LayoutState {
   setPalette(id: PaletteId): void;
   /** Sets the wallpaper's colour palette. */
   setWallpaperPalette(id: PaletteId): void;
+  /** Sets wallpaper `id`'s zoom (snapped to a step; 100% removes it). */
+  setWallpaperZoom(id: string, zoom: number): void;
   /** Opens or collapses a bookmarks folder (by folderKey). */
   setFolderOpen(key: string, open: boolean): void;
   /** Keeps `bar` as the imported copy of the bookmarks bar (replacing any earlier copy). */
@@ -134,6 +136,12 @@ export function createLayoutStore(kv: KV, boot: Boot, onSaveError: SaveErrorHand
       setWallpaperPalette(id) {
         const layout = get().layout;
         if (layout.prefs.wallpaperPalette !== id) commit({ ...layout, prefs: { ...layout.prefs, wallpaperPalette: id } });
+      },
+
+      setWallpaperZoom(id, zoom) {
+        const layout = get().layout;
+        const zooms = withZoom(layout.prefs.wallpaperZoom, id, zoom);
+        if (zoomOf(zooms, id) !== zoomOf(layout.prefs.wallpaperZoom, id)) commit({ ...layout, prefs: { ...layout.prefs, wallpaperZoom: zooms } });
       },
 
       setRainGlow(level) {

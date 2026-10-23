@@ -146,16 +146,21 @@ IndexedDB, database `cyberdeck_terminal`, store `kv`. quest_log_desktop shares t
 - The reminder (`lib/reminder.ts`) offers EXPORT / LATER once the last export is older than the interval. It stays quiet while the layout still has nothing of its own.
 
 ## Wallpapers
-The contract is `src/wallpaper/types.ts`: `create(canvas, { palette, glow, still, onReady })` → `{ resize, start, stop, setStill, setGlow, setPalette, destroy }`. A wallpaper runs in a worker on an OffscreenCanvas, or on the page if a worker can't, so its code may only use what both have: OffscreenCanvas, the font set, `requestAnimationFrame`. No DOM.
+The contract is `src/wallpaper/types.ts`: `create(canvas, { palette, glow, still, onReady })` → `{ resize(w, h, dpr, zoom), start, stop, setStill, setGlow, setPalette, destroy }`. A wallpaper runs in a worker on an OffscreenCanvas, or on the page if a worker can't, so its code may only use what both have: OffscreenCanvas, the font set, `requestAnimationFrame`. No DOM.
 
 - The wallpaper's colours are its own palette (lib/palettes.ts), apart from the dashboard's. When it changes, `setWallpaperColors` sends the new colours over; the wallpaper redraws its sprites and carries on.
 - Each wallpaper can have its own light layers in CSS: the host sets `data-wallpaper` on `.wallpaper`, and app.css styles its background, haze and floor per wallpaper.
+- **Zoom** (`prefs.wallpaperZoom`: each wallpaper's own, by id, only where it isn't 100%; `lib/layout.ts` ZOOM_STEPS are Chrome's levels from 50% to 200%).
+  - **How a wallpaper zooms.** It's part of the size: `resize(w, h, dpr, zoom)`. The rain, the neural net and DATA FLOW lay themselves out with `zoomedSize`: for a screen 1/zoom as big, drawn zoom times as large, as browser zoom would for the wallpaper alone. The pixel ratio is capped first (each engine's `MAX_DPR`), then zoomed, so the canvas keeps its pixels at any zoom: sharp, never scaled up.
+  - **VELOCITY** is laid out in shares of the screen, so `zoomedSize` would change nothing; it scales its sizes instead: the panels' widths and drift (not their lean: the slant stays), the streaks, the fine lines, and the flare with its arc, about the flare's corner.
+  - **The host** keeps every wallpaper's zoom and a start-up hint (`cyberdeck_terminal:zoom`, a JSON map), so a wallpaper opens at its zoom before the layout is read; `setWallpaperZooms` resizes the running one when its zoom changes.
+  - **The controls.** SYSTEM ▸ APPEARANCE ▸ ZOOM (− value + RESET), the keys + − 0 (`app/zoom.ts`; in fullscreen too) and three finder commands. A zoom step is a layout change, saved and backed up like the glow.
 - **`host.ts`** (the page):
-  - **The worker.** It transfers the canvas (`transferControlToOffscreen`) to `worker.ts` with the app's font URL, the palette, the glow and the size, then forwards resize, start, stop, Reduce Motion and glow as messages. The worker answers `ready` (the canvas fades in), forwards the wallpaper's performance measures, and answers the tests' probes.
+  - **The worker.** It transfers the canvas (`transferControlToOffscreen`) to `worker.ts` with the app's font URL, the palette, the glow, the size and the zoom, then forwards resize (with the zoom), start, stop, Reduce Motion and glow as messages. The worker answers `ready` (the canvas fades in), forwards the wallpaper's performance measures, and answers the tests' probes.
   - **The fallback.** If a canvas can't go to a worker, or the worker fails, the same wallpaper runs on the page, on a fresh canvas. Its engine (`registry.ts`) is loaded only then, so the page's own scripts don't carry it.
   - **The canvas is the size of the screen** (or the window, where that's bigger), not the window: resizing the window or going fullscreen doesn't touch it. Only a new screen size, zoom or pixel ratio resizes it (debounced by 150 ms).
   - Visibility (stopped while the tab is hidden) and Reduce Motion (a still frame).
-  - **The tests' probe**, `window.__cyberdeckRain`: `pixels()` (the share of the canvas that's lit, and a fingerprint), `frames(ms)` (frame gaps and drawing time in the worker), `mode()` (`worker` or `page`). The page can't read a canvas it handed to a worker.
+  - **The tests' probe**, `window.__cyberdeckRain`: `pixels()` (the share of the canvas that's lit, a fingerprint, and its size in pixels), `frames(ms)` (frame gaps and drawing time in the worker), `mode()` (`worker` or `page`), `zoom()` (the running wallpaper's). The page can't read a canvas it handed to a worker.
 - **`catalog.ts`** names the wallpapers for the page (SYSTEM's list, checking ids); **`registry.ts`** holds their engines (the worker, or the fallback).
 
 **To add a wallpaper:** create a folder under `src/wallpaper/`, export a `Wallpaper` from it, add it to `WALLPAPERS` in `registry.ts`, and its name card to `catalog.ts`. Its `id` is stored in layouts and backups, so it must never change once released.

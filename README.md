@@ -9,7 +9,8 @@ A terminal-style start page for Chrome. A matrix rain falls across the whole scr
 |---|---|
 | **F** | Fullscreen with only the wallpaper. F or Esc comes back. |
 | **/** | Find: type a few letters of any bookmark (in any folder) and press Enter to open it, or run a command. ↑ ↓ choose. |
-| **S** | SYSTEM: appearance (colours, wallpaper, glow), bookmarks source, backups, restore |
+| **S** | SYSTEM: appearance (colours, wallpaper, glow, zoom), bookmarks source, backups, restore |
+| **+ −** | Zoom the wallpaper in / out a step (**0**: back to 100%), in fullscreen too. Each wallpaper keeps its own zoom. |
 | **← ↑ → ↓** | Move between bookmarks, folders and links (Home / End: the first / last) |
 | **Esc** | Closes SYSTEM or the finder |
 
@@ -24,6 +25,7 @@ Bookmarks open in a new tab, so the dashboard stays put. With the bridge, links 
   - DATA FLOW: a circuit board at night, packets of light running along its traces and into its chips.
 - **Wallpaper colours:** the same six palettes, chosen on their own: any dashboard colours with any wallpaper and any wallpaper colours. BLOOD suits the neural net and VELOCITY.
 - **Glow:** from LOW (the original look) to MAX. HIGH is the default.
+- **Zoom:** 50% to 200% for the wallpaper shown (**−** / **+**, or the keys), in a browser's zoom steps. Each wallpaper keeps its own zoom and opens at it from then on. Zoomed in, the wallpaper is laid out as if the screen were smaller and drawn larger, so it's as sharp as at 100%.
 
 The wallpaper runs on a thread of its own, so it never slows the dashboard down.
 

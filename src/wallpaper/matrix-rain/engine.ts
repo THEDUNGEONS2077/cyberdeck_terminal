@@ -43,7 +43,7 @@
  */
 import type { GlowLevel } from '@/lib/layout';
 
-import type { Wallpaper, WallpaperInstance, WallpaperOptions, WallpaperPalette } from '../types';
+import { type Wallpaper, type WallpaperInstance, type WallpaperOptions, type WallpaperPalette, zoomedSize } from '../types';
 import { type Atlas, type AtlasRow, ROW, buildAtlas, canDraw, FONT_STACK, glyphSet, KATAKANA } from './glyphAtlas';
 import {
   END_BIAS,
@@ -552,8 +552,8 @@ function createMatrixRain(canvas: HTMLCanvasElement | OffscreenCanvas, options: 
   };
 
   const instance: WallpaperInstance = {
-    resize(w, h, dpr) {
-      size = { w, h, dpr: Math.min(MAX_DPR, Math.max(1, dpr)) };
+    resize(w, h, dpr, zoom) {
+      size = zoomedSize(w, h, dpr, zoom, MAX_DPR);
       applySize();
     },
     start() {

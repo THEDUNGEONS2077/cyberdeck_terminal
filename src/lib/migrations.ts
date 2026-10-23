@@ -13,7 +13,7 @@
  */
 import { type Arrangement, type Area, type PanelPlace, type Panels, MAX_AREAS, cleanTitle, clampPlace, defaultPanels, emptyArrangement } from './arrange';
 import { sanitizeTree } from './bookmarks';
-import { type BookmarksLayout, type GlowLevel, type LayoutDocument, GLOW_LEVELS, LAYOUT_SCHEMA_VERSION, MAX_OPEN_FOLDERS, defaultBookmarks, defaultPrefs } from './layout';
+import { type BookmarksLayout, type GlowLevel, type LayoutDocument, GLOW_LEVELS, LAYOUT_SCHEMA_VERSION, MAX_OPEN_FOLDERS, defaultBookmarks, defaultPrefs, normalizeZooms } from './layout';
 import { PALETTE_IDS, type PaletteId } from './palettes';
 
 /** The document was written by a newer version of the app than this one. */
@@ -106,6 +106,8 @@ export function normalizeLayout(doc: Record<string, unknown>): LayoutDocument {
   if (PALETTE_IDS.includes(saved.palette as PaletteId)) prefs.palette = saved.palette as PaletteId;
   // The wallpaper's own palette (0.6.1). Until then the wallpaper used the dashboard's: start from that.
   prefs.wallpaperPalette = PALETTE_IDS.includes(saved.wallpaperPalette as PaletteId) ? (saved.wallpaperPalette as PaletteId) : prefs.palette;
+  // Each wallpaper's zoom (0.9.0, the same way: an older layout has every wallpaper at 100%).
+  prefs.wallpaperZoom = normalizeZooms(saved.wallpaperZoom);
 
   return { schemaVersion: LAYOUT_SCHEMA_VERSION, wallpaper: doc.wallpaper, prefs, bookmarks: normalizeBookmarks(doc.bookmarks), panels: normalizePanels(doc.panels) };
 }

@@ -13,7 +13,7 @@ import { backupDue, exportAge } from '@/lib/reminder';
 import { layoutStore } from '@/store/instance';
 import { uiStore } from '@/store/ui';
 import { applyPalette } from '@/palette';
-import { setWallpaperColors, setWallpaperGlow, showWallpaper } from '@/wallpaper/host';
+import { setWallpaperColors, setWallpaperGlow, setWallpaperZooms, showWallpaper } from '@/wallpaper/host';
 
 import { useFullscreenSync, useIdleCursor } from './fullscreen';
 import { useLayout, useUi } from './hooks';
@@ -65,12 +65,15 @@ export function App() {
   const glow = useLayout((s) => s.layout.prefs.rainGlow);
   const palette = useLayout((s) => s.layout.prefs.palette);
   const wallpaperPalette = useLayout((s) => s.layout.prefs.wallpaperPalette);
+  const zooms = useLayout((s) => s.layout.prefs.wallpaperZoom);
   const immersive = useUi((s) => s.immersive);
   const panelOpen = useUi((s) => s.panelOpen);
   const finderOpen = useUi((s) => s.finderOpen);
   const panel = usePresence(panelOpen ? true : null, PANEL_EXIT_MS);
 
   // The wallpaper runs outside React (wallpaper/host.ts, started by main.tsx): only its choice is passed on.
+  // The zooms first, so a wallpaper shown next starts at its own.
+  useEffect(() => setWallpaperZooms(zooms), [zooms]);
   useEffect(() => showWallpaper(wallpaper), [wallpaper]);
   useEffect(() => setWallpaperGlow(glow), [glow]);
   // The two palettes, each on its own: the dashboard's on the page, the wallpaper's on the wallpaper.

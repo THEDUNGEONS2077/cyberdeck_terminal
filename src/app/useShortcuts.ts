@@ -10,12 +10,15 @@
  *   F  immersive fullscreen on / off (fullscreen.ts)
  *   S  SYSTEM panel (backups, restore, wallpaper)
  *   /  the finder: find a bookmark, or run a command (Finder.tsx)
+ *   + −  zoom the wallpaper in / out a step, 0 back to 100% (zoom.ts; in
+ *        fullscreen too: it's the wallpaper alone there)
  */
 import { useEffect } from 'react';
 
 import { uiStore } from '@/store/ui';
 
 import { toggleFullscreen } from './fullscreen';
+import { zoomWallpaper } from './zoom';
 
 /** Is the key event aimed at somewhere you type? */
 export function typing(e: Pick<KeyboardEvent, 'target'>): boolean {
@@ -28,8 +31,15 @@ export function modified(e: Pick<KeyboardEvent, 'ctrlKey' | 'altKey' | 'metaKey'
   return e.ctrlKey || e.altKey || e.metaKey;
 }
 
-/** The action for a key press, or null when the page should leave it alone. */
-export function shortcutFor(e: Pick<KeyboardEvent, 'key' | 'target' | 'ctrlKey' | 'altKey' | 'metaKey' | 'repeat'>): 'fullscreen' | 'system' | 'find' | null {
+/** What a shortcut does. */
+export type Shortcut = 'fullscreen' | 'system' | 'find' | 'zoom-in' | 'zoom-out' | 'zoom-reset';
+
+/**
+ * The action for a key press, or null when the page should leave it alone.
+ * Zoom takes + or = (= is + without Shift on many keyboards), − or _, and
+ * 0; with Ctrl they stay the browser's own page zoom.
+ */
+export function shortcutFor(e: Pick<KeyboardEvent, 'key' | 'target' | 'ctrlKey' | 'altKey' | 'metaKey' | 'repeat'>): Shortcut | null {
   if (e.repeat || typing(e) || modified(e)) return null;
   switch (e.key.toLowerCase()) {
     case 'f':
@@ -38,6 +48,14 @@ export function shortcutFor(e: Pick<KeyboardEvent, 'key' | 'target' | 'ctrlKey' 
       return 'system';
     case '/':
       return 'find';
+    case '+':
+    case '=':
+      return 'zoom-in';
+    case '-':
+    case '_':
+      return 'zoom-out';
+    case '0':
+      return 'zoom-reset';
     default:
       return null;
   }
@@ -52,6 +70,10 @@ export function useShortcuts(blocked: boolean): void {
       if (!action) return;
       e.preventDefault();
       if (action === 'fullscreen') void toggleFullscreen();
+      // Zoom works in fullscreen too (the wallpaper is all there is to see there).
+      else if (action === 'zoom-in') zoomWallpaper('in');
+      else if (action === 'zoom-out') zoomWallpaper('out');
+      else if (action === 'zoom-reset') zoomWallpaper('reset');
       // SYSTEM and the finder only open outside immersive mode: there the UI is hidden.
       else if (uiStore.getState().immersive) return;
       else if (action === 'find') uiStore.getState().setFinderOpen(true);

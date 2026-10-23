@@ -7,10 +7,13 @@
  * shows (alpha above a faint residue) and isn't near-black.
  */
 
-/** How much of a canvas is lit, and a fingerprint of it (changes when the picture moves). */
+/** How much of a canvas is lit, a fingerprint of it (changes when the picture moves), and its size in pixels. */
 export interface PixelsProbe {
   lit: number;
   sig: number;
+  /** The canvas's pixels across and down (zoomed or not, as many as at 100%: types.ts zoomedSize). */
+  w: number;
+  h: number;
 }
 
 /** Reads every pixel of `canvas` (RGBA, top-down or bottom-up: the measures don't care). */
@@ -31,11 +34,13 @@ function readAll(canvas: HTMLCanvasElement | OffscreenCanvas): Uint8Array | Uint
 /** Measures `canvas` now. */
 export function measurePixels(canvas: HTMLCanvasElement | OffscreenCanvas | null): PixelsProbe {
   const data = canvas ? readAll(canvas) : null;
-  if (!data?.length) return { lit: 0, sig: 0 };
+  const w = canvas?.width ?? 0;
+  const h = canvas?.height ?? 0;
+  if (!data?.length) return { lit: 0, sig: 0, w, h };
   let lit = 0;
   for (let i = 0; i < data.length; i += 4) if (data[i + 3]! > 40 && Math.max(data[i]!, data[i + 1]!, data[i + 2]!) > 40) lit++;
   // A fingerprint from a sample of pixels (every 997th): enough to tell two moments apart.
   let sig = 0;
   for (let i = 3; i < data.length; i += 4 * 997) sig = (sig * 31 + data[i]! + data[i - 2]! + data[i - 3]!) >>> 0;
-  return { lit: lit / (data.length / 4), sig };
+  return { lit: lit / (data.length / 4), sig, w, h };
 }
