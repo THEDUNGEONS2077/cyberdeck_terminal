@@ -15,6 +15,7 @@ import { createStore, type StoreApi } from 'zustand/vanilla';
 import type { Arrangement, Panels } from '@/lib/arrange';
 import type { BookmarkNode } from '@/lib/bookmarks';
 import type { GlowLevel, LayoutDocument } from '@/lib/layout';
+import type { PaletteId } from '@/lib/palettes';
 import { type BackupMeta, SNOOZE_MS } from '@/lib/reminder';
 import { CHANGE_DEBOUNCE_MS, type SnapshotInfo, type SnapshotReason } from '@/lib/snapshots';
 
@@ -33,6 +34,8 @@ export interface LayoutState {
   setReminderDays(days: number): void;
   /** Sets how strongly the rain glows. */
   setRainGlow(level: GlowLevel): void;
+  /** Sets the colour palette. */
+  setPalette(id: PaletteId): void;
   /** Opens or collapses a bookmarks folder (by folderKey). */
   setFolderOpen(key: string, open: boolean): void;
   /** Keeps `bar` as the imported copy of the bookmarks bar (replacing any earlier copy). */
@@ -119,6 +122,11 @@ export function createLayoutStore(kv: KV, boot: Boot, onSaveError: SaveErrorHand
       setReminderDays(days) {
         const layout = get().layout;
         if (layout.prefs.backupReminderDays !== days) commit({ ...layout, prefs: { ...layout.prefs, backupReminderDays: days } });
+      },
+
+      setPalette(id) {
+        const layout = get().layout;
+        if (layout.prefs.palette !== id) commit({ ...layout, prefs: { ...layout.prefs, palette: id } });
       },
 
       setRainGlow(level) {

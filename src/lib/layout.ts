@@ -17,6 +17,7 @@
  *   3  + bookmarks.arrangement (your areas, order, hidden items) and
  *      panels (where NAV and the brand sit) (0.3.0)
  */
+import { DEFAULT_PALETTE, type PaletteId } from './palettes';
 import { type Arrangement, type Panels, defaultPanels, emptyArrangement } from './arrange';
 import { type BookmarkNode, countLinks } from './bookmarks';
 
@@ -42,6 +43,8 @@ export interface LayoutPrefs {
   backupReminderDays: number;
   /** How strongly the rain glows. */
   rainGlow: GlowLevel;
+  /** The colour palette (lib/palettes.ts), for the UI and the wallpaper alike. */
+  palette: PaletteId;
 }
 
 /** The bookmarks part of the layout. */
@@ -80,7 +83,7 @@ export function defaultBookmarks(): BookmarksLayout {
 
 /** Preferences a new layout starts with. */
 export function defaultPrefs(): LayoutPrefs {
-  return { backupReminderDays: 14, rainGlow: DEFAULT_RAIN_GLOW };
+  return { backupReminderDays: 14, rainGlow: DEFAULT_RAIN_GLOW, palette: DEFAULT_PALETTE };
 }
 
 /** A new, empty layout. */
@@ -157,6 +160,7 @@ export function summarizeLayout(doc: LayoutDocument): string {
   if (open.length) parts.push(`${open.length} OPEN`);
   parts.push(`WALLPAPER ${doc.wallpaper.toUpperCase()}`);
   // The glow only when it isn't the default (keeps the usual summary short).
+  if (doc.prefs.palette !== DEFAULT_PALETTE) parts.push(`PALETTE ${doc.prefs.palette.toUpperCase()}`);
   if (doc.prefs.rainGlow !== DEFAULT_RAIN_GLOW) parts.push(`GLOW ${doc.prefs.rainGlow.toUpperCase()}`);
   parts.push(doc.prefs.backupReminderDays ? `REMIND ${doc.prefs.backupReminderDays}D` : 'REMIND OFF');
   return parts.join(' · ');

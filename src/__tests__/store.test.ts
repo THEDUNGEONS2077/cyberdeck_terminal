@@ -10,7 +10,7 @@ import { createLayoutStore } from '@/store/layout';
 import { boot, loadSnapshot, NOTICE_DAMAGED, NOTICE_NEWER, readSnapshotIndex, storeSnapshot } from '@/store/persist';
 
 const NOW = new Date(2026, 9, 22, 14, 30).getTime();
-const custom: LayoutDocument = { ...defaultLayout(), prefs: { backupReminderDays: 30, rainGlow: 'high' } };
+const custom: LayoutDocument = { ...defaultLayout(), prefs: { backupReminderDays: 30, rainGlow: 'high', palette: 'phosphor' as const } };
 
 describe('boot', () => {
   it('starts a new browser with a default layout, fresh meta and one snapshot', async () => {
@@ -65,7 +65,7 @@ describe('storeSnapshot', () => {
     const kv = memoryKV();
     let list = await storeSnapshot(kv, [], defaultLayout(), 'startup', NOW);
     for (let i = 1; i <= SNAPSHOT_KEEP + 5; i++) {
-      list = await storeSnapshot(kv, list, { ...defaultLayout(), prefs: { backupReminderDays: i, rainGlow: 'high' } }, 'change', NOW + i);
+      list = await storeSnapshot(kv, list, { ...defaultLayout(), prefs: { backupReminderDays: i, rainGlow: 'high', palette: 'phosphor' as const } }, 'change', NOW + i);
     }
     expect(list).toHaveLength(SNAPSHOT_KEEP);
     const stored = [...kv.data.keys()].filter((k) => k.startsWith(KEYS.snapshotPrefix));
@@ -98,7 +98,7 @@ describe('the snapshot index', () => {
     list = await storeSnapshot(kv, list, custom, 'change', NOW + 1);
     // The older copy vanishes, and a copy appears that the index doesn't list.
     await kv.del(KEYS.snapshotPrefix + list[1]!.at);
-    await kv.set(KEYS.snapshotPrefix + (NOW + 5), { at: NOW + 5, reason: 'change', summary: 'x', layout: { ...defaultLayout(), prefs: { backupReminderDays: 90, rainGlow: 'high' } } });
+    await kv.set(KEYS.snapshotPrefix + (NOW + 5), { at: NOW + 5, reason: 'change', summary: 'x', layout: { ...defaultLayout(), prefs: { backupReminderDays: 90, rainGlow: 'high', palette: 'phosphor' as const } } });
     const index = await readSnapshotIndex(kv);
     expect(index.map((i) => i.at)).toEqual([NOW + 5, NOW + 1]);
   });

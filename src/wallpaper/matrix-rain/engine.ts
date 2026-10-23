@@ -218,7 +218,7 @@ function createMatrixRain(canvas: HTMLCanvasElement | OffscreenCanvas, options: 
   const ownThread = typeof document === 'undefined';
   const warmBudget = ownThread ? PREWARM_WORKER_BUDGET_MS : PREWARM_BUDGET_MS;
   const fillBudget = ownThread ? PREWARM_WORKER_BUDGET_MS : PREWARM_FILL_BUDGET_MS;
-  const palette: WallpaperPalette = options.palette;
+  let palette: WallpaperPalette = options.palette;
   let still = options.still;
   let glow: GlowLevel = options.glow;
   let layers: Layer[] = [];
@@ -566,6 +566,14 @@ function createMatrixRain(canvas: HTMLCanvasElement | OffscreenCanvas, options: 
       running = false;
       cancelAnimationFrame(frame);
       frame = 0;
+    },
+    setPalette(next) {
+      palette = next;
+      // New sprite sheets in the new colours; as with the glow, the change rains in.
+      for (const l of layers) {
+        l.atlas = sheet(l.p, builtDpr);
+        l.atlas.finish?.();
+      }
     },
     setGlow(next) {
       if (next === glow) return;

@@ -512,6 +512,39 @@ try {
     await page.keyboard.press('Escape');
   });
 
+  await path('APPEARANCE: a palette recolours the page and the wallpaper; the neural net runs in the worker; both survive a reload', async () => {
+    const accent = () => page.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue('--accent').trim());
+    await page.keyboard.press('s');
+    await page.locator('.swatch', { hasText: 'BLOOD' }).click();
+    expect((await accent()) === '#ff3040', `--accent is ${await accent()}`);
+    await page.getByRole('radio', { name: 'NEURAL NET' }).check({ force: true });
+    await settled();
+    expect((await page.evaluate(() => localStorage.getItem('cyberdeck_terminal:palette'))) === 'blood', 'the palette hint wasn’t saved');
+    await page.keyboard.press('Escape');
+    await page.reload();
+    await page.locator('.brand').waitFor();
+    await page.locator('.wallpaper-canvas[data-ready]').waitFor({ state: 'attached', timeout: 5000 });
+    expect((await accent()) === '#ff3040', 'the palette wasn’t kept');
+    expect((await page.evaluate(() => document.querySelector('.wallpaper')?.getAttribute('data-wallpaper'))) === 'neural-net', 'the neural net isn’t showing');
+    expect((await page.evaluate(() => window.__cyberdeckRain.mode())) === 'worker', 'the neural net isn’t in the worker');
+    const a = await rain();
+    await page.waitForTimeout(600);
+    const b = await rain();
+    expect(a.lit > 0.002, `the network is only ${(a.lit * 100).toFixed(2)}% lit`);
+    expect(a.sig !== b.sig, 'the neural net doesn’t move');
+    // Accessibility in another palette (contrast especially), with SYSTEM open.
+    await page.addScriptTag({ path: join(root, 'node_modules/axe-core/axe.min.js') });
+    await page.keyboard.press('s');
+    await page.getByRole('radiogroup', { name: 'PALETTE' }).waitFor();
+    await shot('13-appearance');
+    await audit('SYSTEM in BLOOD, over the neural net');
+    // Back to the defaults for the paths after this one.
+    await page.locator('.swatch', { hasText: 'PHOSPHOR' }).click();
+    await page.getByRole('radio', { name: 'MATRIX RAIN' }).check({ force: true });
+    await settled();
+    await page.keyboard.press('Escape');
+  });
+
   await path('no accessibility violations (axe: WCAG 2.2 A/AA and best practice), with and without SYSTEM', async () => {
     await page.addScriptTag({ path: join(root, 'node_modules/axe-core/axe.min.js') });
     await audit('the page');

@@ -12,7 +12,8 @@ import { hasCustomContent } from '@/lib/layout';
 import { backupDue, exportAge } from '@/lib/reminder';
 import { layoutStore } from '@/store/instance';
 import { uiStore } from '@/store/ui';
-import { setWallpaperGlow, showWallpaper } from '@/wallpaper/host';
+import { applyPalette } from '@/palette';
+import { setWallpaperGlow, setWallpaperPalette, showWallpaper } from '@/wallpaper/host';
 
 import { useFullscreenSync, useIdleCursor } from './fullscreen';
 import { useLayout, useUi } from './hooks';
@@ -62,6 +63,7 @@ function useBackupReminder(): void {
 export function App() {
   const wallpaper = useLayout((s) => s.layout.wallpaper);
   const glow = useLayout((s) => s.layout.prefs.rainGlow);
+  const palette = useLayout((s) => s.layout.prefs.palette);
   const immersive = useUi((s) => s.immersive);
   const panelOpen = useUi((s) => s.panelOpen);
   const finderOpen = useUi((s) => s.finderOpen);
@@ -70,6 +72,10 @@ export function App() {
   // The wallpaper runs outside React (wallpaper/host.ts, started by main.tsx): only its choice is passed on.
   useEffect(() => showWallpaper(wallpaper), [wallpaper]);
   useEffect(() => setWallpaperGlow(glow), [glow]);
+  // The palette: its colours on the page, then the wallpaper reads them again (only when they changed).
+  useEffect(() => {
+    if (applyPalette(palette)) setWallpaperPalette();
+  }, [palette]);
 
   // Startup timing (read by e2e/perf.mjs): the dashboard is on screen.
   useEffect(() => void performance.mark('app:ui'), []);

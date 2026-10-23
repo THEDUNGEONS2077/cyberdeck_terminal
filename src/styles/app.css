@@ -156,6 +156,28 @@ ul {
 .wallpaper-canvas[data-ready] {
   opacity: 1;
 }
+/*
+ * The neural net's light (its reference: a deep teal sky, and a strong red
+ * glow rising from the bottom right): --cool tints the background from the
+ * top, the --accent glows in the corner. The canvas draws only the network.
+ */
+.wallpaper[data-wallpaper='neural-net'] {
+  background: linear-gradient(
+    to bottom,
+    color-mix(in srgb, var(--cool) 30%, var(--bg)),
+    color-mix(in srgb, var(--cool) 20%, var(--bg)) 55%,
+    color-mix(in srgb, var(--cool) 12%, var(--bg))
+  );
+}
+.wallpaper[data-wallpaper='neural-net'] .wallpaper-haze {
+  background:
+    radial-gradient(62% 70% at 82% 98%, var(--accent), color-mix(in srgb, var(--accent) 82%, transparent) 34%, color-mix(in srgb, var(--accent) 30%, transparent) 68%, transparent),
+    radial-gradient(85% 62% at 55% 100%, color-mix(in srgb, var(--accent) 30%, transparent), transparent 85%);
+  opacity: 1;
+}
+.wallpaper[data-wallpaper='neural-net'] .wallpaper-floor {
+  display: none;
+}
 /* The reference's dark lower edge: the rain thins out to black at the bottom. */
 .wallpaper-floor {
   position: absolute;
@@ -491,6 +513,64 @@ kbd {
 .setting > select:focus {
   border-color: var(--accent);
   box-shadow: var(--glow-faint);
+}
+/* A small heading over a group of choices (SYSTEM ▸ APPEARANCE). */
+.setting-label {
+  color: var(--text-dim);
+  font-size: var(--fs-small);
+  letter-spacing: 1px;
+}
+/*
+ * The palette swatches (SYSTEM ▸ APPEARANCE ▸ PALETTE): real radio buttons
+ * underneath (sr-only); each chip previews its palette in that palette's
+ * own colours (--sw-*, set inline), so the choice is seen, not read.
+ */
+.swatches {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(96px, 1fr));
+  gap: var(--s-sm);
+  margin-bottom: var(--s-sm);
+}
+.swatch {
+  display: flex;
+}
+.swatch-chip {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 6px;
+  padding: var(--s-sm);
+  border: var(--hairline) solid var(--sw-line);
+  border-radius: var(--radius);
+  background: var(--sw-surface);
+  cursor: pointer;
+  transition:
+    border-color var(--fast) var(--ease),
+    box-shadow var(--fast) var(--ease);
+}
+.swatch-bar {
+  height: 6px;
+  border-radius: var(--radius);
+  background: linear-gradient(90deg, var(--sw-cool), var(--sw-accent));
+}
+.swatch-name {
+  color: var(--sw-text);
+  font-size: var(--fs-micro);
+  letter-spacing: 1px;
+}
+.swatch-chip:hover {
+  border-color: var(--sw-accent);
+}
+.swatch input:checked + .swatch-chip {
+  border-color: var(--sw-accent);
+  box-shadow: 0 0 8px 0 color-mix(in srgb, var(--sw-accent) 45%, transparent);
+}
+.swatch input:checked + .swatch-chip .swatch-name::before {
+  content: '● ';
+}
+.swatch input:focus-visible + .swatch-chip {
+  outline: var(--hairline) solid var(--accent);
+  outline-offset: 2px;
 }
 /*
  * A row of choices with one lit (SYSTEM ▸ WALLPAPER ▸ GLOW). Real radio

@@ -11,15 +11,17 @@
  *   BACKUP     export a file, import one (preview, then REPLACE), the
  *              reminder interval, and when the last export was;
  *   RESTORE    the automatic snapshots, newest first; RESTORE asks to confirm;
- *   WALLPAPER  the wallpapers in the registry, and how strongly they glow;
+ *   APPEARANCE the colour palette, the wallpaper and its glow (any palette
+ *              with any wallpaper);
  *   KEYS       the shortcuts.
  */
-import { type ChangeEvent, useId, useRef, useState } from 'react';
+import { type ChangeEvent, type CSSProperties, useId, useRef, useState } from 'react';
 
 import { BRIDGE_VERSION } from '@/bridge/client';
 import { BackupError, type ParsedBackup, formatStamp } from '@/lib/backup';
 import { countLinks } from '@/lib/bookmarks';
 import { GLOW_LEVELS, REMINDER_DAY_CHOICES, summarizeLayout } from '@/lib/layout';
+import { PALETTES } from '@/lib/palettes';
 import { exportAge } from '@/lib/reminder';
 import { reasonLabel, type SnapshotInfo } from '@/lib/snapshots';
 import { compareVersions } from '@/lib/versions';
@@ -42,7 +44,7 @@ export function SystemPanel({ leaving }: { leaving: boolean }) {
         <BookmarksSection />
         <BackupSection />
         <RestoreSection />
-        <WallpaperSection />
+        <AppearanceSection />
         <KeysSection />
         <p className="small dim">
           CYBERDECK_TERMINAL v{APP_INFO.version} (BUILD {APP_INFO.build}) · YOUR LAYOUT STAYS IN THIS BROWSER
@@ -256,15 +258,43 @@ function RestoreSection() {
   );
 }
 
-/** WALLPAPER: the registry's wallpapers, and the glow. */
-function WallpaperSection() {
+/**
+ * APPEARANCE: the palette (swatches, each in its own colours), the
+ * wallpaper and the glow. They're independent: every wallpaper takes its
+ * colours from the palette.
+ */
+function AppearanceSection() {
   const current = useLayout((s) => s.layout.wallpaper);
   const glow = useLayout((s) => s.layout.prefs.rainGlow);
+  const palette = useLayout((s) => s.layout.prefs.palette);
   const glowId = useId();
+  const paletteId = useId();
+  const wallpaperId = useId();
   return (
-    <section className="settings-group" aria-label="Wallpaper">
-      <h3 className="section-title">WALLPAPER</h3>
-      <div className="dialog-choices" role="radiogroup" aria-label="Wallpaper">
+    <section className="settings-group" aria-label="Appearance">
+      <h3 className="section-title">APPEARANCE</h3>
+      <span className="setting-label" id={paletteId}>
+        PALETTE
+      </span>
+      <div className="swatches" role="radiogroup" aria-labelledby={paletteId}>
+        {PALETTES.map((p) => (
+          <label key={p.id} className="swatch">
+            <input className="sr-only" type="radio" name="palette" value={p.id} checked={palette === p.id} onChange={() => layoutStore().getState().setPalette(p.id)} />
+            {/* A preview in the palette's own colours (set here: they aren't the page's tokens until chosen). */}
+            <span
+              className="swatch-chip"
+              style={{ '--sw-surface': p.colors.surfaceRaised, '--sw-line': p.colors.line, '--sw-accent': p.colors.accent, '--sw-cool': p.colors.cool, '--sw-text': p.colors.text } as CSSProperties}
+            >
+              <span className="swatch-bar" aria-hidden />
+              <span className="swatch-name">{p.label}</span>
+            </span>
+          </label>
+        ))}
+      </div>
+      <span className="setting-label" id={wallpaperId}>
+        WALLPAPER
+      </span>
+      <div className="dialog-choices" role="radiogroup" aria-labelledby={wallpaperId}>
         {WALLPAPER_LIST.map((w) => (
           <label key={w.id} className="dialog-choice">
             <input type="radio" name="wallpaper" value={w.id} checked={current === w.id} onChange={() => layoutStore().getState().setWallpaper(w.id)} />
@@ -272,7 +302,7 @@ function WallpaperSection() {
           </label>
         ))}
       </div>
-      {/* The glow changes as the rain falls: new glyphs at once, the rest as they fade. */}
+      {/* The glow changes as the wallpaper runs (the rain: new glyphs at once, the rest as they fade). */}
       <div className="setting">
         <span id={glowId}>GLOW</span>
         <div className="segmented" role="radiogroup" aria-labelledby={glowId}>

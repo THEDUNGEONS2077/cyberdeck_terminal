@@ -37,6 +37,7 @@ export type ToWorker =
   | { type: 'stop' }
   | { type: 'still'; still: boolean }
   | { type: 'glow'; glow: GlowLevel }
+  | { type: 'palette'; palette: WallpaperPalette }
   | { type: 'probe'; id: number; what: 'pixels' }
   | { type: 'probe'; id: number; what: 'frames'; ms: number }
   | { type: 'destroy' };
@@ -148,6 +149,9 @@ scope.onmessage = ({ data: m }) => {
       break;
     case 'glow':
       instance?.setGlow(m.glow);
+      break;
+    case 'palette':
+      instance?.setPalette(m.palette);
       break;
     case 'probe':
       if (m.what === 'pixels') scope.postMessage({ type: 'probe', id: m.id, result: pixels() });

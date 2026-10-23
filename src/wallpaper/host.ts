@@ -116,6 +116,7 @@ function readPalette(): WallpaperPalette {
     text: token('--text', '#2fb344'),
     accent: token('--accent', '#39ff14'),
     bright: token('--text-bright', '#b6ffb0'),
+    cool: token('--cool', '#1d7f8f'),
   };
 }
 
@@ -194,6 +195,7 @@ function inWorker(id: string, canvas: HTMLCanvasElement, s: Size, onFail: () => 
       stop: () => send({ type: 'stop' }),
       setStill: (still) => send({ type: 'still', still }),
       setGlow: (level) => send({ type: 'glow', glow: level }),
+      setPalette: (palette) => send({ type: 'palette', palette }),
       destroy: () => worker.terminate(),
     },
     probe: {
@@ -223,6 +225,7 @@ function onPage(id: string, canvas: HTMLCanvasElement, s: Size): Omit<Running, '
       stop: () => later((e) => e.stop()),
       setStill: (still) => later((e) => e.setStill(still)),
       setGlow: (level) => later((e) => e.setGlow(level)),
+      setPalette: (palette) => later((e) => e.setPalette(palette)),
       destroy: () => later((e) => e.destroy()),
     },
     probe: {
@@ -282,6 +285,14 @@ export function setWallpaperGlow(level: GlowLevel): void {
 }
 
 /**
+ * Tells the wallpaper the palette changed (the app, after palette.ts has put
+ * the new colours on the page): it reads them from the tokens again.
+ */
+export function setWallpaperPalette(): void {
+  current?.instance.setPalette(readPalette());
+}
+
+/**
  * Shows wallpaper `id`, starting it if nothing runs yet, or swapping to it.
  * Called by main.tsx at the very start, and by the app when the layout's
  * choice is known or changes. Does nothing if `id` is already showing.
@@ -292,6 +303,8 @@ export function showWallpaper(id: string): void {
   if (current?.id === wallpaper.id) return;
   current?.instance.destroy();
   current = null;
+  // Each wallpaper's own light layers (app.css .wallpaper[data-wallpaper]).
+  document.querySelector<HTMLElement>('.wallpaper')?.setAttribute('data-wallpaper', wallpaper.id);
 
   /** Runs the wallpaper on a fresh canvas, in a worker if it can. */
   const run = (worker: boolean) => {

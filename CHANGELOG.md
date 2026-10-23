@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.6.0 (build 10)
+**A second wallpaper, and colour palettes: any palette with any wallpaper.**
+- **NEURAL NET wallpaper,** animated from your reference (a plexus): glowing nodes joined by long thin links, drifting slowly round their places, with out-of-focus particles rising behind and signals running along the links that light each node they reach. A deep cool sky above, the accent glowing up from the bottom right. With BLOOD it matches the reference within a few percent, region by region. It runs in the wallpaper's worker like the rain, at about 22 ms of drawing a second (the rain: 30).
+- **Palettes: PHOSPHOR** (the original green), **AMBER, ICE, NEON, BLOOD.** A palette recolours the whole dashboard (every glow, tint and rule is now mixed from its colours) and the wallpaper, rain included. Every palette passes the same readability check as the original (WCAG AA for all text), enforced by a test.
+- **SYSTEM ▸ APPEARANCE** (was WALLPAPER): palette swatches, each shown in its own colours, then the wallpaper, then GLOW. All three are saved with your layout and its backups, and apply at once; a palette chosen last time shows from the first moment of the next open.
+
 ## 0.5.1 (build 9)
 - **Folders drop down again:** an open folder opens in place as a list, one link per row, as before 0.5.0 (0.5.0 spread it across NAV's full width with its links in columns).
 

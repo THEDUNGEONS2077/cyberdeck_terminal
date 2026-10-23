@@ -18,7 +18,10 @@ export interface WallpaperInfo {
 }
 
 /** All wallpapers, in the order SYSTEM ▸ WALLPAPER lists them. */
-export const WALLPAPER_LIST: readonly WallpaperInfo[] = [{ id: 'matrix-rain', label: 'MATRIX RAIN' }];
+export const WALLPAPER_LIST: readonly WallpaperInfo[] = [
+  { id: 'matrix-rain', label: 'MATRIX RAIN' },
+  { id: 'neural-net', label: 'NEURAL NET' },
+];
 
 /** `id` if it's a wallpaper this build has, else the default's (a layout from a newer build, say). */
 export function knownWallpaperId(id: string): string {

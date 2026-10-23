@@ -14,6 +14,7 @@
 import { type Arrangement, type Area, type PanelPlace, type Panels, MAX_AREAS, cleanTitle, clampPlace, defaultPanels, emptyArrangement } from './arrange';
 import { sanitizeTree } from './bookmarks';
 import { type BookmarksLayout, type GlowLevel, type LayoutDocument, GLOW_LEVELS, LAYOUT_SCHEMA_VERSION, MAX_OPEN_FOLDERS, defaultBookmarks, defaultPrefs } from './layout';
+import { PALETTE_IDS, type PaletteId } from './palettes';
 
 /** The document was written by a newer version of the app than this one. */
 export class FutureSchemaError extends Error {}
@@ -101,6 +102,8 @@ export function normalizeLayout(doc: Record<string, unknown>): LayoutDocument {
   if (typeof days === 'number' && Number.isInteger(days) && days >= 0 && days <= 365) prefs.backupReminderDays = days;
   // The rain's glow (added in 0.5.0, no schema bump: an older layout simply gets the default).
   if (GLOW_LEVELS.includes(saved.rainGlow as GlowLevel)) prefs.rainGlow = saved.rainGlow as GlowLevel;
+  // The palette (added in 0.6.0, the same way).
+  if (PALETTE_IDS.includes(saved.palette as PaletteId)) prefs.palette = saved.palette as PaletteId;
 
   return { schemaVersion: LAYOUT_SCHEMA_VERSION, wallpaper: doc.wallpaper, prefs, bookmarks: normalizeBookmarks(doc.bookmarks), panels: normalizePanels(doc.panels) };
 }

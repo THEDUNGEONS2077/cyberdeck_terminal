@@ -23,8 +23,10 @@ export interface WallpaperPalette {
   text: string;
   /** --accent */
   accent: string;
-  /** --text-bright: the palest green, nearly white. */
+  /** --text-bright: the palest tint of the accent, nearly white. */
   bright: string;
+  /** --cool: a second, contrasting hue (two-tone wallpapers). */
+  cool: string;
 }
 
 /** What a wallpaper is created with. */
@@ -52,6 +54,8 @@ export interface WallpaperInstance {
   stop(): void;
   /** The glow level changed. */
   setGlow(glow: GlowLevel): void;
+  /** The colour palette changed (SYSTEM ▸ APPEARANCE ▸ PALETTE). */
+  setPalette(palette: WallpaperPalette): void;
   /** Switches between animating and a still frame (Reduce Motion changed). */
   setStill(still: boolean): void;
   /** Stops for good and releases everything. */
