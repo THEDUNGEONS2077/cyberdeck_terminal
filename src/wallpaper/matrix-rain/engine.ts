@@ -13,6 +13,9 @@
  *   2. draws the glyphs drops moved onto since the last frame (one copy
  *      from the sprite sheet each, glyphAtlas.ts);
  *   3. re-rolls a few glyphs inside live trails (the flicker).
+ * A glyph that changes in place (a head turning into body, the flicker)
+ * is cut out by its own shape first (the sheet's ERASE row), never by
+ * clearing its cell, which would punch a dark box into the glow around it.
  * So the work per frame is about "drops that moved", a few hundred
  * drawImage calls, whatever the screen size.
  *
@@ -28,11 +31,18 @@
  * Same picture as drawing and fading for 18 s, at a fraction of the cost
  * (no full-screen fades at all). Both phases run in slices of
  * PREWARM_BUDGET_MS per frame so the page never stalls; `onReady` then lets
- * the canvas fade in. A resize keeps what's
- * drawn (copied across), sizes the canvas's CSS box with its pixels (never
- * stretched), and only adds or removes columns, so going fullscreen
- * doesn't restart the rain.
+ * the canvas fade in. A resize keeps what's drawn (copied across) and only
+ * adds or removes columns.
+ *
+ * Where it runs: normally in the wallpaper's own worker, on an
+ * OffscreenCanvas (wallpaper/worker.ts), so none of this touches the
+ * page's main thread; on the page itself only if a worker can't start
+ * (wallpaper/host.ts). The code is the same either way: it only uses what
+ * both have (OffscreenCanvas, the font set, requestAnimationFrame). The
+ * canvas's CSS size is the host's business, not the engine's.
  */
+import type { GlowLevel } from '@/lib/layout';
+
 import type { Wallpaper, WallpaperInstance, WallpaperOptions, WallpaperPalette } from '../types';
 import { type Atlas, type AtlasRow, ROW, buildAtlas, canDraw, FONT_STACK, glyphSet, KATAKANA } from './glyphAtlas';
 import {
@@ -40,6 +50,7 @@ import {
   FADE_INTERVAL,
   FADE_PHASES,
   FADE_STRIPE,
+  GLOW,
   LAYERS,
   type LayerParams,
   MAX_DPR,
@@ -47,6 +58,9 @@ import {
   MIN_FRAME_MS,
   MUTATIONS_PER_SECOND,
   PREWARM_BUDGET_MS,
+  PREWARM_FILL_BUDGET_MS,
+  PREWARM_WORKER_BUDGET_MS,
+  PREWARM_HALO_MIN_ALPHA,
   PREWARM_MIN_ALPHA,
   PREWARM_REVEAL_ALPHA,
   PREWARM_SECONDS,
@@ -126,10 +140,21 @@ export const FADE_ORDER: readonly number[] = Array.from({ length: FADE_PHASES },
 /** The fade's fill: black at the fade's strength (only its alpha matters to destination-out). */
 const FADE_FILL = `rgba(0, 0, 0, ${FADE_ALPHA})`;
 
-/** `#rrggbb` → `rgba(r, g, b, a)`. */
-export function withAlpha(hex: string, a: number): string {
-  const n = parseInt(hex.replace('#', ''), 16);
-  return `rgba(${(n >> 16) & 255}, ${(n >> 8) & 255}, ${n & 255}, ${a})`;
+/** No glyph in a cell (Layer.glyphAt). */
+const NONE = 0xffff;
+
+/**
+ * A cell grid (row × cols + col) resized to cols × rows: the cells that
+ * are in both keep their place (the canvas's pixels are kept the same way,
+ * from the top left), new ones are empty.
+ */
+export function resizeCells(cells: Uint16Array | null, oldCols: number, oldRows: number, cols: number, rows: number): Uint16Array {
+  if (cells && oldCols === cols && oldRows === rows) return cells;
+  const next = new Uint16Array(cols * rows).fill(NONE);
+  if (!cells) return next;
+  const w = Math.min(cols, oldCols);
+  for (let row = 0; row < Math.min(rows, oldRows); row++) next.set(cells.subarray(row * oldCols, row * oldCols + w), row * cols);
+  return next;
 }
 
 /** A layer at the current canvas size. */
@@ -143,12 +168,15 @@ interface Layer {
   rowH: number;
   rows: number;
   drops: Drop[];
+  /** The glyph last drawn in each cell (row × cols + col), or NONE: what to erase when the cell changes. */
+  glyphAt: Uint16Array;
 }
 
 /**
  * The pre-warm's record of one layer: per cell (row × cols + col), the last
- * glyph drawn there, in which style, at what opacity, and when (simulated
- * seconds; -Infinity = never).
+ * glyph drawn there, in which style, at what opacity, and when; and when a
+ * head last moved on from it, leaving its glow (simulated seconds;
+ * -Infinity = never).
  */
 interface Recording {
   cols: number;
@@ -157,19 +185,42 @@ interface Recording {
   glyph: Uint16Array;
   style: Uint8Array;
   alpha: Float32Array;
+  halo: Float32Array;
 }
 
 /** An empty recording for a layer. */
 function newRecording(cols: number, rows: number): Recording {
   const n = cols * rows;
-  return { cols, rows, time: new Float32Array(n).fill(-Infinity), glyph: new Uint16Array(n), style: new Uint8Array(n), alpha: new Float32Array(n) };
+  const never = () => new Float32Array(n).fill(-Infinity);
+  return { cols, rows, time: never(), glyph: new Uint16Array(n), style: new Uint8Array(n), alpha: new Float32Array(n), halo: never() };
+}
+
+/** After a pre-warm (at simulated time `now`): each cell's glyph if the paint put it on the canvas, else NONE. Reuses the record's array. */
+function paintedGlyphs(r: Recording, now: number): Uint16Array {
+  for (let i = 0; i < r.glyph.length; i++) {
+    const age = now - r.time[i]!;
+    if (!(age < TRAIL_SECONDS) || fadedAlpha(r.alpha[i]!, age) < PREWARM_MIN_ALPHA) r.glyph[i] = NONE;
+  }
+  return r.glyph;
+}
+
+/** The font set to load fonts through: the page's, or in a worker its own (worker.ts adds the app's font to it). */
+function fontSet(): FontFaceSet {
+  return typeof document === 'undefined' ? (self as unknown as { fonts: FontFaceSet }).fonts : document.fonts;
 }
 
 /** Creates the matrix-rain engine on a canvas (the `create` of the Wallpaper). */
-function createMatrixRain(canvas: HTMLCanvasElement, options: WallpaperOptions, rng: Rng = Math.random): WallpaperInstance {
-  const ctx = canvas.getContext('2d');
+function createMatrixRain(canvas: HTMLCanvasElement | OffscreenCanvas, options: WallpaperOptions, rng: Rng = Math.random): WallpaperInstance {
+  // Typed as the offscreen kind: the 2D API both kinds share, which is all the engine uses.
+  const ctx = (canvas as OffscreenCanvas).getContext('2d');
+  // The pre-warm's slices: in a worker it has a thread to itself (big slices); on the page
+  // it shares the main thread, and leaves the dashboard most of each frame once the rain shows.
+  const ownThread = typeof document === 'undefined';
+  const warmBudget = ownThread ? PREWARM_WORKER_BUDGET_MS : PREWARM_BUDGET_MS;
+  const fillBudget = ownThread ? PREWARM_WORKER_BUDGET_MS : PREWARM_FILL_BUDGET_MS;
   const palette: WallpaperPalette = options.palette;
   let still = options.still;
+  let glow: GlowLevel = options.glow;
   let layers: Layer[] = [];
   let glyphCount = 0;
   let ready = false;
@@ -213,7 +264,7 @@ function createMatrixRain(canvas: HTMLCanvasElement, options: WallpaperOptions, 
     ctx.globalCompositeOperation = 'source-over';
   };
 
-  /** Copies glyph `g` in `style` to a layer's cell (col, row), at `alpha`: on the canvas, or into the pre-warm's record. */
+  /** Copies glyph `g` in `style` to a layer's cell (col, row), at `alpha`: on the canvas (noting it), or into the pre-warm's record. */
   const put = (l: Layer, col: number, row: number, g: number, style: AtlasRow, alpha: number) => {
     if (recordings) {
       const r = recordings[l.index];
@@ -226,31 +277,47 @@ function createMatrixRain(canvas: HTMLCanvasElement, options: WallpaperOptions, 
       return;
     }
     blit(l, col, row, g, style, alpha);
+    if (row >= 0 && row < l.rows) l.glyphAt[row * l.drops.length + col] = g;
   };
 
   /** Draws glyph `g` in `style` at a layer's cell (col, row), at `alpha`, from the sprite sheet. */
   const blit = (l: Layer, col: number, row: number, g: number, style: AtlasRow, alpha: number) => {
     if (!ctx) return;
-    const { atlas } = l;
+    const s = l.atlas.rows[style]!;
     ctx.globalAlpha = alpha;
-    ctx.drawImage(
-      atlas.canvas,
-      g * atlas.slotW,
-      style * atlas.slotH,
-      atlas.slotW,
-      atlas.slotH,
-      Math.round(col * l.colW - atlas.pad),
-      Math.round(row * l.rowH - atlas.pad),
-      atlas.slotW,
-      atlas.slotH,
-    );
+    ctx.drawImage(l.atlas.canvas, g * s.w, s.y, s.w, s.h, Math.round(col * l.colW) - s.pad, Math.round(row * l.rowH) - s.pad, s.w, s.h);
     ctx.globalAlpha = 1;
   };
 
-  /** Clears one cell (before redrawing it dimmer or with another glyph). */
-  const clearCell = (l: Layer, col: number, row: number) => {
-    // While recording, the next put simply replaces the cell's record.
-    if (!recordings) ctx?.clearRect(Math.round(col * l.colW), Math.round(row * l.rowH), Math.ceil(l.colW), Math.ceil(l.rowH));
+  /**
+   * Takes the glyph in a cell off the canvas (before redrawing the cell
+   * dimmer or with another glyph): its own shape, a touch bolder, is cut
+   * out (destination-out), so the glow around it stays where it is.
+   */
+  const erase = (l: Layer, col: number, row: number) => {
+    if (!ctx || row < 0 || row >= l.rows) return;
+    const i = row * l.drops.length + col;
+    const g = l.glyphAt[i]!;
+    if (g === NONE) return;
+    l.glyphAt[i] = NONE;
+    ctx.globalCompositeOperation = 'destination-out';
+    blit(l, col, row, g, ROW.erase, 1);
+    ctx.globalCompositeOperation = 'source-over';
+  };
+
+  /**
+   * A lit drop's head moves on from (col, row): the pale glyph turns into
+   * an ordinary body glyph, and its glow stays behind, fading with the
+   * rest. While recording, that's noted for the paint (paintRecorded).
+   */
+  const dimHead = (l: Layer, col: number, row: number, d: Drop) => {
+    const r = recordings?.[l.index];
+    if (r) {
+      if (row >= 0 && row < r.rows && col < r.cols) r.halo[row * r.cols + col] = simTime;
+    } else {
+      erase(l, col, row);
+    }
+    put(l, col, row, d.glyph, d.style, d.alpha);
   };
 
   /** Advances the whole rain by `dt` seconds, drawing as it goes. */
@@ -279,10 +346,7 @@ function createMatrixRain(canvas: HTMLCanvasElement, options: WallpaperOptions, 
         // Draw every row the head reached since the last frame.
         while (d.drawn < Math.floor(d.y) && d.drawn < d.end) {
           // The old head becomes an ordinary body glyph.
-          if (d.lit && d.drawn >= 0) {
-            clearCell(l, col, d.drawn);
-            put(l, col, d.drawn, d.glyph, d.style, d.alpha);
-          }
+          if (d.lit && d.drawn >= 0) dimHead(l, col, d.drawn, d);
           d.drawn++;
           d.glyph = Math.floor(rng() * glyphCount);
           if (d.lit) put(l, col, d.drawn, d.glyph, ROW.head, 1);
@@ -293,22 +357,19 @@ function createMatrixRain(canvas: HTMLCanvasElement, options: WallpaperOptions, 
         if (!recordings && trail > 1 && rng() < MUTATIONS_PER_SECOND * dt * (trail / 12)) {
           const back = 1 + Math.floor(rng() * (trail - 1));
           const row = d.drawn - back;
-          clearCell(l, col, row);
+          erase(l, col, row);
           put(l, col, row, Math.floor(rng() * glyphCount), d.style, fadedAlpha(d.alpha, back / d.speed));
         }
         // Reached its depth: the head dims, and a new drop waits at the top.
         if (d.drawn >= d.end) {
-          if (d.lit) {
-            clearCell(l, col, d.drawn);
-            put(l, col, d.drawn, d.glyph, d.style, d.alpha);
-          }
+          if (d.lit) dimHead(l, col, d.drawn, d);
           l.drops[col] = spawnDrop(l.p, l.rows, glyphCount, rng);
         }
       }
     }
   };
 
-  /** The first full frame is on the canvas: say so, once (WallpaperLayer's host fades the canvas in). */
+  /** The first full frame is on the canvas: say so, once (the host fades the canvas in). */
   const announce = () => {
     if (announced) return;
     announced = true;
@@ -318,9 +379,12 @@ function createMatrixRain(canvas: HTMLCanvasElement, options: WallpaperOptions, 
   /**
    * Paints recorded cells from where the last slice stopped, until `until`
    * (performance.now ms). Each cell still visible is drawn once, at what the
-   * fades would have left: fadedAlpha(alpha, its age). Two passes: the
-   * bright cells (PREWARM_REVEAL_ALPHA and up), then, with the canvas
-   * already fading in, the faint rest. True when all done.
+   * fades would have left: fadedAlpha(alpha, its age), and so is the glow
+   * a head left there, if any (the sheet's HALO, faded the same way). Two
+   * passes: the bright glyphs (PREWARM_REVEAL_ALPHA and up), then, with the
+   * canvas already fading in, the faint glyphs and the heads' glows (a glow
+   * has its glyph's shape cut out, so painting it after its glyph is the
+   * same picture). True when all done.
    */
   const paintRecorded = (until: number): boolean => {
     if (!recordings) return true;
@@ -336,12 +400,34 @@ function createMatrixRain(canvas: HTMLCanvasElement, options: WallpaperOptions, 
           const age = simTime - r.time[paintCell]!;
           if (!(age < TRAIL_SECONDS)) continue;
           const a = fadedAlpha(r.alpha[paintCell]!, age);
-          if (a < PREWARM_MIN_ALPHA || a >= PREWARM_REVEAL_ALPHA !== (paintPass === 0)) continue;
-          blit(l, paintCell % r.cols, Math.floor(paintCell / r.cols), r.glyph[paintCell]!, r.style[paintCell] as AtlasRow, a);
+          const bright = a >= PREWARM_REVEAL_ALPHA;
+          if (paintPass === 0) {
+            if (bright) blit(l, paintCell % r.cols, Math.floor(paintCell / r.cols), r.glyph[paintCell]!, r.style[paintCell] as AtlasRow, a);
+            continue;
+          }
+          const haloAge = simTime - r.halo[paintCell]!;
+          const glow = haloAge < TRAIL_SECONDS ? fadedAlpha(1, haloAge) : 0;
+          const faint = !bright && a >= PREWARM_MIN_ALPHA;
+          const lit = glow >= PREWARM_HALO_MIN_ALPHA;
+          if (!lit && !faint) continue;
+          const col = paintCell % r.cols;
+          const row = Math.floor(paintCell / r.cols);
+          const g = r.glyph[paintCell]!;
+          if (lit) blit(l, col, row, g, ROW.halo, glow);
+          if (faint) blit(l, col, row, g, r.style[paintCell] as AtlasRow, a);
         }
       }
-      // The bright part is on the canvas: it can fade in while the faint rest is painted.
-      if (paintPass === 0) announce();
+      // The bright part is on the canvas: end the slice, so this frame is shown and the
+      // canvas can fade in while the faint rest is painted.
+      if (paintPass === 0) {
+        announce();
+        // The sprite rows the rest needs (the heads' glows, the erase shapes).
+        for (const l of layers) l.atlas.finish?.();
+        paintPass = 1;
+        paintLayer = 0;
+        paintCell = 0;
+        return false;
+      }
     }
     return true;
   };
@@ -355,7 +441,8 @@ function createMatrixRain(canvas: HTMLCanvasElement, options: WallpaperOptions, 
   const warmSlice = () => {
     warmFrame = 0;
     if (warmLeft === null || destroyed) return;
-    const until = performance.now() + PREWARM_BUDGET_MS;
+    // A full slice until the canvas shows; then, on the page, a small one (the dashboard is starting meanwhile).
+    const until = performance.now() + (announced ? fillBudget : warmBudget);
     while (warmLeft > 0 && performance.now() < until) {
       step(PREWARM_STEP);
       warmLeft -= PREWARM_STEP;
@@ -364,6 +451,11 @@ function createMatrixRain(canvas: HTMLCanvasElement, options: WallpaperOptions, 
       warmFrame = requestAnimationFrame(warmSlice);
       return;
     }
+    // Each cell's glyph, for erasing it later: what the paint left on the canvas.
+    layers.forEach((l, i) => {
+      const r = recordings![i];
+      if (r) l.glyphAt = resizeCells(paintedGlyphs(r, simTime), r.cols, r.rows, l.drops.length, l.rows);
+    });
     recordings = null;
     warmLeft = null;
     // Recorded for e2e/motion.mjs: how long the screen took to fill (spread over frames).
@@ -387,6 +479,14 @@ function createMatrixRain(canvas: HTMLCanvasElement, options: WallpaperOptions, 
     if (!warmFrame) warmSlice();
   };
 
+  /** Draws a layer's sprite sheet, adding the time to the `rain-atlas` measure (e2e/motion.mjs reports it). */
+  const sheet = (p: LayerParams, dpr: number): Atlas => {
+    const start = performance.now();
+    const atlas = buildAtlas(p, palette, dpr, glyphs, GLOW[glow]);
+    performance.measure('rain-atlas', { start });
+    return atlas;
+  };
+
   /**
    * Fits the layers to the canvas: new sprite sheets if the pixel ratio
    * changed, and the column lists grown or cut to the new width. Existing
@@ -394,7 +494,6 @@ function createMatrixRain(canvas: HTMLCanvasElement, options: WallpaperOptions, 
    */
   const layout = (w: number, h: number, dpr: number) => {
     const rebuild = dpr !== builtDpr;
-    const glow = withAlpha(palette.accent, 0.6);
     layers = LAYERS.map((p, i) => {
       const old = rebuild ? undefined : layers[i];
       const colW = p.colW * dpr;
@@ -403,7 +502,8 @@ function createMatrixRain(canvas: HTMLCanvasElement, options: WallpaperOptions, 
       const rows = Math.ceil(h / p.rowH);
       const drops = (old?.drops ?? []).slice(0, cols);
       while (drops.length < cols) drops.push(spawnDrop(p, rows, glyphCount, rng, rng() < p.occupancy));
-      return { index: i, p, atlas: old?.atlas ?? buildAtlas(p, palette, dpr, glyphs, glow), colW, rowH, rows, drops };
+      const glyphAt = resizeCells(old?.glyphAt ?? null, old?.drops.length ?? 0, old?.rows ?? 0, cols, rows);
+      return { index: i, p, atlas: old?.atlas ?? sheet(p, dpr), colW, rowH, rows, drops, glyphAt };
     });
     builtDpr = dpr;
     return rebuild;
@@ -419,21 +519,14 @@ function createMatrixRain(canvas: HTMLCanvasElement, options: WallpaperOptions, 
     if (canvas.width !== pw || canvas.height !== ph) {
       // Changing the size wipes a canvas: copy what's drawn across (unless the pixel ratio changed).
       const keep = !fresh && dpr === builtDpr && canvas.width > 0 && canvas.height > 0;
-      const copy = keep ? document.createElement('canvas') : null;
-      if (copy) {
-        copy.width = canvas.width;
-        copy.height = canvas.height;
-        copy.getContext('2d')?.drawImage(canvas, 0, 0);
-      }
+      const copy = keep ? new OffscreenCanvas(canvas.width, canvas.height) : null;
+      copy?.getContext('2d')?.drawImage(canvas, 0, 0);
       canvas.width = pw;
       canvas.height = ph;
       // Changing the size also resets the context's state.
       ctx.imageSmoothingEnabled = false;
       if (copy) ctx.drawImage(copy, 0, 0);
     }
-    // The CSS box matches the pixels exactly: never stretched while a resize is pending.
-    canvas.style.width = `${pw / dpr}px`;
-    canvas.style.height = `${ph / dpr}px`;
     const rebuilt = layout(w, h, dpr);
     // A first start or a new pixel ratio starts from an empty canvas: fill it.
     if (fresh || rebuilt) {
@@ -474,6 +567,17 @@ function createMatrixRain(canvas: HTMLCanvasElement, options: WallpaperOptions, 
       cancelAnimationFrame(frame);
       frame = 0;
     },
+    setGlow(next) {
+      if (next === glow) return;
+      glow = next;
+      // New sprite sheets; the rain carries on. Glyphs drawn from now on glow
+      // the new way, and the ones already down fade out as usual, so the
+      // change rains in over a few seconds instead of the screen restarting.
+      for (const l of layers) {
+        l.atlas = sheet(l.p, builtDpr);
+        l.atlas.finish?.();
+      }
+    },
     setStill(next) {
       still = next;
       if (still) {
@@ -495,7 +599,7 @@ function createMatrixRain(canvas: HTMLCanvasElement, options: WallpaperOptions, 
   // katakana are only used when some installed font can draw them.
   void (async () => {
     try {
-      await Promise.all(LAYERS.map((p) => document.fonts.load(`${p.font}px ${FONT_STACK}`, KATAKANA)));
+      await Promise.all(LAYERS.map((p) => fontSet().load(`${p.font}px ${FONT_STACK}`, KATAKANA)));
     } catch {
       // Draw with whatever font is there.
     }
@@ -516,6 +620,5 @@ function createMatrixRain(canvas: HTMLCanvasElement, options: WallpaperOptions, 
 /** The matrix-rain wallpaper (the registry's default). */
 export const matrixRain: Wallpaper = {
   id: 'matrix-rain',
-  label: 'MATRIX RAIN',
   create: (canvas, options) => createMatrixRain(canvas, options),
 };

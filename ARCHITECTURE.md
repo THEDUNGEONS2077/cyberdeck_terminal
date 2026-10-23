@@ -5,7 +5,7 @@
 |---|---|---|
 | `src/lib/` | Pure rules: the layout document, migrations, backup files, snapshot keeping, the reminder | nothing outside `lib` |
 | `src/store/` | State and storage: `persist.ts` (startup), `layout.ts` (layout store), `ui.ts` (screen state), `idbKV.ts` / `kv.ts` (storage) | `lib` |
-| `src/wallpaper/` | Animated wallpapers on a canvas, plus `WallpaperLayer.tsx`, which owns the canvas | `lib` (ids only) |
+| `src/wallpaper/` | Animated wallpapers on a canvas: `host.ts` owns the canvas and runs the wallpaper in `worker.ts`; `catalog.ts` names them, `registry.ts` holds their engines | `lib` (ids and glow levels only) |
 | `src/bridge/` | `client.ts`: messaging with the bridge extension (Chrome's externally_connectable API) | `lib` |
 | `bridge/` | The **CYBERDECK BRIDGE** extension itself (MV3, plain JS), zipped into the build as `cyberdeck-bridge.zip` | nothing |
 | `src/app/` | React UI: `App`, `Hud`, `SystemPanel`, `Dialog`, `Toast`, shortcuts, fullscreen; the deck in `Bookmarks.tsx` + `deck/`; `arrangeDrag.ts`, `panels.tsx` | everything |
@@ -18,27 +18,29 @@
 - **Cache names** are `cyberdeck_terminal-<build time>-<hash>`, so they sort by age.
 
 ## Startup
-`index.html` holds the wallpaper's canvas as plain HTML.
-1. `src/main.tsx`, the first chunk (about 13 KB), starts it at once (`wallpaper/host.ts`, with the choice remembered in localStorage).
-2. It then `import()`s `src/start.tsx` (storage + React + dashboard, about 250 KB), which loads in parallel.
-3. The rain's font is preloaded.
+`index.html` holds the wallpaper's canvas as plain HTML, and lists every file the start needs (fonts, the first chunks, and the app's chunk as a `modulepreload`), so they're all fetched at once.
+1. `src/main.tsx`, the first chunk (about 1 KB, plus the host's 16 KB), starts the wallpaper at once: `wallpaper/host.ts` hands the canvas to the wallpaper's worker (its code is inlined in the host's chunk, so there's no extra request). The worker loads its font, draws its sprite sheets, pre-warms and animates, all off the page's main thread.
+2. It then `import()`s `src/start.tsx` (storage + React + dashboard, about 290 KB). With the rain in its worker, the app starts as soon as it arrives (until 0.5.0 it waited for the rain's pre-warm on the same thread).
 
-The pre-warm records the simulation into typed arrays and paints each visible glyph once: bright ones first (the canvas fades in then), the faint rest during the fade.
+The pre-warm records the simulation into typed arrays and paints each visible glyph once: bright ones first (the canvas fades in then), then the faint rest and the heads' leftover glows during the fade.
 
 Timings come from `npm run e2e:perf`. It simulates a 120 ms network delay and measures repeat opens through the service worker:
 
 | | Normal CPU | 4× slower CPU |
 |---|---|---|
-| Rain | about 0.13 s | about 0.55 s |
-| Dashboard | about 0.23 s | about 0.87 s |
+| Rain | about 0.15 s | about 0.4 s |
+| Dashboard | about 0.07 s | about 0.27 s |
 
-`app:start`, `app:booted` and `app:ui` performance marks time the app's stages.
+A first visit: rain about 0.37 s, dashboard about 0.43 s (the test server's HTTP/1.1 limit of 6 connections delays the app's chunk; GitHub Pages serves HTTP/2).
+
+`app:start`, `app:booted` and `app:ui` performance marks time the app's stages; the wallpaper's `rain-atlas` and `rain-prewarm` measures come from its worker into the page's timeline.
 
 ## The page
 ```
-<WallpaperLayer>   fixed, z 0: haze · canvas · fade to black at the bottom
-<main.ui-layer>    fixed, z 1: HUD, toast. Fades out and goes inert in immersive mode
+.wallpaper         fixed, z 0 (index.html): haze · canvas (screen-sized, drawn by the worker) · fade to black at the bottom
+<main.ui-layer>    fixed, z 1: HUD, NAV, toast. Fades out and goes inert in immersive mode
 <SystemPanel>      modal dialog (S)
+<Finder>           modal dialog (/)
 ```
 **Immersive mode (F):**
 - `toggleFullscreen()` calls the Fullscreen API.
@@ -70,7 +72,14 @@ bridge/background.js ──(externally_connectable)──▶ src/bridge/client.t
 3. With no bridge, the imported copy (`layout.bookmarks.imported`).
 4. With none of these, the CONNECT prompt.
 
-**Folders:** which are open is stored in `layout.bookmarks.open`, keyed by folder path (`lib/bookmarks.ts` `folderKey`), so the same folder matches across the live bar and an imported copy. A folder's contents are first rendered when it first opens.
+**Folders:** which are open is stored in `layout.bookmarks.open`, keyed by folder path (`lib/bookmarks.ts` `folderKey`), so the same folder matches across the live bar and an imported copy. A folder's contents are first rendered when it first opens. An open folder card takes NAV's full width, its links in CSS columns (`app.css`).
+
+**Finding (`/`, `app/Finder.tsx`):** a combobox over a listbox (`aria-activedescendant`).
+- `lib/find.ts` `findEntries` lists every openable link in dashboard order, skipping hidden items and anything in a hidden folder. `search` scores each typed word: title start, word start, inside the title, host start, host, folder, then letters in order. Ties go to the shorter title, then dashboard order.
+- Commands follow the links. Enter opens the chosen link in a new tab, or runs the command.
+- `app/useShownBar.ts` picks the bar shown (live, cached or imported), for NAV and the finder alike.
+
+**Arrow keys (`deck/useArrowNav.ts`):** from a tile, folder heading, link or area heading, ← / → go to the previous / next item in page order, ↑ / ↓ to the nearest item in the row above or below, Home / End to the first / last. Items inside folded areas or folders are skipped.
 
 **Links:** only http(s) links are clickable, because Chrome blocks webpages from opening chrome://, file:// and javascript:. They open in a new tab (`target=_blank`, `rel=noopener noreferrer`), so the dashboard never navigates away and its animation is never caught frozen mid-handoff.
 
@@ -83,6 +92,11 @@ bridge/background.js ──(externally_connectable)──▶ src/bridge/client.t
 - **`store/edit.ts`:** `begin` takes a BEFORE EDIT snapshot. `apply` pushes an undo step and saves at once. `undoLast` / `revert` step back. `done` locks and snapshots.
 - **`app/arrangeDrag.ts`:** pointer drags past a 5 px threshold. Targets are read from `data-drop-section`, `data-item-key`, `data-kind`, `data-section` and `data-area-id`; Esc cancels. Panels move live through CSS variables and are saved on drop.
 - **Keyboard alternatives:** the ⋯ menus (`deck/ArrangeMenu.tsx`), ↑ / ↓ on area grips, and arrow keys on panel grips.
+- **Glides (`deck/useFlip.ts`):** layout, bookmarks and edit store listeners note every item's position before React redraws. After the commit, moved items are animated from their old positions (Web Animations, `id: 'flip'`, transforms only). Positions are relative to NAV's scroller. A note older than 250 ms is discarded.
+- **Feedback:**
+  - `store/bookmarks.ts` `fresh` lights arrivals for 4 s.
+  - `uiStore.announce` feeds a polite live region (`App.tsx` `Announcer`).
+  - Drags dim their source (`data-drag-source`) and show `.drop-line` or `.drop-zone`.
 - **Panels** are placed with `left`/`top` from shares of the window, clamped on screen. There are no transforms, so text stays crisp, and narrow windows ignore the places.
 
 ## Storage and recovery
@@ -124,32 +138,36 @@ IndexedDB, database `cyberdeck_terminal`, store `kv`. quest_log_desktop shares t
 - The reminder (`lib/reminder.ts`) offers EXPORT / LATER once the last export is older than the interval. It stays quiet while the layout still has nothing of its own.
 
 ## Wallpapers
-The contract is `src/wallpaper/types.ts`: `create(canvas, { palette, still })` → `{ resize, start, stop, setStill, destroy }`.
+The contract is `src/wallpaper/types.ts`: `create(canvas, { palette, glow, still, onReady })` → `{ resize, start, stop, setStill, setGlow, destroy }`. A wallpaper runs in a worker on an OffscreenCanvas, or on the page if a worker can't, so its code may only use what both have: OffscreenCanvas, the font set, `requestAnimationFrame`. No DOM.
 
 - The palette is read from theme.css tokens, so a wallpaper uses the UI's colours.
-- `WallpaperLayer` handles three things:
-  - resizing, debounced by 150 ms;
-  - the device pixel ratio;
-  - visibility (stopped while the tab is hidden) and Reduce Motion (a still frame).
+- **`host.ts`** (the page):
+  - **The worker.** It transfers the canvas (`transferControlToOffscreen`) to `worker.ts` with the app's font URL, the palette, the glow and the size, then forwards resize, start, stop, Reduce Motion and glow as messages. The worker answers `ready` (the canvas fades in), forwards the wallpaper's performance measures, and answers the tests' probes.
+  - **The fallback.** If a canvas can't go to a worker, or the worker fails, the same wallpaper runs on the page, on a fresh canvas. Its engine (`registry.ts`) is loaded only then, so the page's own scripts don't carry it.
+  - **The canvas is the size of the screen** (or the window, where that's bigger), not the window: resizing the window or going fullscreen doesn't touch it. Only a new screen size, zoom or pixel ratio resizes it (debounced by 150 ms).
+  - Visibility (stopped while the tab is hidden) and Reduce Motion (a still frame).
+  - **The tests' probe**, `window.__cyberdeckRain`: `pixels()` (the share of the canvas that's lit, and a fingerprint), `frames(ms)` (frame gaps and drawing time in the worker), `mode()` (`worker` or `page`). The page can't read a canvas it handed to a worker.
+- **`catalog.ts`** names the wallpapers for the page (SYSTEM's list, checking ids); **`registry.ts`** holds their engines (the worker, or the fallback).
 
-**To add a wallpaper:** create a folder under `src/wallpaper/`, export a `Wallpaper` from it, and add it to `WALLPAPERS` in `registry.ts`. Its `id` is stored in layouts and backups, so it must never change once released.
+**To add a wallpaper:** create a folder under `src/wallpaper/`, export a `Wallpaper` from it, add it to `WALLPAPERS` in `registry.ts`, and its name card to `catalog.ts`. Its `id` is stored in layouts and backups, so it must never change once released.
 
 ### Matrix rain (`src/wallpaper/matrix-rain/`)
 - **`params.ts`** holds every tunable number, matched to the reference wallpaper.
-- **`glyphAtlas.ts`** pre-draws every glyph, with its glow, once per layer into a sprite sheet.
-  - Its rows are HEAD, BODY and DIM.
+- **`glyphAtlas.ts`** pre-draws every glyph, with its glow, once per layer into a sprite sheet (an OffscreenCanvas).
+  - Its rows are HEAD, BODY and DIM, plus ERASE (each glyph's bare shape, a touch bolder) and HALO (a head with its shape cut out: the glow a head leaves behind). ERASE and HALO aren't needed for the first paint, so they're drawn right after it (`finish`).
+  - Each row's slots are the cell plus as far as that row's glow reaches (`GLOW_REACH`), so big head glows aren't cut off and the much more frequent body copies stay small.
+  - **The glow** (SYSTEM ▸ WALLPAPER ▸ GLOW, `prefs.rainGlow`): `params.ts` `GLOW` sets the glow colour's strength and the heads' and bodies' blur for LOW, MEDIUM, HIGH (default) and MAX. A change rebuilds the sheets; the rain carries on, so the new glow rains in.
   - Katakana are used only if a system font can draw them (`canDraw`).
 - **`engine.ts`** never repaints the whole canvas. Each frame it does three things:
   1. fades one set of interleaved 2 px stripes, a twelfth of the screen. Each pixel is still faded once per 0.2 s, but no frame fades everything, so there's no whole-screen dimming pulse and no expensive frame. The fills are plain solid rectangles, the cheap path on both GPU and CPU canvases (a pattern fill measured many times slower on a CPU canvas);
   2. copies in the glyphs that drops moved onto;
   3. re-rolls a few glyphs inside trails (the flicker).
+- **Changing a glyph in place** (a head turning into body, the flicker) first cuts the old glyph out by its own shape (the ERASE row, `destination-out`), never by clearing its cell, which punched dark boxes into the glow around it. `glyphAt` keeps each cell's glyph for that. A head's glow stays behind as it moves on, so lit trails glow as streaks; the pre-warm records where (`halo`) and paints it (the HALO row).
 - **Drops:** each column of each layer has one drop slot. A drop falls to a random depth, then waits at the top. The wait sets the layer's occupancy.
 - **Startup:** 18 s of rain are simulated before the canvas is shown, so it opens full.
-  - Only the last 9 s are drawn. Earlier glyphs would have faded to under 5% anyway.
-  - The work runs in slices of up to 10 ms per frame, so the page never stalls.
-  - `onReady` then fades the canvas in.
-- **Resize:** the drawn pixels are copied across and columns are added or removed, so entering fullscreen doesn't restart the rain.
-  - The canvas's CSS size always matches its pixels, so it's never shown stretched.
-  - Fullscreen changes apply at once; window drags are debounced.
+  - Only glyphs still at least 5% bright are painted.
+  - In the worker the work runs in big slices (`PREWARM_WORKER_BUDGET_MS`), stopping once after the bright glyphs so that frame shows. On the page (the fallback) it's 16 ms per frame, then 6 ms once the canvas shows, so the dashboard isn't kept waiting.
+  - `onReady` fades the canvas in after the bright part.
+- **Resize** (rare: the canvas is screen-sized): the drawn pixels are copied across and columns are added or removed.
 
-`npm run e2e:motion` measures frame gaps, script time per second (normal CPU and 4× slower), the worst stall while loading, and the frame just after a resize. Compare a change against a copy of the old `dist/` with `MOTION_DIST`.
+`npm run e2e:motion` measures the rain's frame gaps and drawing time in its worker, the page's main-thread script time (normal CPU and 4× slower), the sprite sheets and pre-warm, the worst main-thread stall while loading, and the frame just after a resize. Compare a change against a copy of the old `dist/` with `MOTION_DIST` (older builds are measured by the page's frames).

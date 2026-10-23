@@ -5,6 +5,13 @@
  * Layer: UI. Each hint is also a button that does what its key does, so
  * everything works with the mouse too. The brand panel sits where you put
  * it (layout.panels.brand); in edit mode it has a grip to move it.
+ *
+ * Its status line says how the dashboard is linked to Chrome, live (UX
+ * pass, 2026-10-22: it used to say LINK OK whatever was going on):
+ *   ● LINK LIVE   the bridge is connected
+ *   LINKING…      asking the bridge (just opened)
+ *   LINK: COPY    no bridge; showing an imported copy
+ *   NO LINK       no bridge and no copy
  */
 import { useEffect, useRef, useState } from 'react';
 
@@ -13,8 +20,7 @@ import { uiStore } from '@/store/ui';
 import { useArrangeDrag } from './arrangeDrag';
 import { cx } from './cx';
 import { toggleFullscreen } from './fullscreen';
-import { G } from './glyphs';
-import { useEdit, useLayout } from './hooks';
+import { useBookmarks, useEdit, useLayout } from './hooks';
 import { MoveGrip, placeStyle } from './panels';
 
 // The clock's formatters, made once: toLocale…String with options builds a new one on every
@@ -49,6 +55,21 @@ function Clock() {
   );
 }
 
+/** How the dashboard is linked to Chrome (see the file header). */
+function LinkStatus() {
+  const status = useBookmarks((s) => s.status);
+  const hasCopy = useLayout((s) => s.layout.bookmarks.imported !== null);
+  if (status === 'live') {
+    return (
+      <span className="hud-link live">
+        <span className="live-dot" aria-hidden /> LINK LIVE
+      </span>
+    );
+  }
+  if (status === 'checking') return <span className="hud-link">LINKING…</span>;
+  return <span className={cx('hud-link', !hasCopy && 'down')}>{hasCopy ? 'LINK: COPY' : 'NO LINK'}</span>;
+}
+
 /** The HUD. */
 export function Hud() {
   const place = useLayout((s) => s.layout.panels.brand);
@@ -63,20 +84,21 @@ export function Hud() {
         <div className="masthead-scan" />
         <h1 className="brand">
           <span className="brand-bracket">&lt;</span>
-          <span className="brand-name">CYBERDECK</span>
+          <span className="brand-name">cyberdeck_terminal</span>
           <span className="brand-bracket">&gt;</span>
-          <span className="cursor" aria-hidden>
-            {G.cursor}
-          </span>
         </h1>
         <p className="hud-status">
           <Clock />
-          <span>· LINK OK</span>
+          <span aria-hidden>·</span>
+          <LinkStatus />
         </p>
       </header>
       <nav className="hud-keys" aria-label="Controls">
         <button type="button" className="hint" onClick={() => void toggleFullscreen()}>
           <kbd>F</kbd> FULLSCREEN
+        </button>
+        <button type="button" className="hint" onClick={() => uiStore.getState().setFinderOpen(true)}>
+          <kbd>/</kbd> FIND
         </button>
         <button type="button" className="hint" onClick={() => uiStore.getState().setPanelOpen(true)}>
           <kbd>S</kbd> SYSTEM

@@ -117,6 +117,8 @@ try {
     await inBridge(async (site) => chrome.bookmarks.create({ parentId: '1', title: 'Fresh', url: `${site}fresh` }), SITE);
     await page.getByRole('link', { name: /Fresh/ }).waitFor({ timeout: 5000 });
     await page.locator('.deck-source', { hasText: '5 LINKS' }).waitFor();
+    // It arrives lit, so it's seen arriving.
+    await page.locator('.tile.fresh', { hasText: 'Fresh' }).waitFor({ timeout: 2000 });
   });
 
   await path('a bookmark saved outside the bar (Other bookmarks) shows up too, in an OTHER BOOKMARKS folder', async () => {
@@ -158,16 +160,40 @@ try {
     expect(page.url() === DASHBOARD, `the dashboard navigated to ${page.url()}`);
   });
 
-  await path('CHROME NEW TAB opens Chrome’s own New Tab page, EDIT BOOKMARKS the Bookmark manager: each in a new tab', async () => {
+  await path('CHROME NEW TAB opens Chrome’s own New Tab page, BOOKMARK MANAGER the Bookmark manager: each in a new tab', async () => {
     for (const [button, url] of [
       ['CHROME NEW TAB', 'chrome://new-tab-page/'],
-      ['EDIT BOOKMARKS', 'chrome://bookmarks/'],
+      ['BOOKMARK MANAGER', 'chrome://bookmarks/'],
     ]) {
       const [tab] = await Promise.all([context.waitForEvent('page'), page.getByRole('button', { name: button }).click()]);
       await tab.waitForURL(url, { timeout: 8000 });
       await tab.close();
     }
     expect(page.url() === DASHBOARD, `the dashboard navigated to ${page.url()}`);
+  });
+
+  await path('rearranging glides; focus follows a ⋯ move; screen readers hear it; Reduce Motion stills it', async () => {
+    const glides = () => page.evaluate(() => document.getAnimations().filter((a) => a.id === 'flip').length);
+    await page.getByRole('button', { name: 'EDIT', exact: true }).click();
+    await page.waitForTimeout(30);
+    expect((await glides()) > 0, 'entering edit mode didn’t glide anything');
+    await page.waitForTimeout(400);
+    await page.getByRole('button', { name: 'Arrange Alpha' }).click();
+    await page.getByRole('menuitem', { name: /MOVE LATER/ }).click();
+    await page.waitForTimeout(30);
+    expect((await glides()) >= 2, 'the swapped items didn’t glide');
+    await page.waitForTimeout(300);
+    expect((await page.evaluate(() => document.activeElement?.getAttribute('aria-label'))) === 'Arrange Alpha', 'focus didn’t follow the moved item');
+    expect(/MOVED ALPHA LATER/.test((await page.locator('.sr-only[aria-live]').textContent()) ?? ''), 'nothing announced');
+    await page.keyboard.press('Control+z');
+    await page.getByRole('button', { name: 'DONE' }).click();
+    await page.waitForTimeout(400); // the glide out of edit mode finishes
+    await page.emulateMedia({ reducedMotion: 'reduce' });
+    await page.getByRole('button', { name: 'EDIT', exact: true }).click();
+    await page.waitForTimeout(30);
+    expect((await glides()) === 0, 'items glided with Reduce Motion on');
+    await page.getByRole('button', { name: 'DONE' }).click();
+    await page.emulateMedia({ reducedMotion: 'no-preference' });
   });
 
   await path('the next open draws the bar at once from the cache, before the bridge answers', async () => {

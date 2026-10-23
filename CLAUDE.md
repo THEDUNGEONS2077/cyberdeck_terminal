@@ -9,6 +9,7 @@ A terminal/cyberdeck start page: a **webpage** the user sets as Chrome's homepag
 - **Comments are required.** Every file gets a header comment (its purpose and layer). Every export gets a doc comment. Non-obvious logic and each shell-script step get a short *why* comment.
 - **TypeScript** is `strict` with no `any`. ESLint includes the React Compiler rules: no `setState` in effects, and no refs or impure calls (`Date.now`) during render.
 - **Imports go downward:** `app` → `store` → `lib`. `wallpaper/` is canvas code (no stores). `lib` stays pure: no React, no browser APIs.
+- **Wallpapers run in a worker** (`wallpaper/worker.ts`, on an OffscreenCanvas; on the page only as a fallback). Engine code may use only what a worker has: OffscreenCanvas, the font set, `requestAnimationFrame`. No `document`, no DOM. The page knows wallpapers by `wallpaper/catalog.ts`; their engines are in `registry.ts`. Tests read the canvas through `window.__cyberdeckRain` (the page can't read a canvas it handed to a worker).
 - **The layout must always be recoverable.**
   - Everything about the arrangement lives in the versioned layout document (`src/lib/layout.ts`).
   - A shape change bumps `LAYOUT_SCHEMA_VERSION` and adds a step plus a fixture test in `src/lib/migrations.ts`.

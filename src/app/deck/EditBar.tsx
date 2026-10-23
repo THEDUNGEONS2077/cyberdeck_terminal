@@ -20,6 +20,7 @@ import { useState } from 'react';
 import { type TreeItem, addArea, chromeOrder, defaultPanels, showItem } from '@/lib/arrange';
 import { hostOf } from '@/lib/bookmarks';
 import { editStore } from '@/store/edit';
+import { uiStore } from '@/store/ui';
 
 import { useEdit, useLayout } from '../hooks';
 import { newAreaId } from './ArrangeMenu';
@@ -44,6 +45,7 @@ export function EditBar({ onNewArea }: { onNewArea: (id: string) => void }) {
             onClick={() => {
               apply((s) => ({ ...s, arrangement: chromeOrder(s.arrangement) }));
               setConfirming(false);
+              uiStore.getState().announce('EVERYTHING IS BACK IN CHROME’S ORDER');
             }}
           >
             RELOAD
@@ -59,7 +61,7 @@ export function EditBar({ onNewArea }: { onNewArea: (id: string) => void }) {
   return (
     <div className="edit-bar" role="toolbar" aria-label="Edit layout">
       <span className="edit-state">
-        <span className="live-dot" aria-hidden /> EDIT MODE · SAVED AS YOU GO · DRAG, OR USE ⋯
+        <span className="live-dot" aria-hidden /> EDIT MODE · SAVED AS YOU GO · DRAG, OR USE ⋯ · ESC LOCKS IT
       </span>
       <span className="edit-actions">
         <button
@@ -69,6 +71,7 @@ export function EditBar({ onNewArea }: { onNewArea: (id: string) => void }) {
             const id = newAreaId();
             apply((s) => ({ ...s, arrangement: addArea(s.arrangement, id, `AREA ${s.arrangement.areas.length + 1}`) }));
             onNewArea(id);
+            uiStore.getState().announce('NEW AREA: TYPE ITS NAME');
           }}
         >
           + AREA
@@ -79,10 +82,28 @@ export function EditBar({ onNewArea }: { onNewArea: (id: string) => void }) {
         <button type="button" className="text-btn small-btn" disabled={!panelsMoved} onClick={() => apply((s) => ({ ...s, panels: defaultPanels() }))}>
           RESET PANELS
         </button>
-        <button type="button" className="text-btn small-btn" disabled={!canUndo} onClick={undoLast} title="Undo (Ctrl+Z)">
+        <button
+          type="button"
+          className="text-btn small-btn"
+          disabled={!canUndo}
+          onClick={() => {
+            undoLast();
+            uiStore.getState().announce('UNDONE');
+          }}
+          title="Undo (Ctrl+Z)"
+        >
           UNDO
         </button>
-        <button type="button" className="text-btn small-btn" disabled={!changed || !canUndo} onClick={revert} title="Back to how it was when editing started">
+        <button
+          type="button"
+          className="text-btn small-btn"
+          disabled={!changed || !canUndo}
+          onClick={() => {
+            revert();
+            uiStore.getState().announce('REVERTED TO HOW IT WAS BEFORE EDITING');
+          }}
+          title="Back to how it was when editing started"
+        >
           REVERT
         </button>
       </span>
@@ -102,13 +123,16 @@ export function HiddenTray({ items }: { items: readonly TreeItem[] }) {
       ) : (
         <ul className="hidden-list">
           {items.map((it) => (
-            <li key={it.key} className="hidden-item">
+            <li key={it.key} className="hidden-item" data-hidden-key={it.key}>
               <span className="link-title">{it.node.title.trim() || hostOf(it.node.url ?? '') || 'ITEM'}</span>
               <button
                 type="button"
                 className="text-btn small-btn"
                 aria-label={`Show ${it.node.title.trim() || 'item'}`}
-                onClick={() => editStore.getState().apply((s) => ({ ...s, arrangement: showItem(s.arrangement, it.key) }))}
+                onClick={() => {
+                  editStore.getState().apply((s) => ({ ...s, arrangement: showItem(s.arrangement, it.key) }));
+                  uiStore.getState().announce(`SHOWED ${it.node.title.trim().toUpperCase() || 'ITEM'} AGAIN`);
+                }}
               >
                 SHOW
               </button>

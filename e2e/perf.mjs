@@ -8,25 +8,31 @@
 //      (a network round trip). At normal CPU speed and 4× slower.
 //      For each: when the rain is ready, and when the dashboard is up.
 //   B. The rain with no frame-rate limit (as on a 120–240 Hz screen):
-//      frames per second and main-thread script time per second.
+//      its drawing time per second, in its worker since 0.5.0 (from the
+//      host's probe; there, with no limit, animation callbacks come
+//      thousands of times a second and the engine draws at most 72 of
+//      them, so a callback rate means nothing), and the page's frames and
+//      main-thread script time per second (before 0.5.0, the rain's).
 //   C. Opening with a lot stored: 27 snapshots of a layout holding a
 //      2,000-link imported bar. How long loading the layout takes.
 //   D. Edit mode on a big bar (that 2,000-link bar, five folders open):
 //      frame gaps while dragging a tile.
 // Nothing is asserted (timings on a shared machine are noisy): it's for
-// comparing before and after. PERF_DIST measures another build.
+// comparing before and after. PERF_DIST measures another build; PERF_GLOW
+// (low, medium, high, max) sets SYSTEM ▸ WALLPAPER ▸ GLOW before B.
 //
 // Serves the build with its own small server (so responses can be
 // delayed), on 127.0.0.1 only, and always stops it.
 import { readFileSync, statSync } from 'node:fs';
 import http from 'node:http';
-import { dirname, extname, join } from 'node:path';
+import { dirname, extname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { chromium } from 'playwright';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
-const dist = join(root, process.env.PERF_DIST ?? 'dist');
+const dist = resolve(root, process.env.PERF_DIST ?? 'dist');
+const GLOW = process.env.PERF_GLOW;
 const PORT = 8171;
 const PAGE = `http://127.0.0.1:${PORT}/`;
 const DELAY_MS = Number(process.env.PERF_DELAY ?? 120);
@@ -123,25 +129,42 @@ try {
     await page.goto(PAGE);
     await page.waitForSelector('.wallpaper-canvas[data-ready]', { state: 'attached' });
     await page.waitForSelector('.ui-layer');
+    if (GLOW) {
+      // Through SYSTEM, as a person would; then a reload, so the whole screen is drawn with it.
+      await page.keyboard.press('s');
+      await page.getByRole('radiogroup', { name: 'GLOW' }).locator('label', { hasText: GLOW.toUpperCase() }).click();
+      await page.keyboard.press('Escape');
+      await page.waitForTimeout(1500);
+      await page.reload();
+      await page.waitForSelector('.wallpaper-canvas[data-ready]', { state: 'attached' });
+      await page.waitForSelector('.ui-layer');
+    }
     await page.evaluate(() => (document.querySelector('.ui-layer').style.display = 'none'));
     await page.waitForTimeout(1000);
     const script = async () => (await cdp.send('Performance.getMetrics')).metrics.find((m) => m.name === 'ScriptDuration').value;
     const s0 = await script();
-    const frames = await page.evaluate(
-      () =>
-        new Promise((resolve) => {
-          let n = 0;
-          const t0 = performance.now();
-          const tick = (t) => {
-            n++;
-            if (t - t0 < 3000) requestAnimationFrame(tick);
-            else resolve(n / ((t - t0) / 1000));
-          };
-          requestAnimationFrame(tick);
-        }),
-    );
+    const { fps, busy } = await page.evaluate(async () => {
+      // The page's frames over 3 s, and meanwhile the rain's drawing time in its worker (if it has one).
+      const worker = window.__cyberdeckRain?.mode?.() === 'worker' ? window.__cyberdeckRain.frames(3000) : null;
+      const pageFps = await new Promise((resolve) => {
+        let n = 0;
+        const t0 = performance.now();
+        const tick = (t) => {
+          n++;
+          if (t - t0 < 3000) requestAnimationFrame(tick);
+          else resolve(n / ((t - t0) / 1000));
+        };
+        requestAnimationFrame(tick);
+      });
+      return { fps: pageFps, busy: worker ? (await worker).busy / 3 : null };
+    });
     const s1 = await script();
-    rows.push({ scenario: 'B rain, no frame-rate limit', 'page fps': Math.round(frames), 'script ms/s': ((s1 - s0) * 1000 / 3).toFixed(1) });
+    rows.push({
+      scenario: `B rain, no frame-rate limit${GLOW ? ` (glow ${GLOW})` : ''}`,
+      'page fps': Math.round(fps),
+      'rain ms/s (worker)': busy === null ? 'n/a' : busy.toFixed(1),
+      'page script ms/s': (((s1 - s0) * 1000) / 3).toFixed(1),
+    });
     await fast.close();
   }
 

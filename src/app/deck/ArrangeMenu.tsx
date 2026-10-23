@@ -17,6 +17,9 @@ import { type KeyboardEvent, useLayoutEffect, useRef } from 'react';
 import { type Arranged, addArea, hideItem, isPlaced, keyKind, moveItem, unplaceItem } from '@/lib/arrange';
 import { editStore } from '@/store/edit';
 
+import { uiStore } from '@/store/ui';
+
+import { G } from '../glyphs';
 import { useLayout } from '../hooks';
 
 /** What the menu is for: an item shown in `section`, under the ⋯ button `anchor`. */
@@ -47,30 +50,52 @@ export function ArrangeMenu({ menu, arranged, onClose, onNewArea }: { menu: Menu
   const list = section === 'main' ? arranged.main : section === 'folder' ? [] : (arranged.areas.find((a) => a.area.id === section)?.items ?? []);
   const same = list.filter((it) => keyKind(it.key) === kind).map((it) => it.key);
   const at = same.indexOf(key);
-  const run = (change: Parameters<ReturnType<typeof editStore.getState>['apply']>[0]) => {
+  const title = arranged.all.get(key)?.node.title.trim() || 'ITEM';
+  const label = title.toUpperCase();
+
+  /**
+   * Applies a change, closes the menu, says what happened, and puts the
+   * keyboard where the item went: its ⋯ button in its new place, or, once
+   * hidden, its SHOW button in the HIDDEN tray (one keypress undoes it).
+   */
+  const run = (change: Parameters<ReturnType<typeof editStore.getState>['apply']>[0], said: string, hidden = false) => {
     editStore.getState().apply(change);
     onClose();
+    uiStore.getState().announce(said);
+    requestAnimationFrame(() => {
+      const target = hidden
+        ? document.querySelector<HTMLElement>(`.hidden-tray [data-hidden-key="${CSS.escape(key)}"] button`)
+        : document.querySelector<HTMLElement>(`[data-item-key="${CSS.escape(key)}"] .item-menu-btn`);
+      target?.focus();
+    });
   };
-  const moveTo = (target: string, before: string | null) => run((s) => ({ ...s, arrangement: moveItem(s.arrangement, key, { section: target, before }, arranged.mainKeys) }));
+  const moveTo = (target: string, before: string | null, said: string) =>
+    run((s) => ({ ...s, arrangement: moveItem(s.arrangement, key, { section: target, before }, arranged.mainKeys) }), said);
 
-  const items: { label: string; act: () => void }[] = [];
-  if (at > 0) items.push({ label: 'MOVE EARLIER', act: () => moveTo(section, same[at - 1]!) });
-  if (at >= 0 && at < same.length - 1) items.push({ label: 'MOVE LATER', act: () => moveTo(section, same[at + 2] ?? null) });
-  if (section !== 'main') items.push({ label: 'MOVE TO NAV', act: () => moveTo('main', null) });
-  for (const { area } of arranged.areas) if (area.id !== section) items.push({ label: `MOVE TO ${area.title}`, act: () => moveTo(area.id, null) });
-  items.push({
+  // The menu's items, in groups (a rule between groups): along the section; into another section; back or away.
+  const groups: { glyph: string; label: string; act: () => void }[][] = [[], [], []];
+  if (at > 0) groups[0]!.push({ glyph: G.earlier, label: 'MOVE EARLIER', act: () => moveTo(section, same[at - 1]!, `MOVED ${label} EARLIER`) });
+  if (at >= 0 && at < same.length - 1) groups[0]!.push({ glyph: G.later, label: 'MOVE LATER', act: () => moveTo(section, same[at + 2] ?? null, `MOVED ${label} LATER`) });
+  if (section !== 'main') groups[1]!.push({ glyph: G.moveTo, label: 'MOVE TO NAV', act: () => moveTo('main', null, `MOVED ${label} TO NAV`) });
+  for (const { area } of arranged.areas) {
+    if (area.id !== section) groups[1]!.push({ glyph: G.moveTo, label: `MOVE TO ${area.title}`, act: () => moveTo(area.id, null, `MOVED ${label} TO ${area.title}`) });
+  }
+  groups[1]!.push({
+    glyph: G.newArea,
     label: 'MOVE TO A NEW AREA',
     act: () => {
       const id = newAreaId();
       run((s) => {
         const withArea = addArea(s.arrangement, id, `AREA ${s.arrangement.areas.length + 1}`);
         return { ...s, arrangement: moveItem(withArea, key, { section: id, before: null }, arranged.mainKeys) };
-      });
+      }, `MOVED ${label} TO A NEW AREA: NAME IT`);
       onNewArea(id);
     },
   });
-  if (isPlaced(arrangement, key)) items.push({ label: 'BACK TO CHROME’S PLACE', act: () => run((s) => ({ ...s, arrangement: unplaceItem(s.arrangement, key) })) });
-  items.push({ label: 'HIDE', act: () => run((s) => ({ ...s, arrangement: hideItem(s.arrangement, key) })) });
+  if (isPlaced(arrangement, key)) groups[2]!.push({ glyph: G.restore, label: 'BACK TO CHROME’S PLACE', act: () => run((s) => ({ ...s, arrangement: unplaceItem(s.arrangement, key) }), `${label} IS BACK WHERE CHROME HAS IT`) });
+  groups[2]!.push({ glyph: G.hide, label: 'HIDE', act: () => run((s) => ({ ...s, arrangement: hideItem(s.arrangement, key) }), `HID ${label}: SHOW IT FROM THE HIDDEN TRAY`, true) });
+  const rows = groups.filter((g) => g.length);
+  const count = rows.reduce((n, g) => n + g.length, 0);
 
   /** ↑ / ↓ between items; Esc and Tab close. */
   const onKeyDown = (e: KeyboardEvent<HTMLDivElement>) => {
@@ -88,17 +113,24 @@ export function ArrangeMenu({ menu, arranged, onClose, onNewArea }: { menu: Menu
 
   // Placed under the ⋯ button, kept inside the window.
   const r = menu.anchor.getBoundingClientRect();
-  const top = Math.min(r.bottom + 4, window.innerHeight - (items.length * 32 + 16));
-  const left = Math.min(r.left, window.innerWidth - 260);
-  const title = arranged.all.get(key)?.node.title.trim() || 'ITEM';
+  const top = Math.min(r.bottom + 4, window.innerHeight - (count * 30 + rows.length * 9 + 48));
+  const left = Math.min(r.left, window.innerWidth - 268);
   return (
     <div className="menu-layer" onMouseDown={onClose}>
       <div ref={box} className="menu" role="menu" aria-label={`Arrange ${title}`} style={{ top, left }} onMouseDown={(e) => e.stopPropagation()} onKeyDown={onKeyDown}>
-        <p className="menu-heading">{title.toUpperCase()}</p>
-        {items.map((it) => (
-          <button key={it.label} type="button" role="menuitem" className="menu-item" onClick={it.act}>
-            {it.label}
-          </button>
+        <p className="menu-heading">{label}</p>
+        {rows.map((group, g) => (
+          <div key={g} role="group">
+            {g > 0 && <div className="menu-sep" role="separator" />}
+            {group.map((it) => (
+              <button key={it.label} type="button" role="menuitem" className="menu-item" onClick={it.act}>
+                <span className="menu-glyph" aria-hidden>
+                  {it.glyph}
+                </span>
+                {it.label}
+              </button>
+            ))}
+          </div>
         ))}
       </div>
     </div>

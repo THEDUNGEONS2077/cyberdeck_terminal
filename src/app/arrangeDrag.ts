@@ -22,6 +22,8 @@ import { createStore } from 'zustand/vanilla';
 
 import { type PanelId, type PanelPlace, clampPlace, hideItem, keyKind, moveArea, moveItem } from '@/lib/arrange';
 import { editStore } from '@/store/edit';
+import { layoutStore } from '@/store/instance';
+import { uiStore } from '@/store/ui';
 
 /** How far the pointer must move before a press becomes a drag (px). */
 export const DRAG_THRESHOLD = 5;
@@ -46,6 +48,8 @@ interface Line {
   top: number;
   width: number;
   height: number;
+  /** A whole zone (an empty section, the HIDDEN tray), drawn as a tinted outline, not a line. */
+  zone?: boolean;
 }
 
 /** What the page draws while dragging (null when not dragging). */
@@ -81,7 +85,7 @@ function itemTarget(x: number, y: number, key: string): Target | null {
   const tray = el?.closest('[data-drop-hidden]');
   if (tray) {
     const r = tray.getBoundingClientRect();
-    return { kind: 'hide', line: { left: r.left, top: r.top, width: r.width, height: r.height } };
+    return { kind: 'hide', line: { left: r.left, top: r.top, width: r.width, height: r.height, zone: true } };
   }
   const section = el?.closest<HTMLElement>('[data-drop-section]');
   if (!section) return null;
@@ -100,7 +104,7 @@ function itemTarget(x: number, y: number, key: string): Target | null {
   }
   // An empty section (or none of this kind yet): the whole section lights.
   const r = section.getBoundingClientRect();
-  return { kind: 'move', section: sectionId, before: null, line: { left: r.left, top: r.top, width: r.width, height: r.height } };
+  return { kind: 'move', section: sectionId, before: null, line: { left: r.left, top: r.top, width: r.width, height: r.height, zone: true } };
 }
 
 /** Where an area dropped at height y lands: before the first area whose middle is below the pointer. */
@@ -121,15 +125,31 @@ export function placeFromRect(r: DOMRect, withWidth: boolean): PanelPlace {
   return clampPlace({ x: r.left / window.innerWidth, y: r.top / window.innerHeight, w: withWidth ? r.width : undefined });
 }
 
-/** Applies a drop. */
+/** A section's name for announcements: NAV, or the area's title. */
+export function sectionName(section: string): string {
+  if (section === 'main') return 'NAV';
+  return layoutStore().getState().layout.bookmarks.arrangement.areas.find((a) => a.id === section)?.title ?? 'AN AREA';
+}
+
+/** Applies a drop, and tells screen readers what it did. */
 function drop(payload: DragPayload, target: Target | null): void {
   if (!target) return;
   const { apply } = editStore.getState();
+  const { announce } = uiStore.getState();
   if (payload.kind === 'item') {
-    if (target.kind === 'hide') apply((s) => ({ ...s, arrangement: hideItem(s.arrangement, payload.key) }));
-    if (target.kind === 'move') apply((s) => ({ ...s, arrangement: moveItem(s.arrangement, payload.key, { section: target.section, before: target.before }, payload.mainKeys) }));
+    if (target.kind === 'hide') {
+      apply((s) => ({ ...s, arrangement: hideItem(s.arrangement, payload.key) }));
+      announce(`HID ${payload.label}`);
+    }
+    if (target.kind === 'move') {
+      apply((s) => ({ ...s, arrangement: moveItem(s.arrangement, payload.key, { section: target.section, before: target.before }, payload.mainKeys) }));
+      announce(`MOVED ${payload.label} TO ${sectionName(target.section)}`);
+    }
   }
-  if (payload.kind === 'area' && target.kind === 'area') apply((s) => ({ ...s, arrangement: moveArea(s.arrangement, payload.id, target.before) }));
+  if (payload.kind === 'area' && target.kind === 'area') {
+    apply((s) => ({ ...s, arrangement: moveArea(s.arrangement, payload.id, target.before) }));
+    announce(`MOVED AREA ${payload.label}`);
+  }
 }
 
 /**
@@ -154,6 +174,8 @@ export function useArrangeDrag(scroller: React.RefObject<HTMLElement | null>) {
     let py = sy;
     // A panel's starting box, for live moving and resizing.
     const box = payload.kind === 'panel' || payload.kind === 'resize' ? payload.el.getBoundingClientRect() : null;
+    // What's being picked up (an item or an area): dimmed in place while it's dragged.
+    const source = payload.kind === 'item' || payload.kind === 'area' ? (e.currentTarget as HTMLElement).closest<HTMLElement>('[data-item-key], [data-area-id], li') : null;
 
     /** Recomputes the target and redraws, once per frame at most. */
     const update = () => {
@@ -192,6 +214,7 @@ export function useArrangeDrag(scroller: React.RefObject<HTMLElement | null>) {
         if (Math.hypot(px - sx, py - sy) < DRAG_THRESHOLD) return;
         dragging = true;
         document.documentElement.dataset.dragging = '';
+        if (source) source.dataset.dragSource = '';
       }
       if (!frame) frame = requestAnimationFrame(update);
     };
@@ -202,6 +225,7 @@ export function useArrangeDrag(scroller: React.RefObject<HTMLElement | null>) {
       window.removeEventListener('pointercancel', onCancel);
       window.removeEventListener('keydown', onKey, true);
       delete document.documentElement.dataset.dragging;
+      if (source) delete source.dataset.dragSource;
       active.current = null;
       setView(null);
       if (!dragging) return;

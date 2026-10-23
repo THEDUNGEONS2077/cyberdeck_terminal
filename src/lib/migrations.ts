@@ -13,7 +13,7 @@
  */
 import { type Arrangement, type Area, type PanelPlace, type Panels, MAX_AREAS, cleanTitle, clampPlace, defaultPanels, emptyArrangement } from './arrange';
 import { sanitizeTree } from './bookmarks';
-import { type BookmarksLayout, type LayoutDocument, LAYOUT_SCHEMA_VERSION, MAX_OPEN_FOLDERS, defaultBookmarks, defaultPrefs } from './layout';
+import { type BookmarksLayout, type GlowLevel, type LayoutDocument, GLOW_LEVELS, LAYOUT_SCHEMA_VERSION, MAX_OPEN_FOLDERS, defaultBookmarks, defaultPrefs } from './layout';
 
 /** The document was written by a newer version of the app than this one. */
 export class FutureSchemaError extends Error {}
@@ -96,8 +96,11 @@ export function normalizeLayout(doc: Record<string, unknown>): LayoutDocument {
   // Preferences: anything missing or out of range falls back to its default.
   const prefs = defaultPrefs();
   if (doc.prefs !== undefined && !isRecord(doc.prefs)) throw new InvalidLayoutError('prefs is not an object');
-  const days = isRecord(doc.prefs) ? doc.prefs.backupReminderDays : undefined;
+  const saved = isRecord(doc.prefs) ? doc.prefs : {};
+  const days = saved.backupReminderDays;
   if (typeof days === 'number' && Number.isInteger(days) && days >= 0 && days <= 365) prefs.backupReminderDays = days;
+  // The rain's glow (added in 0.5.0, no schema bump: an older layout simply gets the default).
+  if (GLOW_LEVELS.includes(saved.rainGlow as GlowLevel)) prefs.rainGlow = saved.rainGlow as GlowLevel;
 
   return { schemaVersion: LAYOUT_SCHEMA_VERSION, wallpaper: doc.wallpaper, prefs, bookmarks: normalizeBookmarks(doc.bookmarks), panels: normalizePanels(doc.panels) };
 }

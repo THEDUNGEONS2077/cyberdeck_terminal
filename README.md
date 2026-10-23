@@ -8,10 +8,14 @@ A terminal-style start page for Chrome. A matrix rain falls across the whole scr
 | Key | Does |
 |---|---|
 | **F** | Fullscreen with only the wallpaper. F or Esc comes back. |
-| **S** | SYSTEM: bookmarks source, backups, restore, wallpaper |
-| **Esc** | Closes SYSTEM |
+| **/** | Find: type a few letters of any bookmark (in any folder) and press Enter to open it, or run a command. ↑ ↓ choose. |
+| **S** | SYSTEM: bookmarks source, backups, restore, wallpaper and its glow |
+| **← ↑ → ↓** | Move between bookmarks, folders and links (Home / End: the first / last) |
+| **Esc** | Closes SYSTEM or the finder |
 
-Bookmarks open in a new tab, so the dashboard stays put. With the bridge, links show their site icons, and NAV's header has **CHROME NEW TAB** (Chrome's own New Tab page, with your bookmarks bar, to edit) and **EDIT BOOKMARKS** (the Bookmark manager).
+Bookmarks open in a new tab, so the dashboard stays put. With the bridge, links show their site icons, and NAV's header has **CHROME NEW TAB ↗** (Chrome's own New Tab page, with your bookmarks bar, to edit) and **BOOKMARK MANAGER ↗**.
+
+**The rain's glow:** SYSTEM ▸ WALLPAPER ▸ GLOW, from LOW (the original look) to MAX. HIGH is the default. It's saved with your layout and its backups. The rain runs on a thread of its own, so it never slows the dashboard down.
 
 ## Make it your start page
 - **Homepage:** in Chrome Settings, go to **Appearance** and turn on **Show home button**. Choose the custom web address option and paste the page's address.

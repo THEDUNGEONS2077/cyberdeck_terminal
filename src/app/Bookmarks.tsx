@@ -4,7 +4,7 @@
  *
  * Layer: UI.
  *
- *   ┌ ⠿ > NAV ── [EDIT] [CHROME NEW TAB] [EDIT BOOKMARKS] ● LIVE · 41 LINKS ┐
+ *   ┌ ⠿ > NAV ● LIVE · 41 LINKS ─── [CHROME NEW TAB ↗] [BOOKMARK MANAGER ↗] [EDIT] ┐
  *   [› GitHub ] [› Mail ] [› Docs ] …        NAV's links, as tiles
  *   ┌ ▸ ▤ DEV 12 ┐ ┌ ▸ ▤ NEWS 5 ┐          NAV's folders, as cards that fold open
  *   ▾ WORK ─────────────────────── 9        your areas, each with its own
@@ -23,8 +23,13 @@
  * (app/panels.tsx). Esc locks it again; Ctrl+Z undoes.
  *
  * With bridge 1.1+ (its `features`): site icons, and CHROME NEW TAB /
- * EDIT BOOKMARKS (Chrome's own pages, in a new tab). An older bridge gets
- * an UPDATE BRIDGE chip instead.
+ * BOOKMARK MANAGER (Chrome's own pages, in a new tab: hence ↗). An older
+ * bridge gets an UPDATE BRIDGE chip instead.
+ *
+ * The header follows the usual pattern: what this is and its state on the
+ * left (title, LIVE, link count), what you can do on the right, EDIT last
+ * (UX pass, 2026-10-22: EDIT beside EDIT BOOKMARKS read as one control).
+ * Rearrangements glide (deck/useFlip.ts).
  */
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
@@ -45,6 +50,10 @@ import { AreaSection } from './deck/Areas';
 import { type DeckApi, DeckProvider } from './deck/context';
 import { EditBar, HiddenTray } from './deck/EditBar';
 import { SectionItems } from './deck/Items';
+import { useArrowNav } from './deck/useArrowNav';
+import { useFlip } from './deck/useFlip';
+import { type BarSource, useShownBar } from './useShownBar';
+import { G } from './glyphs';
 import { useBookmarks, useEdit, useLayout } from './hooks';
 import { CopyAddress, DownloadBridgeButton, ImportBookmarksButton } from './ImportBookmarks';
 import { MoveGrip, ResizeGrip, placeStyle } from './panels';
@@ -52,26 +61,14 @@ import { Prompted } from './Prompted';
 import { typing } from './useShortcuts';
 
 /** Where the shown bar came from. */
-type Source = 'live' | 'cached' | 'imported';
+type Source = BarSource;
 
 /** The deck's area (placed where you put it), holding the bar or the CONNECT prompt (nothing while the bridge is first asked). */
 export function BookmarksDeck() {
-  const status = useBookmarks((s) => s.status);
-  const liveBar = useBookmarks((s) => s.bar);
-  const imported = useLayout((s) => s.layout.bookmarks.imported);
+  const { bar, source, status } = useShownBar();
   const importedAt = useLayout((s) => s.layout.bookmarks.importedAt);
   const place = useLayout((s) => s.layout.panels.nav);
   const area = useRef<HTMLDivElement>(null);
-
-  let bar: BookmarkNode | null = null;
-  let source: Source = 'live';
-  if (liveBar && status !== 'absent') {
-    bar = liveBar;
-    source = status === 'live' ? 'live' : 'cached';
-  } else if (imported) {
-    bar = imported;
-    source = 'imported';
-  }
 
   return (
     <div ref={area} className="deck-area" data-placed={place ? '' : undefined} style={placeStyle(place)}>
@@ -86,6 +83,8 @@ function Deck({ bar, source, importedAt, area }: { bar: BookmarkNode; source: So
   const editing = useEdit((s) => s.editing);
   const arranged = useMemo(() => arrange(bar, arrangement), [bar, arrangement]);
   const { start } = useArrangeDrag(area);
+  useFlip(area);
+  useArrowNav(area);
   const [menu, setMenu] = useState<MenuState | null>(null);
   // A just-made area whose name field takes the cursor.
   const [newArea, setNewArea] = useState<string | null>(null);
@@ -97,9 +96,10 @@ function Deck({ bar, source, importedAt, area }: { bar: BookmarkNode; source: So
       if (typing(e) || menu) return;
       if (e.key === 'Escape') {
         e.preventDefault();
-        editStore.getState().done();
+        toggleEdit();
       } else if ((e.ctrlKey || e.metaKey) && !e.shiftKey && e.key.toLowerCase() === 'z') {
         e.preventDefault();
+        if (editStore.getState().undo.length) uiStore.getState().announce('UNDONE');
         editStore.getState().undoLast();
       }
     };
@@ -138,20 +138,14 @@ function Deck({ bar, source, importedAt, area }: { bar: BookmarkNode; source: So
     <DeckProvider value={api}>
       <section className={cx('deck', editing && 'editing')} aria-label="Nav">
         <header className="deck-head">
+          {/* A slow light sweeping across the header, like the brand panel's refresh band. */}
+          <span className="deck-scan" aria-hidden>
+            <span />
+          </span>
           {editing && <MoveGrip id="nav" label="NAV" target={() => area.current} startDrag={start} />}
           <h2 className="deck-title">
             <Prompted>NAV</Prompted>
           </h2>
-          <button
-            type="button"
-            className={cx('text-btn small-btn', editing && 'primary')}
-            aria-pressed={editing}
-            onClick={() => (editing ? editStore.getState().done() : editStore.getState().begin())}
-            title={editing ? 'Lock the layout (Esc)' : 'Rearrange: areas, order, hidden items, panels'}
-          >
-            {editing ? 'DONE' : 'EDIT'}
-          </button>
-          {source === 'live' && !editing && <ChromeButtons />}
           <span className="deck-source">
             {source === 'live' && (
               <>
@@ -168,6 +162,18 @@ function Deck({ bar, source, importedAt, area }: { bar: BookmarkNode; source: So
               </>
             )}
             <span className="dim"> · {countLinks(bar)} LINKS</span>
+          </span>
+          <span className="deck-actions">
+            {source === 'live' && !editing && <ChromeButtons />}
+            <button
+              type="button"
+              className={cx('text-btn small-btn edit-toggle', editing && 'primary')}
+              aria-pressed={editing}
+              onClick={toggleEdit}
+              title={editing ? 'Lock the layout (Esc)' : 'Rearrange: areas, order, hidden items, panels'}
+            >
+              {editing ? 'DONE' : 'EDIT'}
+            </button>
           </span>
         </header>
         {editing && <EditBar onNewArea={setNewArea} />}
@@ -202,7 +208,9 @@ function DragOverlay() {
   const at = (x: number, y: number) => `translate3d(${Math.round(x)}px, ${Math.round(y)}px, 0)`;
   return createPortal(
     <>
-      {view.line && <div className="drop-line" style={{ transform: at(view.line.left, view.line.top), width: view.line.width, height: view.line.height }} aria-hidden />}
+      {view.line && (
+        <div className={view.line.zone ? 'drop-zone' : 'drop-line'} style={{ transform: at(view.line.left, view.line.top), width: view.line.width, height: view.line.height }} aria-hidden />
+      )}
       <div className="drag-label" style={{ transform: at(view.x + 14, view.y + 10) }} aria-hidden>
         {view.label}
       </div>
@@ -211,10 +219,23 @@ function DragOverlay() {
   );
 }
 
+/** EDIT / DONE: unlocks or locks the layout, and says so to screen readers. */
+export function toggleEdit(): void {
+  const edit = editStore.getState();
+  if (edit.editing) {
+    edit.done();
+    uiStore.getState().announce('LAYOUT LOCKED');
+  } else {
+    edit.begin();
+    uiStore.getState().announce('EDITING THE LAYOUT: DRAG ITEMS, OR USE THEIR ⋯ MENUS. ESC LOCKS IT.');
+  }
+}
+
 /**
  * The header's buttons into Chrome itself (bridge 1.1+). A webpage can't open
- * chrome:// pages, so the bridge opens them, in a new tab next to this one.
- * With an older bridge: a chip that opens SYSTEM, where the update is offered.
+ * chrome:// pages, so the bridge opens them, in a new tab next to this one
+ * (↗ says so). With an older bridge: a chip that opens SYSTEM, where the
+ * update is offered.
  */
 function ChromeButtons() {
   const canOpen = useBookmarks((s) => s.features.includes('open'));
@@ -229,14 +250,14 @@ function ChromeButtons() {
     );
   }
   return (
-    <span className="deck-actions">
-      <button type="button" className="text-btn small-btn" onClick={() => void open('ntp')} title="Chrome’s own New Tab page, with your bookmarks bar">
-        CHROME NEW TAB
+    <>
+      <button type="button" className="text-btn small-btn" onClick={() => void open('ntp')} title="Chrome’s own New Tab page, with your bookmarks bar (opens in a new tab)">
+        CHROME NEW TAB <span aria-hidden>{G.external}</span>
       </button>
-      <button type="button" className="text-btn small-btn" onClick={() => void open('bookmarks')} title="Chrome’s Bookmark manager">
-        EDIT BOOKMARKS
+      <button type="button" className="text-btn small-btn" onClick={() => void open('bookmarks')} title="Chrome’s Bookmark manager, to add, rename and sort bookmarks (opens in a new tab)">
+        BOOKMARK MANAGER <span aria-hidden>{G.external}</span>
       </button>
-    </span>
+    </>
   );
 }
 

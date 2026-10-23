@@ -67,15 +67,14 @@ const expect = (ok, message) => {
 const reminder = () => page.getByLabel('REMIND TO EXPORT AFTER');
 /** Waits for the page's storage writes to land. */
 const settled = () => page.evaluate(() => window.__cyberdeck.settled());
-/** Lit pixels on the wallpaper canvas (alpha above a faint residue). */
-const litPixels = () =>
-  page.evaluate(() => {
-    const c = document.querySelector('.wallpaper-canvas');
-    const d = c.getContext('2d').getImageData(0, 0, c.width, c.height).data;
-    let n = 0;
-    for (let i = 3; i < d.length; i += 4) if (d[i] > 40) n++;
-    return n / (d.length / 4);
-  });
+/**
+ * The wallpaper canvas as it is now (the host's probe: the canvas belongs to
+ * the wallpaper's worker, so the page can't read it): `lit`, the share of
+ * pixels with alpha above a faint residue, and `sig`, a fingerprint.
+ */
+const rain = () => page.evaluate(() => window.__cyberdeckRain.pixels());
+/** The share of the canvas that's lit. */
+const litPixels = async () => (await rain()).lit;
 /** axe-core: WCAG 2.2 A/AA and best practice, the same gate as quest_log_desktop. */
 const audit = async (state) => {
   await page.waitForTimeout(400);
@@ -98,7 +97,10 @@ try {
     await page.locator('.wallpaper-canvas[data-ready]').waitFor({ state: 'attached', timeout: 5000 });
     const lit = await litPixels();
     expect(lit > 0.02, `canvas only ${(lit * 100).toFixed(2)}% lit`);
-    console.log(`  (first full frame within ${Date.now() - opened} ms; ${(lit * 100).toFixed(1)}% of pixels lit)`);
+    // The wallpaper runs in its own worker, off the page's main thread.
+    const mode = await page.evaluate(() => window.__cyberdeckRain.mode());
+    expect(mode === 'worker', `the wallpaper runs on the ${mode}, not in a worker`);
+    console.log(`  (first full frame within ${Date.now() - opened} ms; ${(lit * 100).toFixed(1)}% of pixels lit; drawn in a worker)`);
     await page.getByRole('button', { name: 'FULLSCREEN' }).waitFor();
     await page.getByRole('button', { name: 'SYSTEM' }).waitFor();
     await shot('01-open');
@@ -136,6 +138,66 @@ try {
     await audit('the imported bar, folders open');
     await page.getByRole('button', { name: /^tools/i }).click(); // leaves DEV open
     await settled();
+  });
+
+  await path('/ opens the finder: type to find (at any depth), the match lit; Enter opens it in a new tab', async () => {
+    // Opening is checked without leaving the test machine: window.open is recorded instead.
+    await page.evaluate(() => {
+      window.__opened = [];
+      window.open = (url) => {
+        window.__opened.push(url);
+        return null;
+      };
+    });
+    await page.locator('body').click({ position: { x: 5, y: 600 } }); // the page has the keyboard
+    await page.keyboard.press('/');
+    const finder = page.getByRole('dialog', { name: 'Find' });
+    await finder.waitFor();
+    await page.keyboard.type('mdn');
+    await finder.locator('[role="option"][aria-selected="true"]', { hasText: 'MDN' }).waitFor();
+    expect((await finder.locator('mark').first().textContent()) === 'MDN', 'the match isn’t lit');
+    // The finder's entrance fade done, for the screenshot: its own animations only (the brand
+    // panel's scanlines loop forever, so waiting on every animation would never end), at most 1 s.
+    await page
+      .locator('.finder-layer')
+      .evaluate((el) => Promise.race([Promise.all(el.getAnimations({ subtree: true }).map((a) => a.finished.catch(() => {}))), new Promise((r) => setTimeout(r, 1000))]));
+    await shot('09a-finder');
+    await page.addScriptTag({ path: join(root, 'node_modules/axe-core/axe.min.js') });
+    await audit('the finder');
+    await page.keyboard.press('Enter');
+    await finder.waitFor({ state: 'detached' });
+    const opened = await page.evaluate(() => window.__opened);
+    expect(opened[0] === 'https://developer.mozilla.org/', `opened ${opened}`);
+  });
+
+  await path('the finder runs commands, Esc clears then closes, and ↑↓ choose', async () => {
+    await page.keyboard.press('/');
+    await page.keyboard.type('open system');
+    await page.getByRole('option', { name: /OPEN SYSTEM/ }).waitFor();
+    await page.keyboard.press('Enter');
+    await page.getByRole('dialog', { name: 'SYSTEM' }).waitFor();
+    await page.keyboard.press('Escape');
+    await page.getByRole('dialog', { name: 'SYSTEM' }).waitFor({ state: 'detached' });
+    await page.keyboard.press('/');
+    await page.keyboard.type('news');
+    await page.keyboard.press('ArrowDown');
+    await page.keyboard.press('Escape'); // clears
+    expect((await page.getByRole('combobox').inputValue()) === '', 'Esc didn’t clear');
+    await page.keyboard.press('Escape'); // closes
+    await page.getByRole('dialog', { name: 'Find' }).waitFor({ state: 'detached' });
+  });
+
+  await path('arrow keys move between tiles and folders; an open folder takes a full row', async () => {
+    await page.locator('.tile', { hasText: 'GitHub' }).focus();
+    await page.keyboard.press('ArrowRight');
+    expect(await page.evaluate(() => document.activeElement?.textContent?.includes('Mail & more')), '→ didn’t move to the next tile');
+    await page.keyboard.press('ArrowDown');
+    const below = await page.evaluate(() => document.activeElement?.className);
+    expect(/folder-head|row-link|tile/.test(below ?? ''), `↓ went to ${below}`);
+    await page.keyboard.press('Home');
+    expect(await page.evaluate(() => document.activeElement?.textContent?.includes('GitHub')), 'Home didn’t go to the first item');
+    const span = await page.locator('[data-item-key="f:Dev"]').evaluate((el) => getComputedStyle(el).gridColumnStart + ' / ' + getComputedStyle(el).gridColumnEnd);
+    expect(span === '1 / -1', `the open folder spans ${span}`);
   });
 
   // --- Edit mode (on the imported bar: GitHub, Mail & more, Hacker News; folders Dev > Tools / Utils) ---
@@ -206,7 +268,7 @@ try {
     await menu.waitFor();
     await page.waitForTimeout(100);
     for (let i = 0; i < 8; i++) {
-      if ((await page.evaluate(() => document.activeElement?.textContent)) === 'HIDE') break;
+      if ((await page.evaluate(() => document.activeElement?.textContent ?? '')).endsWith('HIDE')) break;
       await page.keyboard.press('ArrowDown');
     }
     await shot('10-menu');
@@ -273,6 +335,9 @@ try {
     await page.reload();
     await page.locator('[data-area-id]', { hasText: 'WORK' }).waitFor({ timeout: 5000 });
     expect(JSON.stringify(await tilesIn('main')) === '["Hacker News","Mail & more","MDN"]', `NAV after reload: ${await tilesIn('main')}`);
+    // The dashboard is up before the rain (it no longer waits for it): the screenshot waits for both.
+    await page.locator('.wallpaper-canvas[data-ready]').waitFor({ state: 'attached', timeout: 5000 });
+    await page.waitForTimeout(300);
     await shot('12-locked-with-area');
     // Folding an area works when locked too.
     await page.getByRole('button', { name: /^WORK/ }).click();
@@ -294,10 +359,9 @@ try {
   });
 
   await path('the rain moves', async () => {
-    const grab = () => page.evaluate(() => document.querySelector('.wallpaper-canvas').toDataURL());
-    const a = await grab();
+    const a = (await rain()).sig;
     await page.waitForTimeout(500);
-    expect(a !== (await grab()), 'the canvas did not change in 500 ms');
+    expect(a !== (await rain()).sig, 'the canvas did not change in 500 ms');
   });
 
   await path('F: fullscreen with every piece of UI hidden; F again brings it back', async () => {
@@ -362,7 +426,7 @@ try {
     await download.saveAs(backupPath);
     const file = JSON.parse(readFileSync(backupPath, 'utf8'));
     expect(file.format === 'cyberdeck_terminal-backup' && file.layout?.schemaVersion === 3, 'not a backup file');
-    expect(file.layout.prefs.backupReminderDays === 14, 'unexpected layout in backup');
+    expect(file.layout.prefs.backupReminderDays === 14 && file.layout.prefs.rainGlow === 'high', 'unexpected layout in backup');
     await page.locator('.toast', { hasText: 'BACKUP EXPORTED' }).waitFor();
     // LAST EXPORT updates the next time the panel opens.
     await page.keyboard.press('Escape');
@@ -419,6 +483,31 @@ try {
     await page.keyboard.press('Escape');
   });
 
+  await path('GLOW: a level is saved with the layout (and as the start-up hint), the rain keeps drawing, and it survives a reload', async () => {
+    const glow = () => page.getByRole('radiogroup', { name: 'GLOW' });
+    const hint = () => page.evaluate(() => localStorage.getItem('cyberdeck_terminal:glow'));
+    await page.keyboard.press('s');
+    expect((await glow().getByRole('radio', { checked: true }).getAttribute('value')) === 'high', 'HIGH isn’t the default');
+    // A click on the visible label, as a person would.
+    await glow().locator('label', { hasText: 'MAX' }).click();
+    await settled();
+    expect((await hint()) === 'max', `start-up hint ${await hint()}`);
+    await page.keyboard.press('Escape');
+    await page.waitForTimeout(500);
+    expect((await litPixels()) > 0.01, 'the rain stopped drawing after the glow changed');
+    await page.reload();
+    await page.locator('.brand').waitFor();
+    await page.keyboard.press('s');
+    expect((await glow().getByRole('radio', { checked: true }).getAttribute('value')) === 'max', 'MAX was not kept');
+    // The arrow keys move through the levels, like any radio group.
+    await glow().getByRole('radio', { name: 'MAX' }).focus();
+    await page.keyboard.press('ArrowLeft');
+    await settled();
+    expect((await glow().getByRole('radio', { checked: true }).getAttribute('value')) === 'high', 'ArrowLeft didn’t choose HIGH');
+    expect((await hint()) === 'high', `start-up hint ${await hint()}`);
+    await page.keyboard.press('Escape');
+  });
+
   await path('no accessibility violations (axe: WCAG 2.2 A/AA and best practice), with and without SYSTEM', async () => {
     await page.addScriptTag({ path: join(root, 'node_modules/axe-core/axe.min.js') });
     await audit('the page');
@@ -437,25 +526,61 @@ try {
     await page.setViewportSize({ width: 1920, height: 1080 });
   });
 
-  await path('frame cost at 4× CPU slowdown (reported, not asserted)', async () => {
+  await path('Reduce Motion: one still frame of rain, already full', async () => {
+    const still = await browser.newContext({ viewport: { width: 1280, height: 720 }, reducedMotion: 'reduce', serviceWorkers: 'block' });
+    try {
+      const p = await still.newPage();
+      await p.goto(URL);
+      await p.locator('.wallpaper-canvas[data-ready]').waitFor({ state: 'attached', timeout: 5000 });
+      // The faint part is painted after the canvas shows: wait for the whole pre-warm.
+      await p.waitForFunction(() => performance.getEntriesByName('rain-prewarm').length > 0, null, { timeout: 5000 });
+      const a = await p.evaluate(() => window.__cyberdeckRain.pixels());
+      await p.waitForTimeout(600);
+      const b = await p.evaluate(() => window.__cyberdeckRain.pixels());
+      expect(a.lit > 0.02, `the still frame is only ${(a.lit * 100).toFixed(2)}% lit`);
+      expect(a.sig === b.sig, 'the rain moved under Reduce Motion');
+    } finally {
+      await still.close();
+    }
+  });
+
+  await path('where a canvas can’t go to a worker, the rain runs on the page instead', async () => {
+    const plain = await browser.newContext({ viewport: { width: 1280, height: 720 }, serviceWorkers: 'block' });
+    // As in a browser that can't hand a canvas to a worker.
+    await plain.addInitScript(() => delete HTMLCanvasElement.prototype.transferControlToOffscreen);
+    try {
+      const p = await plain.newPage();
+      const pageErrors = [];
+      p.on('pageerror', (e) => pageErrors.push(e.message));
+      await p.goto(URL);
+      await p.locator('.wallpaper-canvas[data-ready]').waitFor({ state: 'attached', timeout: 5000 });
+      expect((await p.evaluate(() => window.__cyberdeckRain.mode())) === 'page', 'the rain isn’t running on the page');
+      const a = await p.evaluate(() => window.__cyberdeckRain.pixels());
+      await p.waitForTimeout(600);
+      const b = await p.evaluate(() => window.__cyberdeckRain.pixels());
+      expect(a.lit > 0.02, `only ${(a.lit * 100).toFixed(2)}% lit`);
+      expect(a.sig !== b.sig, 'the rain on the page doesn’t move');
+      expect(!pageErrors.length, `page errors: ${pageErrors.join(' | ')}`);
+    } finally {
+      await plain.close();
+    }
+  });
+
+  await path('the rain’s frames at 4× CPU slowdown, and what it costs the page (reported, not asserted)', async () => {
     const cdp = await context.newCDPSession(page);
+    await cdp.send('Performance.enable');
     await cdp.send('Emulation.setCPUThrottlingRate', { rate: 4 });
-    const gaps = await page.evaluate(
-      () =>
-        new Promise((resolve) => {
-          const times = [];
-          const tick = (t) => {
-            times.push(t);
-            if (t - times[0] < 3000) requestAnimationFrame(tick);
-            else resolve(times.slice(1).map((x, i) => x - times[i]));
-          };
-          requestAnimationFrame(tick);
-        }),
-    );
+    const script = async () => (await cdp.send('Performance.getMetrics')).metrics.find((m) => m.name === 'ScriptDuration').value;
+    const before = await script();
+    const { gaps, busy } = await page.evaluate(() => window.__cyberdeckRain.frames(3000));
+    const pageScript = ((await script()) - before) * 1000;
     await cdp.send('Emulation.setCPUThrottlingRate', { rate: 1 });
     const sorted = [...gaps].sort((a, b) => a - b);
     const p95 = sorted[Math.floor(sorted.length * 0.95)];
-    console.log(`  (${gaps.length} frames in 3 s; median ${sorted[sorted.length >> 1].toFixed(1)} ms, p95 ${p95.toFixed(1)} ms, dropped >25 ms: ${gaps.filter((g) => g > 25).length})`);
+    console.log(
+      `  (rain: ${gaps.length} frames in 3 s; median ${sorted[sorted.length >> 1].toFixed(1)} ms, p95 ${p95.toFixed(1)} ms, dropped >25 ms: ${gaps.filter((g) => g > 25).length}; ` +
+        `drawing ${(busy / 3).toFixed(1)} ms/s in its worker, page script ${(pageScript / 3).toFixed(1)} ms/s)`,
+    );
   });
 } finally {
   await browser.close();

@@ -9,6 +9,7 @@
  *
  *   F  immersive fullscreen on / off (fullscreen.ts)
  *   S  SYSTEM panel (backups, restore, wallpaper)
+ *   /  the finder: find a bookmark, or run a command (Finder.tsx)
  */
 import { useEffect } from 'react';
 
@@ -28,13 +29,15 @@ export function modified(e: Pick<KeyboardEvent, 'ctrlKey' | 'altKey' | 'metaKey'
 }
 
 /** The action for a key press, or null when the page should leave it alone. */
-export function shortcutFor(e: Pick<KeyboardEvent, 'key' | 'target' | 'ctrlKey' | 'altKey' | 'metaKey' | 'repeat'>): 'fullscreen' | 'system' | null {
+export function shortcutFor(e: Pick<KeyboardEvent, 'key' | 'target' | 'ctrlKey' | 'altKey' | 'metaKey' | 'repeat'>): 'fullscreen' | 'system' | 'find' | null {
   if (e.repeat || typing(e) || modified(e)) return null;
   switch (e.key.toLowerCase()) {
     case 'f':
       return 'fullscreen';
     case 's':
       return 'system';
+    case '/':
+      return 'find';
     default:
       return null;
   }
@@ -49,8 +52,10 @@ export function useShortcuts(blocked: boolean): void {
       if (!action) return;
       e.preventDefault();
       if (action === 'fullscreen') void toggleFullscreen();
-      // SYSTEM only opens outside immersive mode: there the UI is hidden.
-      else if (!uiStore.getState().immersive) uiStore.getState().setPanelOpen(true);
+      // SYSTEM and the finder only open outside immersive mode: there the UI is hidden.
+      else if (uiStore.getState().immersive) return;
+      else if (action === 'find') uiStore.getState().setFinderOpen(true);
+      else uiStore.getState().setPanelOpen(true);
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);

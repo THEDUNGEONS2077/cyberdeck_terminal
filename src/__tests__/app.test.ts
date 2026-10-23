@@ -4,9 +4,11 @@
  */
 import { toggleFullscreen } from '@/app/fullscreen';
 import { shortcutFor } from '@/app/useShortcuts';
-import { fadedAlpha, FADE_ALPHA, FADE_ORDER, spawnDrop, withAlpha } from '@/wallpaper/matrix-rain/engine';
-import { BASE_GLYPHS, desaturate, glyphSet, KATAKANA } from '@/wallpaper/matrix-rain/glyphAtlas';
-import { END_BIAS, FADE_INTERVAL, FADE_PHASES, LAYERS, TRAIL_SECONDS } from '@/wallpaper/matrix-rain/params';
+import { GLOW_LEVELS } from '@/lib/layout';
+import { fadedAlpha, FADE_ALPHA, FADE_ORDER, resizeCells, spawnDrop } from '@/wallpaper/matrix-rain/engine';
+import { BASE_GLYPHS, desaturate, glyphSet, KATAKANA, withAlpha } from '@/wallpaper/matrix-rain/glyphAtlas';
+import { END_BIAS, FADE_INTERVAL, FADE_PHASES, GLOW, LAYERS, TRAIL_SECONDS } from '@/wallpaper/matrix-rain/params';
+import { knownWallpaperId, WALLPAPER_LIST } from '@/wallpaper/catalog';
 import { findWallpaper, WALLPAPERS } from '@/wallpaper/registry';
 
 /** A key event as the shortcut rules see it. */
@@ -127,6 +129,28 @@ describe('matrix rain', () => {
     });
   });
 
+  it('glows more at each level, in every respect', () => {
+    for (let i = 1; i < GLOW_LEVELS.length; i++) {
+      const [weaker, stronger] = [GLOW[GLOW_LEVELS[i - 1]!], GLOW[GLOW_LEVELS[i]!]];
+      expect(stronger.alpha).toBeGreaterThan(weaker.alpha);
+      expect(stronger.head).toBeGreaterThan(weaker.head);
+      expect(stronger.headLayers).toBeGreaterThanOrEqual(weaker.headLayers);
+      expect(stronger.body).toBeGreaterThan(weaker.body);
+    }
+  });
+
+  it('keeps the glyph grid in place when the screen is resized', () => {
+    const NONE = 0xffff;
+    // 3 columns × 2 rows: 0 1 2 / 3 4 5.
+    const cells = Uint16Array.from([0, 1, 2, 3, 4, 5]);
+    expect(resizeCells(cells, 3, 2, 3, 2)).toBe(cells);
+    // Narrower and taller: the left columns stay where they were, the new row is empty.
+    expect([...resizeCells(cells, 3, 2, 2, 3)]).toEqual([0, 1, 3, 4, NONE, NONE]);
+    // Wider: new columns are empty.
+    expect([...resizeCells(cells, 3, 2, 4, 1)]).toEqual([0, 1, 2, NONE]);
+    expect([...resizeCells(null, 0, 0, 2, 1)]).toEqual([NONE, NONE]);
+  });
+
   it('turns hex tokens into canvas colours', () => {
     expect(withAlpha('#39ff14', 0.6)).toBe('rgba(57, 255, 20, 0.6)');
     expect(desaturate('#2fb344', 0)).toBe('rgb(47, 179, 68)');
@@ -136,9 +160,15 @@ describe('matrix rain', () => {
 
 describe('wallpaper registry', () => {
   it('has unique ids and falls back to the default for unknown ones', () => {
-    const ids = WALLPAPERS.map((w) => w.id);
+    const ids = WALLPAPER_LIST.map((w) => w.id);
     expect(new Set(ids).size).toBe(ids.length);
+    expect(knownWallpaperId('matrix-rain')).toBe('matrix-rain');
+    expect(knownWallpaperId('from-the-future')).toBe('matrix-rain');
     expect(findWallpaper('matrix-rain').id).toBe('matrix-rain');
     expect(findWallpaper('from-the-future').id).toBe('matrix-rain');
+  });
+
+  it('has an engine for every wallpaper the page lists, and no other', () => {
+    expect(WALLPAPERS.map((w) => w.id).sort()).toEqual(WALLPAPER_LIST.map((w) => w.id).sort());
   });
 });

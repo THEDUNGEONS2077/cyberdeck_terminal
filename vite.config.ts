@@ -122,6 +122,29 @@ self.addEventListener('fetch', (event) => {
 }
 
 /**
+ * Lists the app's own chunk (src/start.tsx: React, storage, the dashboard)
+ * in index.html as a modulepreload, so the browser fetches it with the
+ * first files instead of once main.tsx has run and asked for it: on a
+ * first visit that's a network round trip sooner (optimization pass 2,
+ * 2026-10-22). It's still only run when main.tsx imports it, after the
+ * wallpaper has started.
+ */
+function preloadApp(): Plugin {
+  return {
+    name: 'cyberdeck-preload-app',
+    apply: 'build',
+    transformIndexHtml: {
+      order: 'post',
+      handler(_html, ctx) {
+        const chunk = Object.values(ctx.bundle ?? {}).find((c) => c.type === 'chunk' && c.facadeModuleId?.endsWith('/src/start.tsx'));
+        if (!chunk) return [];
+        return [{ tag: 'link', attrs: { rel: 'modulepreload', crossorigin: true, href: `${base}${chunk.fileName}` }, injectTo: 'head' }];
+      },
+    },
+  };
+}
+
+/**
  * Adds cyberdeck-bridge.zip to the build: every file in bridge/ inside a
  * `cyberdeck-bridge/` folder (so unzipping makes one folder to load in
  * chrome://extensions). Emitted as a build asset, so it's in dist/ before
@@ -149,11 +172,13 @@ function bridgeZip(): Plugin {
 
 export default defineConfig({
   base,
-  plugins: [react(), bridgeZip(), serviceWorker()],
+  plugins: [react(), preloadApp(), bridgeZip(), serviceWorker()],
   define: { __APP_VERSION__: JSON.stringify(pkg.version), __APP_BUILD__: String(build) },
   resolve: { alias: { '@': fileURLToPath(new URL('./src', import.meta.url)) } },
   // ES2022: the entry point awaits persistence before rendering (top-level await).
   build: { outDir: 'dist', sourcemap: false, target: 'es2022' },
+  // The wallpaper's worker (src/wallpaper/worker.ts) is a module worker, bundled on its own.
+  worker: { format: 'es' },
   test: {
     globals: true,
     // Logic tests run in Node; DOM tests opt in with `// @vitest-environment jsdom`.

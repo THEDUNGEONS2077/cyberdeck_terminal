@@ -12,17 +12,32 @@ import { hasCustomContent } from '@/lib/layout';
 import { backupDue, exportAge } from '@/lib/reminder';
 import { layoutStore } from '@/store/instance';
 import { uiStore } from '@/store/ui';
-import { showWallpaper } from '@/wallpaper/host';
+import { setWallpaperGlow, showWallpaper } from '@/wallpaper/host';
 
 import { useFullscreenSync, useIdleCursor } from './fullscreen';
 import { useLayout, useUi } from './hooks';
 import { BookmarksDeck } from './Bookmarks';
+import { Finder } from './Finder';
 import { Hud } from './Hud';
 import { SystemPanel } from './SystemPanel';
 import { Toast } from './Toast';
 import { usePresence } from './usePresence';
 import { useBridge } from './useBridge';
 import { useShortcuts } from './useShortcuts';
+
+/**
+ * Says changes out loud to screen readers (a move, a hide, an undo: what
+ * app/arrangeDrag.ts and the deck announce), politely, without showing
+ * anything. The key makes a repeated message be read again.
+ */
+function Announcer() {
+  const announcement = useUi((s) => s.announcement);
+  return (
+    <div className="sr-only" role="status" aria-live="polite" aria-atomic="true">
+      {announcement && <span key={announcement.key}>{announcement.text}</span>}
+    </div>
+  );
+}
 
 /** How long the panel takes to fade out (matches --fast in theme.css). */
 const PANEL_EXIT_MS = 120;
@@ -46,19 +61,22 @@ function useBackupReminder(): void {
 /** The whole page. */
 export function App() {
   const wallpaper = useLayout((s) => s.layout.wallpaper);
+  const glow = useLayout((s) => s.layout.prefs.rainGlow);
   const immersive = useUi((s) => s.immersive);
   const panelOpen = useUi((s) => s.panelOpen);
+  const finderOpen = useUi((s) => s.finderOpen);
   const panel = usePresence(panelOpen ? true : null, PANEL_EXIT_MS);
 
   // The wallpaper runs outside React (wallpaper/host.ts, started by main.tsx): only its choice is passed on.
   useEffect(() => showWallpaper(wallpaper), [wallpaper]);
+  useEffect(() => setWallpaperGlow(glow), [glow]);
 
   // Startup timing (read by e2e/perf.mjs): the dashboard is on screen.
   useEffect(() => void performance.mark('app:ui'), []);
 
   useFullscreenSync();
   useIdleCursor(immersive);
-  useShortcuts(panelOpen);
+  useShortcuts(panelOpen || finderOpen);
   useBackupReminder();
   useBridge();
 
@@ -71,6 +89,8 @@ export function App() {
         <Toast />
       </main>
       {panel.shown && <SystemPanel leaving={panel.leaving} />}
+      <Finder />
+      <Announcer />
     </>
   );
 }

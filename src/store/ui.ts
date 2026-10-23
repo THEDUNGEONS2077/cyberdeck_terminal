@@ -4,7 +4,10 @@
  * Layer: store (zustand vanilla store).
  *   - immersive: the page is fullscreen with the UI hidden (F);
  *   - panelOpen: the SYSTEM panel is open (S);
- *   - toast: the message at the bottom, if any.
+ *   - finderOpen: the finder is open (/);
+ *   - toast: the message at the bottom, if any;
+ *   - announcement: the last change to tell screen readers about (app/App.tsx
+ *     reads it into a polite live region: a move, a hide, an undo…).
  */
 import { createStore } from 'zustand/vanilla';
 
@@ -26,13 +29,19 @@ export interface ToastState {
 export interface UiState {
   immersive: boolean;
   panelOpen: boolean;
+  finderOpen: boolean;
   toast: ToastState | null;
   setImmersive(on: boolean): void;
   setPanelOpen(open: boolean): void;
+  setFinderOpen(open: boolean): void;
   /** Shows a toast (replacing any other). */
   showToast(message: string, options?: { action?: ToastAction; sticky?: boolean }): void;
   /** Hides the toast with `key` (if it's still the one showing). */
   dismissToast(key: number): void;
+  /** What a screen reader last heard about (key changes so a repeat is read again). */
+  announcement: { key: number; text: string } | null;
+  /** Tells screen readers about a change (nothing is shown on screen). */
+  announce(text: string): void;
 }
 
 let nextKey = 1;
@@ -42,13 +51,17 @@ export function createUiStore() {
   return createStore<UiState>((set, get) => ({
     immersive: false,
     panelOpen: false,
+    finderOpen: false,
     toast: null,
     setImmersive: (immersive) => set({ immersive }),
     setPanelOpen: (panelOpen) => set({ panelOpen }),
+    setFinderOpen: (finderOpen) => set({ finderOpen }),
     showToast: (message, options = {}) => set({ toast: { key: nextKey++, message, ...options } }),
     dismissToast: (key) => {
       if (get().toast?.key === key) set({ toast: null });
     },
+    announcement: null,
+    announce: (text) => set({ announcement: { key: nextKey++, text } }),
   }));
 }
 

@@ -26,6 +26,13 @@ export const LAYOUT_SCHEMA_VERSION = 3;
 /** The wallpaper a new layout starts with (src/wallpaper/registry.ts lists them all). */
 export const DEFAULT_WALLPAPER_ID = 'matrix-rain';
 
+/** How strongly the rain's glyphs glow (wallpaper/matrix-rain/params.ts GLOW). 'low' is the first look. */
+export type GlowLevel = 'low' | 'medium' | 'high' | 'max';
+/** The glow levels, weakest first. */
+export const GLOW_LEVELS: readonly GlowLevel[] = ['low', 'medium', 'high', 'max'];
+/** The glow a new layout starts with (and a layout from before 0.5.0 gets). */
+export const DEFAULT_RAIN_GLOW: GlowLevel = 'high';
+
 /** Backup reminder choices, in days (0 = never remind). */
 export const REMINDER_DAY_CHOICES: readonly number[] = [0, 7, 14, 30, 90];
 
@@ -33,6 +40,8 @@ export const REMINDER_DAY_CHOICES: readonly number[] = [0, 7, 14, 30, 90];
 export interface LayoutPrefs {
   /** Remind to export a backup when the last one is older than this many days; 0 turns it off. */
   backupReminderDays: number;
+  /** How strongly the rain glows. */
+  rainGlow: GlowLevel;
 }
 
 /** The bookmarks part of the layout. */
@@ -71,7 +80,7 @@ export function defaultBookmarks(): BookmarksLayout {
 
 /** Preferences a new layout starts with. */
 export function defaultPrefs(): LayoutPrefs {
-  return { backupReminderDays: 14 };
+  return { backupReminderDays: 14, rainGlow: DEFAULT_RAIN_GLOW };
 }
 
 /** A new, empty layout. */
@@ -147,6 +156,8 @@ export function summarizeLayout(doc: LayoutDocument): string {
   if (imported) parts.push(`BAR COPY ${countLinks(imported)} LINKS`);
   if (open.length) parts.push(`${open.length} OPEN`);
   parts.push(`WALLPAPER ${doc.wallpaper.toUpperCase()}`);
+  // The glow only when it isn't the default (keeps the usual summary short).
+  if (doc.prefs.rainGlow !== DEFAULT_RAIN_GLOW) parts.push(`GLOW ${doc.prefs.rainGlow.toUpperCase()}`);
   parts.push(doc.prefs.backupReminderDays ? `REMIND ${doc.prefs.backupReminderDays}D` : 'REMIND OFF');
   return parts.join(' · ');
 }

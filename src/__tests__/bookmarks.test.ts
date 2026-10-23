@@ -119,7 +119,7 @@ describe('layout schema 2', () => {
     const v1 = { schemaVersion: 1, wallpaper: 'matrix-rain', prefs: { backupReminderDays: 30 } };
     const { doc, migrated } = migrateLayout(v1);
     expect(migrated).toBe(true);
-    expect(doc).toEqual({ ...defaultLayout(), prefs: { backupReminderDays: 30 } });
+    expect(doc).toEqual({ ...defaultLayout(), prefs: { backupReminderDays: 30, rainGlow: 'high' } });
   });
 
   it('drops a damaged imported tree instead of the whole layout, and tidies open folders', () => {

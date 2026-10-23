@@ -11,7 +11,7 @@
  *   BACKUP     export a file, import one (preview, then REPLACE), the
  *              reminder interval, and when the last export was;
  *   RESTORE    the automatic snapshots, newest first; RESTORE asks to confirm;
- *   WALLPAPER  the wallpapers in the registry;
+ *   WALLPAPER  the wallpapers in the registry, and how strongly they glow;
  *   KEYS       the shortcuts.
  */
 import { type ChangeEvent, useId, useRef, useState } from 'react';
@@ -19,13 +19,13 @@ import { type ChangeEvent, useId, useRef, useState } from 'react';
 import { BRIDGE_VERSION } from '@/bridge/client';
 import { BackupError, type ParsedBackup, formatStamp } from '@/lib/backup';
 import { countLinks } from '@/lib/bookmarks';
-import { REMINDER_DAY_CHOICES, summarizeLayout } from '@/lib/layout';
+import { GLOW_LEVELS, REMINDER_DAY_CHOICES, summarizeLayout } from '@/lib/layout';
 import { exportAge } from '@/lib/reminder';
 import { reasonLabel, type SnapshotInfo } from '@/lib/snapshots';
 import { compareVersions } from '@/lib/versions';
 import { layoutStore } from '@/store/instance';
 import { uiStore } from '@/store/ui';
-import { WALLPAPERS } from '@/wallpaper/registry';
+import { WALLPAPER_LIST } from '@/wallpaper/catalog';
 
 import { APP_INFO, downloadBackup, readBackupFile } from './backupFile';
 import { Dialog } from './Dialog';
@@ -256,19 +256,33 @@ function RestoreSection() {
   );
 }
 
-/** WALLPAPER: the registry's wallpapers. */
+/** WALLPAPER: the registry's wallpapers, and the glow. */
 function WallpaperSection() {
   const current = useLayout((s) => s.layout.wallpaper);
+  const glow = useLayout((s) => s.layout.prefs.rainGlow);
+  const glowId = useId();
   return (
     <section className="settings-group" aria-label="Wallpaper">
       <h3 className="section-title">WALLPAPER</h3>
       <div className="dialog-choices" role="radiogroup" aria-label="Wallpaper">
-        {WALLPAPERS.map((w) => (
+        {WALLPAPER_LIST.map((w) => (
           <label key={w.id} className="dialog-choice">
             <input type="radio" name="wallpaper" value={w.id} checked={current === w.id} onChange={() => layoutStore().getState().setWallpaper(w.id)} />
             {w.label}
           </label>
         ))}
+      </div>
+      {/* The glow changes as the rain falls: new glyphs at once, the rest as they fade. */}
+      <div className="setting">
+        <span id={glowId}>GLOW</span>
+        <div className="segmented" role="radiogroup" aria-labelledby={glowId}>
+          {GLOW_LEVELS.map((level) => (
+            <label key={level}>
+              <input className="sr-only" type="radio" name="glow" value={level} checked={glow === level} onChange={() => layoutStore().getState().setRainGlow(level)} />
+              <span>{level.toUpperCase()}</span>
+            </label>
+          ))}
+        </div>
       </div>
     </section>
   );
@@ -287,6 +301,14 @@ function KeysSection() {
         <div>
           <dt>S</dt>
           <dd>THIS PANEL.</dd>
+        </div>
+        <div>
+          <dt>/</dt>
+          <dd>FIND: TYPE TO FIND A BOOKMARK OR A COMMAND; ↑↓ CHOOSE, ENTER OPENS.</dd>
+        </div>
+        <div>
+          <dt>← ↑ → ↓</dt>
+          <dd>MOVE BETWEEN BOOKMARKS AND FOLDERS (HOME / END: FIRST / LAST).</dd>
         </div>
         <div>
           <dt>ESC</dt>

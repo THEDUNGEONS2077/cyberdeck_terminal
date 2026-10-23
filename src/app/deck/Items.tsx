@@ -7,7 +7,8 @@
  * Locked (the usual state): links open in a new tab (`noopener
  * noreferrer`, so sites aren't told where you came from); folders fold
  * open and shut. Links a webpage can't open (chrome://, bookmarklets) are
- * listed, dimmed, inert.
+ * listed, dimmed, inert. An item that has just arrived from Chrome is lit
+ * for a moment (`fresh`, store/bookmarks.ts).
  *
  * Editing (app/store/edit.ts): links don't open. Every tile, folder card
  * and folder row can be dragged (a press that moves; a plain click on a
@@ -94,7 +95,7 @@ function MenuButton({ item, section }: { item: TreeItem; section: SectionId }) {
  * A bookmark's site icon from Chrome's icon cache (via the bridge), or the
  * accent `›` when there's no bridge with icons, or the icon can't load.
  */
-function SiteIcon({ url }: { url: string }) {
+export function SiteIcon({ url }: { url: string }) {
   const icons = useBookmarks((s) => s.status === 'live' && s.features.includes('favicons'));
   const [failed, setFailed] = useState(false);
   if (!icons || failed) {
@@ -111,13 +112,14 @@ function SiteIcon({ url }: { url: string }) {
 /** One link: a plain link when a webpage can open it, otherwise a dimmed label saying why not. */
 export const LinkItem = memo(function LinkItem({ item, section, className }: { item: TreeItem; section: SectionId; className: string }) {
   const { editing } = useDeck();
+  const fresh = useBookmarks((s) => s.fresh.has(item.key));
   const onDrag = useItemDrag(item);
   const url = item.node.url ?? '';
   const host = hostOf(url);
   const title = item.node.title.trim() || host || url;
   if (!isOpenable(url)) {
     return (
-      <span className={cx(className, 'off', editing && 'editable')} title="Chrome doesn’t let a webpage open this kind of link: use your bookmarks bar for it." onPointerDown={onDrag}>
+      <span className={cx(className, 'off', editing && 'editable', fresh && 'fresh')} title="Chrome doesn’t let a webpage open this kind of link: use your bookmarks bar for it." onPointerDown={onDrag}>
         <span className="link-glyph" aria-hidden>
           {G.blocked}
         </span>
@@ -129,7 +131,7 @@ export const LinkItem = memo(function LinkItem({ item, section, className }: { i
   }
   return (
     <a
-      className={cx(className, editing && 'editable')}
+      className={cx(className, editing && 'editable', fresh && 'fresh')}
       href={url}
       title={editing ? `${title}: drag to move, or ⋯` : url}
       target="_blank"
@@ -157,6 +159,7 @@ export const LinkItem = memo(function LinkItem({ item, section, className }: { i
 export const FolderItem = memo(function FolderItem({ item, section, card = false }: { item: TreeItem; section: SectionId; card?: boolean }) {
   const deck = useDeck();
   const { editing } = deck;
+  const fresh = useBookmarks((s) => s.fresh.has(item.key));
   const onDrag = useItemDrag(item);
   const key = folderKey(item.path);
   const open = useLayout((s) => s.layout.bookmarks.open.includes(key));
@@ -166,7 +169,7 @@ export const FolderItem = memo(function FolderItem({ item, section, card = false
   if (open && !drawn) setDrawn(true);
   const children = drawn ? folderContents(item, deck) : [];
   return (
-    <section className={cx('folder', card && 'card', !open && 'collapsed')}>
+    <section className={cx('folder', card && 'card', !open && 'collapsed', fresh && 'fresh')}>
       <div className={cx('folder-head-row', editing && 'editable')} onPointerDown={onDrag}>
         <button type="button" className="folder-head" aria-expanded={open} aria-controls={bodyId} onClick={() => layoutStore().getState().setFolderOpen(key, !open)}>
           <span className={cx('caret', open && 'open')} aria-hidden>

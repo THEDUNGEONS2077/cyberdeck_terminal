@@ -17,6 +17,7 @@
  *   - a faint green haze in the upper half → CSS behind the canvas
  *     (app.css .wallpaper-haze), plus the very faint residue fading leaves.
  */
+import type { GlowLevel } from '@/lib/layout';
 
 /** One depth layer of rain. */
 export interface LayerParams {
@@ -76,6 +77,42 @@ export const FADE_STRIPE = 2;
  */
 export const END_BIAS = 5;
 
+/** One glow level. Blurs are canvas shadowBlur values, in CSS px. */
+export interface GlowSpec {
+  /** The glow colour's strength: the alpha of --accent. */
+  alpha: number;
+  /** The heads' blur, and how many times a head is drawn (each layer adds to the glow, so it reads as a light source). */
+  head: number;
+  headLayers: number;
+  /** The bodies' blur. */
+  body: number;
+}
+
+/**
+ * The glow levels (SYSTEM ▸ WALLPAPER ▸ GLOW). 'high' is the default since
+ * 0.5.0 (user request 2026-10-22: more glow). Measured on screenshots
+ * (mean green, top half, against 0.3.1): 'low' is the look before 0.5.0
+ * (+4%), 'medium' +29%, 'high' +43%, 'max' +60%. A head's glow stays
+ * behind as it moves on, so lit trails glow as streaks, more so with
+ * each level. The glow is drawn once into the sprite sheets
+ * (glyphAtlas.ts), so it costs nothing per frame beyond copying slightly
+ * bigger sprites.
+ */
+export const GLOW: Record<GlowLevel, GlowSpec> = {
+  low: { alpha: 0.4, head: 5, headLayers: 1, body: 2 },
+  medium: { alpha: 0.65, head: 7, headLayers: 2, body: 3 },
+  high: { alpha: 0.8, head: 9, headLayers: 2, body: 5 },
+  max: { alpha: 0.9, head: 12, headLayers: 3, body: 6.5 },
+};
+
+/**
+ * How far a glow reaches past its glyph's cell, per CSS px of blur, plus
+ * 1 px: measured in Chromium, a shadowBlur of b fades below 1/255 within
+ * about 0.9 b + 1 px of the cell. Each sprite gets that much margin, so
+ * no glow is cut off at a sprite's edge (which would show as faint boxes).
+ */
+export const GLOW_REACH = 0.9;
+
 /**
  * How far body glyphs are pulled toward grey (0 = the token colour, 1 =
  * grey). The reference's bodies are a muted green (about rgb(70,101,70)),
@@ -115,6 +152,29 @@ export const PREWARM_STEP = 1 / 20;
  * fades in when it's done.
  */
 export const PREWARM_BUDGET_MS = 16;
+
+/**
+ * The same, once the canvas is showing and only the faint glyphs and the
+ * heads' glows are left to paint: a smaller slice, so the rest of the page
+ * (the dashboard, starting up meanwhile) gets most of each frame
+ * (optimization pass 2, 2026-10-22: at 16 ms the dashboard waited for the
+ * whole fill).
+ */
+export const PREWARM_FILL_BUDGET_MS = 6;
+
+/**
+ * In the wallpaper's own worker nothing else is waiting: the pre-warm runs
+ * in big slices instead (it still stops once the bright part is painted,
+ * so that frame is shown and the canvas can fade in).
+ */
+export const PREWARM_WORKER_BUDGET_MS = 250;
+
+/**
+ * The pre-warm paints a head's leftover glow only if it's still at least
+ * this strong: fainter ones barely show (the glow is itself faint), and
+ * each is a big sprite to copy.
+ */
+export const PREWARM_HALO_MIN_ALPHA = 0.15;
 
 /**
  * The shortest time between drawn frames (ms). On a 60 Hz screen every

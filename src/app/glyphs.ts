@@ -9,15 +9,13 @@ export const G = {
   /** The terminal prompt in front of titles. */
   prompt: '>',
   close: '✕',
-  /** Fullscreen (F). */
-  fullscreen: '⛶',
+  /** Fullscreen (F). In JetBrains Mono (⛶ isn't, and showed blank). */
+  fullscreen: '⊞',
   /** SYSTEM (S). */
   system: '⊛',
   /** A selected choice / an unselected one. */
   radioOn: '(•)',
   radioOff: '( )',
-  /** The block cursor. */
-  cursor: '█',
   /** A folder's caret (turns 90° when open). */
   caret: '▸',
   /** A link. */
@@ -26,4 +24,13 @@ export const G = {
   blocked: '⊘',
   /** A folder. */
   folder: '▤',
+  /** Opens somewhere else (a new tab). */
+  external: '↗',
+  /** The ⋯ menu's items: move earlier / later, move to, a new area, back to Chrome's place, hide. */
+  earlier: '←',
+  later: '→',
+  moveTo: '⇥',
+  newArea: '+',
+  restore: '↺',
+  hide: '⊘',
 } as const;

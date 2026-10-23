@@ -149,7 +149,7 @@ describe('layout schema 3', () => {
     const v2 = { schemaVersion: 2, wallpaper: 'matrix-rain', prefs: { backupReminderDays: 7 }, bookmarks: { imported: null, importedAt: null, open: ['Dev'] } };
     const { doc, migrated } = migrateLayout(v2);
     expect(migrated).toBe(true);
-    expect(doc).toEqual({ ...defaultLayout(), prefs: { backupReminderDays: 7 }, bookmarks: { ...defaultLayout().bookmarks, open: ['Dev'] } });
+    expect(doc).toEqual({ ...defaultLayout(), prefs: { backupReminderDays: 7, rainGlow: 'high' }, bookmarks: { ...defaultLayout().bookmarks, open: ['Dev'] } });
   });
 
   it('drops malformed arrangement pieces one by one, never the layout', () => {

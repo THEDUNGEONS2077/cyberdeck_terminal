@@ -1,5 +1,44 @@
 # Changelog
 
+## 0.5.0 (build 8)
+**Find anything, more glow, and the rain on a thread of its own.**
+- **Find (`/`):** type a few letters of any bookmark, in any folder, and Enter opens the best match (in a new tab). It's chosen already, with the matched letters lit. Commands sit below the links: edit or lock the layout, SYSTEM, fullscreen, export a backup, and with the bridge Chrome's New Tab and Bookmark manager. ↑ ↓ choose; Esc clears, then closes.
+- **Arrow keys** move between tiles, folder headings, the links in open folders and area headings. Home / End go to the first / last.
+- **An open folder takes NAV's full width,** its links in columns, so the cards beside it no longer leave a gap under them. The cards around it glide as folders open and close.
+- **NAV's header** gets a sweep of light when NAV appears and each time the layout is locked.
+- **More glow: SYSTEM ▸ WALLPAPER ▸ GLOW.** LOW (close to the look before), MEDIUM, HIGH (the new default) and MAX: on screenshots, +4%, +29%, +43% and +60% brighter than 0.4. Lit trails glow as soft streaks. The setting is saved with your layout and its backups, and a change rains in without restarting the rain.
+  - Glyphs changing in place no longer cut dark boxes into the glow around them: only their own shape is cut out.
+- **Faster and lighter (optimization pass):**
+  - **The rain runs in its own worker** (OffscreenCanvas): its fonts, sprites, pre-warm and every frame happen off the page's main thread. If a worker can't start, it runs on the page as before.
+  - So the dashboard no longer waits for the rain: on a repeat open it shows in about 0.07 s (0.25 s in 0.4), and about 0.27 s on a 4× slower CPU (0.9 s). The rain shows as soon as before (about 0.15 s), and sooner on a slow CPU.
+  - While you're not using it, the page does almost nothing: its main-thread script time for the rain went from about 20 ms a second to under 1, and a frame of rain no longer makes the page redo its paint steps (more work the more bookmarks it shows). The worst main-thread stall while opening went from 83 ms to 17 ms.
+  - The canvas is the size of the screen: resizing the window or going fullscreen doesn't redraw it.
+  - The page's own startup scripts no longer carry the rain's engine (the worker's code is inlined, no extra request), and the app's chunk is fetched with the first files.
+  - NAV's sweep plays once instead of looping: a loop kept the page drawing every frame.
+  - The glow's extra sprites are drawn after the rain first shows.
+- Tests: the walk checks the rain runs in a worker, the still frame under Reduce Motion, and the fallback on the page; `e2e:motion` and `e2e:perf` read the rain's frames from its worker.
+
+## 0.4.0 (build 7)
+**UX and visual pass.** Audited state by state (locked, editing, dragging, the ⋯ menu, SYSTEM, laptop, phone, CONNECT) on a realistic bar.
+- **The brand** reads `<cyberdeck_terminal>`, with no blinking cursor. Its status line shows the real link (● LINK LIVE / LINKING… / LINK: COPY / NO LINK), not a fixed "LINK OK".
+- **NAV's header:** title, LIVE and the link count on the left; actions on the right, with EDIT last.
+  - "EDIT BOOKMARKS" is now **BOOKMARK MANAGER ↗** (it sat next to EDIT and read as the same control), and both Chrome buttons carry ↗: they open a new tab.
+  - The header wraps cleanly on narrow windows (it used to break "> NAV" and cut off LIVE).
+- **Motion:**
+  - Rearranging glides: a drop, a ⋯ move, hiding, showing, live bookmark changes, and the edit bar sliding in all move items smoothly to their new places (FLIP, transforms only; off with Reduce Motion). New items fade in.
+  - The dashboard fades in after the rain instead of popping in.
+- **Feedback:**
+  - A bookmark that just arrived from Chrome is lit for a few seconds.
+  - Hovered and focused tiles get a lit left edge (as rows and menus have), and tiles have a press state.
+  - While dragging, the picked-up item dims in place, and an empty area or the HIDDEN tray lights as a tinted zone (it was a solid green block).
+- **The ⋯ menu** has an icon column (← → ⇥ + ↺ ⊘) and rules between its groups (along, into, back or away).
+- **Accessibility:**
+  - After a ⋯ move, the keyboard follows the item to its new place (after HIDE, to its SHOW button in the tray).
+  - Every rearrangement is announced to screen readers (a polite live region).
+  - Tiles keep their titles clear of the ⋯ button while editing.
+- **Smaller touches:** the bold font is preloaded (headings never show blank while it loads), NAV's resize edge is faint until hovered, and the edit bar says Esc locks it.
+- The same speed as 0.3.1 (`npm run e2e:perf`).
+
 ## 0.3.1 (build 6)
 **Fixed: new bookmarks not showing up.** Bridge 1.2.0, so update it from SYSTEM ▸ BOOKMARKS.
 - **Both bookmarks bars.** When you're signed in to Chrome, it can keep two: one in your Google Account (where new bookmarks usually go) and one on this device. The bridge read only the first it found. It now shows both, account first, as Chrome's own bar does.

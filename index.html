@@ -8,8 +8,10 @@
     <meta name="description" content="cyberdeck_terminal: a terminal-style start page. Your layout never leaves this browser." />
     <link rel="icon" type="image/svg+xml" href="./icon.svg" />
     <title>CYBERDECK</title>
-    <!-- The rain's font, fetched at once instead of once the stylesheet asks for it. -->
+    <!-- The fonts, fetched at once instead of once the stylesheet asks for them: Regular for the rain and the text. -->
     <link rel="preload" href="/src/assets/fonts/JetBrainsMono-Regular.woff2" as="font" type="font/woff2" crossorigin />
+    <!-- Bold too: the brand and every heading use it, and a font still loading leaves text invisible (font-display: block). -->
+    <link rel="preload" href="/src/assets/fonts/JetBrainsMono-Bold.woff2" as="font" type="font/woff2" crossorigin />
     <!-- Black before the app's CSS arrives, so a new page never flashes white. -->
     <style>
       html { background: #000; }
