@@ -67,7 +67,7 @@ Everything is light, drawn additively. The motion is its own: the panels drift a
 - **Header bar:** titled **NAV**, in the desktop's centre-header look (scanlines, phosphor, a lit rule underneath).
   - A soft band of light sweeps across it once when NAV appears, and again each time the layout is locked (the brand panel's refresh band, turned sideways). It never loops.
   - It holds the bridge buttons (CHROME NEW TAB ↗, BOOKMARK MANAGER ↗) as 24 px `.small-btn`s, then EDIT.
-  - It shows the source: `● LIVE`, `SYNCING…`, or `COPY <date> · GO LIVE`.
+  - It shows the source only when it isn't simply live: `SYNCING…`, or `COPY <date> · GO LIVE` (no LIVE and no link count since 0.8.1, at the user's request).
 - **Small and crisp** (user request 2026-10-22): titles are 12 px (`--fs-meta`) and hosts 10 px (`--fs-micro`). Nothing holding text is centred with a transform, which can put glyphs on half pixels.
 - **The bar's own links** are tiles in an auto-fill grid (152 px minimum, 40 px tall). Each shows the site's 16 px icon (with the bridge), or an accent `›` without one, then the title, with the host dimmed underneath. Hover and focus light the frame with `--glow-faint`.
 - **Folders** are cards in a second grid. The heading has a turning caret, `▤`, the title (uppercase) and a link count. Contents fold with the desktop sidebar's grid-row fold (`--base`, `--ease-fold`). Nested folders hang off a tree line, and rows light like a selected row (an inset accent edge).
@@ -76,7 +76,7 @@ Everything is light, drawn additively. The motion is its own: the panels drift a
 - **Surfaces are solid.** The rain shows only in the gaps between pieces, and there's no backdrop blur, which would re-blur the animating canvas every frame.
 
 ## Principles (UX pass, 2026-10-22)
-- **System status is always true.** NAV's header shows the real link to Chrome (LIVE / SYNCING / COPY; the brand panel shows only the time and date since 0.6.2), and new bookmarks are lit as they arrive (`.fresh`, 4 s).
+- **System status is always true.** NAV's header says when the bookmarks aren't live (SYNCING / COPY); the brand panel shows only the time (left) and date (right), and new bookmarks are lit as they arrive (`.fresh`, 4 s).
 - **Title and state on the left, actions on the right** (NAV's header). EDIT comes last. Anything that opens elsewhere carries ↗.
 - **Motion explains change.**
   - Rearrangements glide: FLIP (`app/deck/useFlip.ts`), 220 ms with the out-cubic ease, transforms only.
@@ -98,6 +98,6 @@ Everything is light, drawn additively. The motion is its own: the panels drift a
 - **Destructive actions** (delete area, CHROME ORDER) confirm inline with a `danger` button, and are undoable.
 
 ## The UI over the wallpaper
-- **The HUD.** The brand panel (the desktop's `.masthead`: scanlines, corner brackets) sits top left. The key hints (`[F] FULLSCREEN`, `[S] SYSTEM`) sit bottom right, and both are buttons.
+- **The HUD.** The brand panel (the desktop's `.masthead`: scanlines, corner brackets) sits top left, compact (since 0.8.1: the name at half the title size, 11 px; the panel about 30% smaller; the time on the left and the date on the right). The key hints (`[F] FULLSCREEN`, `[S] SYSTEM`) sit bottom right, and both are buttons.
 - **Panels** sit on solid `--surface` / `--surface-raised`, so text never sits directly on the rain.
 - **Immersive mode** fades the whole UI layer out over `--slow` with the exit curve.

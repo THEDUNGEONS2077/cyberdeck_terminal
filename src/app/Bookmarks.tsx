@@ -4,7 +4,7 @@
  *
  * Layer: UI.
  *
- *   ┌ ⠿ > NAV ● LIVE · 41 LINKS ─── [CHROME NEW TAB ↗] [BOOKMARK MANAGER ↗] [EDIT] ┐
+ *   ┌ ⠿ > NAV ──────────────── [CHROME NEW TAB ↗] [BOOKMARK MANAGER ↗] [EDIT] ┐
  *   [› GitHub ] [› Mail ] [› Docs ] …        NAV's links, as tiles
  *   ┌ ▸ ▤ DEV 12 ┐ ┌ ▸ ▤ NEWS 5 ┐          NAV's folders, as cards that fold open
  *   ▾ WORK ─────────────────────── 9        your areas, each with its own
@@ -37,7 +37,7 @@ import { createPortal } from 'react-dom';
 import { type ChromePage, openChromePage } from '@/bridge/client';
 import { arrange } from '@/lib/arrange';
 import { formatStamp } from '@/lib/backup';
-import { type BookmarkNode, countLinks } from '@/lib/bookmarks';
+import type { BookmarkNode } from '@/lib/bookmarks';
 import { editStore } from '@/store/edit';
 import { uiStore } from '@/store/ui';
 
@@ -146,12 +146,8 @@ function Deck({ bar, source, importedAt, area }: { bar: BookmarkNode; source: So
           <h2 className="deck-title">
             <Prompted>NAV</Prompted>
           </h2>
-          <span className="deck-source">
-            {source === 'live' && (
-              <>
-                <span className="live-dot" aria-hidden /> LIVE
-              </>
-            )}
+          {/* Only when it isn't simply live (user request, 2026-10-23: no LIVE, no link count). */}
+          <span className="deck-source" data-source={source}>
             {source === 'cached' && 'SYNCING…'}
             {source === 'imported' && (
               <>
@@ -161,7 +157,6 @@ function Deck({ bar, source, importedAt, area }: { bar: BookmarkNode; source: So
                 </button>
               </>
             )}
-            <span className="dim"> · {countLinks(bar)} LINKS</span>
           </span>
           <span className="deck-actions">
             {source === 'live' && !editing && <ChromeButtons />}

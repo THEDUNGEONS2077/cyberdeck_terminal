@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.8.1 (build 14)
+- **NAV's bar** no longer shows LIVE or the link count. It still says SYNCING… while it catches up, and COPY · GO LIVE without the bridge.
+- **The brand panel** is about 30% smaller, `<cyberdeck_terminal>` is half the size, and its status line has the time on the left and the date on the right.
+
 ## 0.8.0 (build 13)
 - **VELOCITY wallpaper,** animated from your reference: light caught in motion. Soft slanted panels of light (a bright pale one, dimmer red ones) drift across at different speeds and come round again, with fine motion-blur lines through them; thin streaks race past along the top; long faint lines flicker; a flare breathes in the corner. With BLOOD it has the reference's pale blue and red. It runs in the wallpaper's worker like the others.
 - **ORBIT removed** (replaced by VELOCITY). A layout that had it shows MATRIX RAIN instead. The AZURE palette stays.

@@ -91,8 +91,7 @@ try {
   await page.goto(DASHBOARD);
 
   await path('the dashboard (at its production address) connects to the bridge: LIVE', async () => {
-    await page.locator('.deck-source', { hasText: 'LIVE' }).waitFor({ timeout: 8000 });
-    await page.locator('.deck-source', { hasText: '4 LINKS' }).waitFor();
+    await page.locator('.deck-source[data-source="live"]').waitFor({ state: 'attached', timeout: 8000 });
     await page.getByRole('link', { name: /Alpha/ }).waitFor();
     // chrome:// can't be opened from a webpage: shown, but not a link.
     expect((await page.getByRole('link', { name: /Settings/ }).count()) === 0, 'chrome:// link is clickable');
@@ -116,7 +115,6 @@ try {
   await path('a bookmark added in Chrome appears on the open dashboard', async () => {
     await inBridge(async (site) => chrome.bookmarks.create({ parentId: '1', title: 'Fresh', url: `${site}fresh` }), SITE);
     await page.getByRole('link', { name: /Fresh/ }).waitFor({ timeout: 5000 });
-    await page.locator('.deck-source', { hasText: '5 LINKS' }).waitFor();
     // It arrives lit, so it's seen arriving.
     await page.locator('.tile.fresh', { hasText: 'Fresh' }).waitFor({ timeout: 2000 });
   });
@@ -207,7 +205,7 @@ try {
     await page.reload();
     await page.locator('.deck-source', { hasText: 'SYNCING' }).waitFor({ timeout: 1000 });
     await page.getByRole('link', { name: /Fresh/ }).waitFor({ timeout: 500 });
-    await page.locator('.deck-source', { hasText: 'LIVE' }).waitFor({ timeout: 8000 });
+    await page.locator('.deck-source[data-source="live"]').waitFor({ state: 'attached', timeout: 8000 });
   });
 
   await path('with the dashboard open, a new tab switches back to it and closes itself', async () => {
@@ -226,7 +224,7 @@ try {
     const tab = await context.newPage();
     await tab.goto('chrome://newtab/').catch(() => {}); // the redirect interrupts this navigation
     await tab.waitForURL(DASHBOARD, { timeout: 8000 });
-    await tab.locator('.deck-source', { hasText: 'LIVE' }).waitFor({ timeout: 8000 });
+    await tab.locator('.deck-source[data-source="live"]').waitFor({ state: 'attached', timeout: 8000 });
   });
 } finally {
   await context.close();
