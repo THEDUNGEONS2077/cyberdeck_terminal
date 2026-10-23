@@ -512,7 +512,7 @@ try {
     await page.keyboard.press('Escape');
   });
 
-  await path('APPEARANCE: the dashboard and the wallpaper each take their own palette; the neural net runs in the worker; all survive a reload', async () => {
+  await path('APPEARANCE: the dashboard and the wallpaper each take their own palette; the neural net, VELOCITY and DATA FLOW run in the worker; all survive a reload', async () => {
     const accent = () => page.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue('--accent').trim());
     const wallAccent = () => page.evaluate(() => getComputedStyle(document.querySelector('.wallpaper')).getPropertyValue('--accent').trim());
     const swatch = (group, name) => page.getByRole('radiogroup', { name: group }).locator('.swatch', { hasText: name });
@@ -553,12 +553,25 @@ try {
     expect(v1.lit > 0.05, `VELOCITY is only ${(v1.lit * 100).toFixed(1)}% lit`);
     expect(v1.sig !== v2.sig, 'VELOCITY doesn’t move');
     await shot('14-velocity');
+    // DATA FLOW: the circuit board, in the same worker; it lights the screen and its data runs.
+    await page.keyboard.press('s');
+    await page.getByRole('radio', { name: 'DATA FLOW' }).check({ force: true });
+    await page.keyboard.press('Escape');
+    await page.waitForFunction(() => document.querySelector('.wallpaper')?.getAttribute('data-wallpaper') === 'data-flow');
+    await page.locator('.wallpaper-canvas[data-ready]').waitFor({ state: 'attached', timeout: 10000 });
+    expect((await page.evaluate(() => window.__cyberdeckRain.mode())) === 'worker', 'DATA FLOW isn’t in the worker');
+    const f1 = await rain();
+    await page.waitForTimeout(600);
+    const f2 = await rain();
+    expect(f1.lit > 0.02, `DATA FLOW is only ${(f1.lit * 100).toFixed(1)}% lit`);
+    expect(f1.sig !== f2.sig, 'DATA FLOW doesn’t move');
+    await shot('15-data-flow');
     // Accessibility in another palette (contrast especially), with SYSTEM open.
     await page.addScriptTag({ path: join(root, 'node_modules/axe-core/axe.min.js') });
     await page.keyboard.press('s');
     await page.getByRole('radiogroup', { name: 'DASHBOARD COLOURS' }).waitFor();
     await shot('13-appearance');
-    await audit('SYSTEM in BLOOD, over the neural net');
+    await audit('SYSTEM in BLOOD, over DATA FLOW');
     // Back to the defaults for the paths after this one.
     await swatch('DASHBOARD COLOURS', 'PHOSPHOR').click();
     await swatch('WALLPAPER COLOURS', 'PHOSPHOR').click();

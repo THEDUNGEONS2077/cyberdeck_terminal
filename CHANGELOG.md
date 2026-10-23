@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.9.0 (build 15)
+- **DATA FLOW wallpaper:** a circuit board at night, with data running through it.
+  - **The board.** Traces run on a fine grid in straight runs and 45° bends. They leave the chips' pins in parallel buses that bend like ribbons, and run off the screen. Loose traces and small buses fill the rest, ending in vias and pads. A big main chip with its die shows sits a little right of the middle, with smaller chips round it.
+  - **The data.** Packets of light run along the traces and round the bends, trailing fading tails. A trace that just carried one keeps an afterglow; a via reached flashes; a chip glows as data arrives; now and then a whole bus fires a volley.
+  - **The look in every palette.** Warm traces and packets come from the palette's accent, about a third from its cool hue: red and blue in BLOOD, green and teal in PHOSPHOR.
+  - **Where it runs.** The still board is drawn once and only the light is drawn each frame. It runs in the wallpaper's worker like the others, on every frame the screen shows.
+- It's coming to fluid_motion next.
+
 ## 0.8.1 (build 14)
 - **NAV's bar** no longer shows LIVE or the link count. It still says SYNCING… while it catches up, and COPY · GO LIVE without the bridge.
 - **The brand panel** is about 30% smaller, `<cyberdeck_terminal>` is half the size, and its status line has the time on the left and the date on the right.

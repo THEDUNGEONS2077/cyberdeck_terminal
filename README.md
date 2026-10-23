@@ -17,7 +17,11 @@ Bookmarks open in a new tab, so the dashboard stays put. With the bridge, links 
 
 **Appearance** (SYSTEM ▸ APPEARANCE, at the top), all saved with your layout and its backups:
 - **Dashboard colours:** PHOSPHOR (the original green), AMBER, ICE, NEON, BLOOD or AZURE.
-- **Wallpaper:** MATRIX RAIN, NEURAL NET (a drifting network of glowing nodes and links, with signals running along it) or VELOCITY (slanted panels of light drifting past, streaks racing across).
+- **Wallpaper:**
+  - MATRIX RAIN;
+  - NEURAL NET: a drifting network of glowing nodes and links, with signals running along it;
+  - VELOCITY: slanted panels of light drifting past, streaks racing across;
+  - DATA FLOW: a circuit board at night, packets of light running along its traces and into its chips.
 - **Wallpaper colours:** the same six palettes, chosen on their own: any dashboard colours with any wallpaper and any wallpaper colours. BLOOD suits the neural net and VELOCITY.
 - **Glow:** from LOW (the original look) to MAX. HIGH is the default.
 

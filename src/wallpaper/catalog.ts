@@ -22,6 +22,7 @@ export const WALLPAPER_LIST: readonly WallpaperInfo[] = [
   { id: 'matrix-rain', label: 'MATRIX RAIN' },
   { id: 'neural-net', label: 'NEURAL NET' },
   { id: 'velocity', label: 'VELOCITY' },
+  { id: 'data-flow', label: 'DATA FLOW' },
 ];
 
 /** `id` if it's a wallpaper this build has, else the default's (a layout from a newer build, say). */

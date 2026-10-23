@@ -63,6 +63,18 @@ Reference: `wallhaven-ox7v2l.jpg`, light caught in motion (a long exposure).
 
 Everything is light, drawn additively. The motion is its own: the panels drift across at different speeds and come round again with new shapes, the streaks race, the lines flicker, the flare breathes.
 
+## Data flow's look
+There's no reference image this time (the user's choice of idea, 2026-10-23: circuit-board traces at right angles with pulses of light running along them). The look is a printed circuit board's at night:
+
+| Part | How it looks |
+|---|---|
+| The board | A fine dot grid, brightest round the main chip and fading out; the `--accent` glowing softly round the main chip, `--cool` rising from the bottom left (CSS under the canvas) |
+| Traces | Thin lines on the grid, straight runs joined by 45° bends. They leave the chips in parallel buses that bend like ribbons, and run off the screen. Loose traces and small buses fill the rest, ending in vias (rings) and pads (squares). About a third of them are in `--cool`, the rest warm (`--text-dim` over `--line`) |
+| Chips | Dark bodies with pin stubs and a pin-1 mark. The big main chip shows its die: an inner square with a fine grid |
+| Data | Packets of light running along the traces and round the bends, with a soft halo and a tail fading towards the back. A trace that just carried one keeps an afterglow; a via reached flashes; a chip glows as data arrives; now and then a whole bus fires a volley |
+
+The glow levels set the board's soft glow and the packets' halo and head. With BLOOD it reads red and blue; with every palette it takes that palette's two hues.
+
 ## The bookmarks deck
 - **Header bar:** titled **NAV**, in the desktop's centre-header look (scanlines, phosphor, a lit rule underneath).
   - A soft band of light sweeps across it once when NAV appears, and again each time the layout is locked (the brand panel's refresh band, turned sideways). It never loops.

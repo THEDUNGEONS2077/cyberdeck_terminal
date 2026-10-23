@@ -163,6 +163,19 @@ The contract is `src/wallpaper/types.ts`: `create(canvas, { palette, glow, still
 ### Canvas probe
 - The tests' probe reads 2D or WebGL canvases alike (`wallpaper/probe.ts`).
 
+### Data flow (`src/wallpaper/data-flow/`)
+- **`params.ts`** holds every tunable number. There's no reference image: the look is a printed circuit board's (DESIGN.md).
+- **`board.ts`** lays out the board, pure and seeded (unit tested; fluid_motion's Kotlin port lays out the same way).
+  - **Grid.** Points are `PITCH` apart, a few past every edge of the screen. Traces run in the eight directions 45° apart.
+  - **Chips.** The main chip sits a little right of the middle. Side chips are spread out (each the farthest of several tries from the others). Each chip has a clear ring with pins every 2 points.
+  - **Buses.** Neighbouring pins run out together on one route (`plan`). Before a 90° bend the outer traces run on further, so a bus bends like a ribbon. A trace blocked at once isn't laid.
+  - **Loose traces** fill the rest, some as small buses from a row of vias, until `COVERAGE` of the screen's points carry one.
+  - **Spacing.** Traces never cross or touch: one trace a point, no diagonal between two taken points, and one free point beside every trace.
+- **`engine.ts`** draws the still board once into a layer of its own (per size, palette and glow): the dot grid, the traces (with the glow level's soft glow), vias, pads and chips.
+  - **Each frame** copies that layer and adds the light ('lighter'): packets running along the traces (a halo, a tail brightening in six slices, a glowing head sprite), the afterglow of traces that just carried one, vias flashing, chips glowing as data arrives. It's a few hundred small strokes, whatever the screen size.
+  - **Rate and opening.** It draws on every frame the screen shows. 2.5 s of packets are simulated before the first frame.
+- Colours come from the wallpaper's palette (`flowTones`): warm traces and packets from `--text-dim` / `--accent`, cool ones from `--cool`. The glow round the main chip is CSS.
+
 ### Velocity (`src/wallpaper/velocity/`)
 - **`engine.ts`** redraws everything each frame, additively ('lighter') on a clear canvas: each panel is one rectangle drawn through a skew (its lean), with a soft gradient and a striation pattern; streaks are thin gradient rectangles; the flare a radial gradient and an arc. Up to about 72 frames a second at up to 1.5 device px per CSS px.
 - Colours from the wallpaper's palette (`tones`): pale light from `--cool`, red from `--accent`.
