@@ -8,7 +8,7 @@
 // by a hash, and each re-lit or put out at its own moments as the clock runs
 // (WINDOW_PERIOD on average), so a few change every second. Then the haze:
 // far layers take more of its colour. Where no tower is, the haze itself.
-// Shared with fluid_motion (assets/shaders/mc_city.frag): keep the two the same.
+// One set of shaders, byte for byte: cyberdeck_terminal src/wallpaper/megacity/shaders/city.frag, fluid_motion assets/shaders/mc_city.frag.
 precision highp float;
 precision highp int;
 precision highp sampler2D;

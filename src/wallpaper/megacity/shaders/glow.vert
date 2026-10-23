@@ -1,7 +1,7 @@
 #version 300 es
 // megacity glow.vert: a light (a beacon, a drone and its tail) or a patch
-// of haze (sim.ts GLOW), one quad round it. Shared with fluid_motion
-// (assets/shaders/mc_glow.vert).
+// of haze (sim.ts GLOW), one quad round it.
+// One set of shaders, byte for byte: cyberdeck_terminal src/wallpaper/megacity/shaders/glow.vert, fluid_motion assets/shaders/mc_glow.vert.
 layout(location = 0) in vec4 aPos;    // x, y, halo (or patch) radius across, down (CSS px)
 layout(location = 1) in vec4 aColor;  // r, g, b, strength
 layout(location = 2) in vec4 aShape;  // core radius, tail (CSS px, + behind a light going right), kind (0 light, 1 haze), unused

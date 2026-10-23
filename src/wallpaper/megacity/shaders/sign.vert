@@ -1,6 +1,7 @@
 #version 300 es
 // megacity sign.vert: a neon sign or billboard (sim.ts SIGN), one quad over
-// it and its halo. Shared with fluid_motion (assets/shaders/mc_sign.vert).
+// it and its halo.
+// One set of shaders, byte for byte: cyberdeck_terminal src/wallpaper/megacity/shaders/sign.vert, fluid_motion assets/shaders/mc_sign.vert.
 layout(location = 0) in vec4 aRect;   // left, top, width, height (CSS px)
 layout(location = 1) in vec4 aColor;  // r, g, b, brightness
 layout(location = 2) in vec4 aSign;   // seed, upright (1) or wide, halo (CSS px), unused

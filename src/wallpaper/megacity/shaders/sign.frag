@@ -3,8 +3,8 @@
 // column of square cells down an upright sign, a row along a wide one, each
 // a 3 × 4 grid of strokes picked by a hash), a brighter rim, and a halo
 // round it. Premultiplied: the panel covers the tower, the halo (no alpha)
-// is added; a sign flickering off is a dark panel. Shared with fluid_motion
-// (assets/shaders/mc_sign.frag).
+// is added; a sign flickering off is a dark panel.
+// One set of shaders, byte for byte: cyberdeck_terminal src/wallpaper/megacity/shaders/sign.frag, fluid_motion assets/shaders/mc_sign.frag.
 precision highp float;
 precision highp int;
 

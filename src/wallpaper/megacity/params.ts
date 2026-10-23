@@ -39,11 +39,11 @@ export interface LayerParams {
 
 /** The layers, far to near: the far ones narrow, tall and pale with haze, the near ones wide, lower and dark. */
 export const LAYERS: readonly LayerParams[] = [
-  { width: [14, 38], gap: [0, 3], skip: 0, top: [-0.35, 0.3], cell: [3, 4], fog: 0.72 },
-  { width: [18, 50], gap: [0, 8], skip: 0.1, top: [-0.3, 0.4], cell: [3, 5], fog: 0.55 },
-  { width: [22, 62], gap: [0, 14], skip: 0.18, top: [-0.25, 0.5], cell: [4, 5], fog: 0.38 },
-  { width: [28, 78], gap: [4, 26], skip: 0.25, top: [-0.2, 0.62], cell: [4, 6], fog: 0.22 },
-  { width: [40, 120], gap: [10, 70], skip: 0.3, top: [-0.25, 0.75], cell: [5, 7], fog: 0.06 },
+  { width: [14, 38], gap: [0, 3], skip: 0, top: [-0.35, 0.3], cell: [3, 4], fog: 0.74 },
+  { width: [18, 50], gap: [0, 8], skip: 0.1, top: [-0.3, 0.4], cell: [3, 5], fog: 0.62 },
+  { width: [22, 62], gap: [0, 14], skip: 0.18, top: [-0.25, 0.5], cell: [4, 5], fog: 0.52 },
+  { width: [28, 78], gap: [6, 34], skip: 0.3, top: [-0.2, 0.62], cell: [4, 6], fog: 0.42 },
+  { width: [40, 110], gap: [24, 120], skip: 0.45, top: [-0.2, 0.8], cell: [5, 7], fog: 0.28 },
 ];
 
 /** A tower that steps back: the chance, how wide its upper part is (share), how far above it rises (share of the screen's height). */

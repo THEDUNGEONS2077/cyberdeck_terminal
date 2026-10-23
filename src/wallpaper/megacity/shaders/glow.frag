@@ -1,7 +1,8 @@
 #version 300 es
 // megacity glow.frag: a patch of haze (soft all over) or a light: a sharp
 // core and a halo, along a tail fading behind it. Added (premultiplied,
-// no alpha). Shared with fluid_motion (assets/shaders/mc_glow.frag).
+// no alpha).
+// One set of shaders, byte for byte: cyberdeck_terminal src/wallpaper/megacity/shaders/glow.frag, fluid_motion assets/shaders/mc_glow.frag.
 precision highp float;
 
 uniform float uDensity;
