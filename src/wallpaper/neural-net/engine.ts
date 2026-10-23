@@ -11,10 +11,14 @@
  * it), each node linked to a few near neighbours (a few hubs to many),
  * and the bokeh. Each frame redraws it all, which stays cheap because
  * nothing is drawn one pixel at a time:
- *   - the links are batched into one path per colour and opacity step, so
- *     a few dozen strokes draw them all (plus a soft wide pass for glow);
+ *   - each link is one stroke (plus a soft wide pass for glow), at its own
+ *     exact opacity, so links fade smoothly as they stretch (batching them
+ *     by opacity step made them jump between steps);
  *   - nodes, signals and bokeh are copies of small pre-drawn glow sprites
- *     (sprites()), one per colour step.
+ *     (sprites()), one per colour step (fine steps: no visible jumps).
+ * It draws on every frame the screen shows (no frame-rate cap: the user
+ * asked for it as smooth as possible, 2026-10-23), and lit nodes brighten
+ * with a short rise instead of popping on.
  * Colour follows the palette along a diagonal (shade()): --cool at the top
  * left, --text-bright in the middle, --accent at the bottom right; the big
  * background glow is CSS under the canvas (app.css .wallpaper[data-wallpaper]).
@@ -23,7 +27,6 @@ import type { GlowLevel } from '@/lib/layout';
 
 import type { Wallpaper, WallpaperInstance, WallpaperOptions, WallpaperPalette } from '../types';
 import {
-  ALPHA_STEPS,
   BOKEH_ALPHA,
   BOKEH_PER_MPX,
   BOKEH_RADIUS,
@@ -32,6 +35,7 @@ import {
   COLOR_STEPS,
   DRIFT,
   DRIFT_PERIOD,
+  FLASH_RISE,
   FLASH_SECONDS,
   LINE_ALPHA,
   LINE_WIDTH,
@@ -41,7 +45,6 @@ import {
   MAX_DPR,
   MAX_FRAME_STEP,
   MAX_LINK,
-  MIN_FRAME_MS,
   NEURAL_GLOW,
   NODE_RADIUS,
   NODES_PER_MPX,
@@ -155,8 +158,10 @@ interface Scene {
   px: Float32Array;
   py: Float32Array;
   radius: Float32Array;
-  /** How lit a node is by a signal that just reached it (1 → 0 over FLASH_SECONDS). */
+  /** How lit a node is by a signal that just reached it (rises to 1 over FLASH_RISE, then back to 0 over FLASH_SECONDS). */
   flash: Float32Array;
+  /** 1 while a node's light is still rising. */
+  rise: Uint8Array;
   /** Where the nodes are this frame. */
   x: Float32Array;
   y: Float32Array;
@@ -180,7 +185,7 @@ function scene(w: number, h: number, rng: Rng): Scene {
   const ph = h * (1 + 2 * PAD);
   const n = Math.max(12, Math.round((NODES_PER_MPX * pw * ph) / 1e6));
   const f32 = () => new Float32Array(n);
-  const s = { w, h, hx: f32(), hy: f32(), ax: f32(), ay: f32(), wx: f32(), wy: f32(), px: f32(), py: f32(), radius: f32(), flash: f32(), x: f32(), y: f32() };
+  const s = { w, h, hx: f32(), hy: f32(), ax: f32(), ay: f32(), wx: f32(), wy: f32(), px: f32(), py: f32(), radius: f32(), flash: f32(), rise: new Uint8Array(n), x: f32(), y: f32() };
   const want = new Uint8Array(n);
   const weights = CLUSTERS.reduce((sum, c) => sum + c[3], 0);
   for (let i = 0; i < n; i++) {
@@ -298,6 +303,8 @@ interface Pulse {
   speed: number;
   /** Links left to run after this one. */
   hops: number;
+  /** On its first link (it fades in there, instead of appearing at once). */
+  first: boolean;
 }
 
 /** Creates the neural-net engine on a canvas (the `create` of the Wallpaper). */
@@ -317,9 +324,6 @@ function createNeuralNet(canvas: HTMLCanvasElement | OffscreenCanvas, options: W
   let last = 0;
   let pulseDebt = 0;
   const pulses: Pulse[] = [];
-  // Link segments by colour × opacity step, refilled each frame (no allocation per frame).
-  let buckets: Float32Array[] = [];
-  let counts = new Uint32Array(COLOR_STEPS * ALPHA_STEPS);
 
   /** Moves everything on by `dt` seconds, at clock time `t` (s). */
   const advance = (t: number, dt: number) => {
@@ -327,7 +331,13 @@ function createNeuralNet(canvas: HTMLCanvasElement | OffscreenCanvas, options: W
     for (let i = 0; i < s.hx.length; i++) {
       s.x[i] = s.hx[i]! + s.ax[i]! * Math.sin(s.wx[i]! * t + s.px[i]!);
       s.y[i] = s.hy[i]! + s.ay[i]! * Math.sin(s.wy[i]! * t + s.py[i]!);
-      s.flash[i] = Math.max(0, s.flash[i]! - dt / FLASH_SECONDS);
+      // A lit node's light rises quickly, then fades slowly.
+      if (s.rise[i]) {
+        s.flash[i] = Math.min(1, s.flash[i]! + dt / FLASH_RISE);
+        if (s.flash[i] === 1) s.rise[i] = 0;
+      } else {
+        s.flash[i] = Math.max(0, s.flash[i]! - dt / FLASH_SECONDS);
+      }
     }
     // Bokeh drift, wrapping round the screen.
     for (let i = 0; i < s.bx.length; i++) {
@@ -342,8 +352,8 @@ function createNeuralNet(canvas: HTMLCanvasElement | OffscreenCanvas, options: W
       const k = Math.floor(rng() * s.links.length);
       const link = s.links[k]!;
       const from = rng() < 0.5 ? link[0] : link[1];
-      s.flash[from] = 1;
-      pulses.push({ link: k, from, along: 0, speed: 0, hops: Math.round(between(rng, PULSE_HOPS)) - 1 });
+      s.rise[from] = 1;
+      pulses.push({ link: k, from, along: 0, speed: 0, hops: Math.round(between(rng, PULSE_HOPS)) - 1, first: true });
     }
     // Signals run on; reaching the far node lights it, and may carry on down another of its links.
     for (let i = pulses.length - 1; i >= 0; i--) {
@@ -353,7 +363,7 @@ function createNeuralNet(canvas: HTMLCanvasElement | OffscreenCanvas, options: W
       p.along += p.speed * dt;
       if (p.along < 1) continue;
       const to = p.from === a ? b : a;
-      s.flash[to] = 1;
+      s.rise[to] = 1;
       const next = s.linksOf[to]!.filter((k) => k !== p.link);
       if (p.hops > 0 && next.length) {
         p.link = next[Math.floor(rng() * next.length)]!;
@@ -361,6 +371,7 @@ function createNeuralNet(canvas: HTMLCanvasElement | OffscreenCanvas, options: W
         p.along = 0;
         p.speed = 0;
         p.hops--;
+        p.first = false;
       } else {
         pulses.splice(i, 1);
       }
@@ -387,42 +398,29 @@ function createNeuralNet(canvas: HTMLCanvasElement | OffscreenCanvas, options: W
       ctx.drawImage(art.bokeh[Math.round(t * (COLOR_STEPS - 1))]!, s.bx[i]! - r, s.by[i]! - r, 2 * r, 2 * r);
     }
 
-    // 2. Links, batched by colour and opacity step. Longer ones are fainter.
-    counts.fill(0);
+    // 2. Links: one stroke each, at its exact opacity (by length, longer is
+    //    fainter, times its own weight), so it fades smoothly as it stretches.
     const maxLen = MAX_LINK * Math.hypot(w, h);
-    for (let l = 0; l < s.links.length; l++) {
-      const [a, b] = s.links[l]!;
-      const x1 = s.x[a]!;
-      const y1 = s.y[a]!;
-      const x2 = s.x[b]!;
-      const y2 = s.y[b]!;
-      // Off the screen altogether: skip.
-      if ((x1 < 0 && x2 < 0) || (x1 > w && x2 > w) || (y1 < 0 && y2 < 0) || (y1 > h && y2 > h)) continue;
-      // Opacity: by length (longer is fainter) times the link's own weight, in ALPHA_STEPS steps.
-      const len = Math.min(1, Math.hypot(x2 - x1, y2 - y1) / maxLen);
-      const alpha = Math.min(1, (LINE_ALPHA[0] + (LINE_ALPHA[1] - LINE_ALPHA[0]) * len) * s.weight[l]!);
-      const k = step((x1 + x2) / 2, (y1 + y2) / 2) * ALPHA_STEPS + Math.min(ALPHA_STEPS - 1, Math.floor(alpha * ALPHA_STEPS));
-      const at = counts[k]! * 4;
-      const bucket = buckets[k]!;
-      bucket[at] = x1;
-      bucket[at + 1] = y1;
-      bucket[at + 2] = x2;
-      bucket[at + 3] = y2;
-      counts[k]!++;
-    }
+    const links = s.links;
     const stroke = (width: number, strength: number) => {
       ctx.lineWidth = width;
-      for (let k = 0; k < buckets.length; k++) {
-        const n = counts[k]!;
-        if (!n) continue;
-        ctx.globalAlpha = (strength * ((k % ALPHA_STEPS) + 0.5)) / ALPHA_STEPS;
-        ctx.strokeStyle = art!.line[Math.floor(k / ALPHA_STEPS)]!;
+      let colour = -1;
+      for (let l = 0; l < links.length; l++) {
+        const [a, b] = links[l]!;
+        const x1 = s!.x[a]!;
+        const y1 = s!.y[a]!;
+        const x2 = s!.x[b]!;
+        const y2 = s!.y[b]!;
+        // Off the screen altogether: skip.
+        if ((x1 < 0 && x2 < 0) || (x1 > w && x2 > w) || (y1 < 0 && y2 < 0) || (y1 > h && y2 > h)) continue;
+        const len = Math.min(1, Math.hypot(x2 - x1, y2 - y1) / maxLen);
+        ctx.globalAlpha = strength * Math.min(1, (LINE_ALPHA[0] + (LINE_ALPHA[1] - LINE_ALPHA[0]) * len) * s!.weight[l]!);
+        const c = step((x1 + x2) / 2, (y1 + y2) / 2);
+        // The colour string only when it changes (neighbouring links mostly share one).
+        if (c !== colour) ctx.strokeStyle = art!.line[(colour = c)]!;
         ctx.beginPath();
-        const bucket = buckets[k]!;
-        for (let i = 0; i < n * 4; i += 4) {
-          ctx.moveTo(bucket[i]!, bucket[i + 1]!);
-          ctx.lineTo(bucket[i + 2]!, bucket[i + 3]!);
-        }
+        ctx.moveTo(x1, y1);
+        ctx.lineTo(x2, y2);
         ctx.stroke();
       }
     };
@@ -448,7 +446,8 @@ function createNeuralNet(canvas: HTMLCanvasElement | OffscreenCanvas, options: W
       const x = s.x[p.from]! + (s.x[to]! - s.x[p.from]!) * p.along;
       const y = s.y[p.from]! + (s.y[to]! - s.y[p.from]!) * p.along;
       const r = 2.2 * scale;
-      ctx.globalAlpha = 1;
+      // A new signal fades in over the start of its first link.
+      ctx.globalAlpha = p.first ? Math.min(1, p.along * 8) : 1;
       ctx.drawImage(art.node[step(x, y)]!, x - r, y - r, 2 * r, 2 * r);
     }
     ctx.globalAlpha = 1;
@@ -464,11 +463,6 @@ function createNeuralNet(canvas: HTMLCanvasElement | OffscreenCanvas, options: W
   const tick = (now: number) => {
     frame = 0;
     if (!running || still) return;
-    // A fast screen's extra frames: skip them (MIN_FRAME_MS); the time carries over.
-    if (last && now - last < MIN_FRAME_MS) {
-      frame = requestAnimationFrame(tick);
-      return;
-    }
     const dt = last ? Math.min((now - last) / 1000, MAX_FRAME_STEP) : 0;
     last = now;
     advance(now / 1000, dt);
@@ -493,8 +487,6 @@ function createNeuralNet(canvas: HTMLCanvasElement | OffscreenCanvas, options: W
       if (!s || s.w !== w || s.h !== h) {
         const start = performance.now();
         s = scene(w, h, rng);
-        buckets = Array.from({ length: COLOR_STEPS * ALPHA_STEPS }, () => new Float32Array(s!.links.length * 4));
-        counts = new Uint32Array(COLOR_STEPS * ALPHA_STEPS);
         pulses.length = 0;
         performance.measure('neural-scene', { start });
       }

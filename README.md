@@ -9,15 +9,16 @@ A terminal-style start page for Chrome. A matrix rain falls across the whole scr
 |---|---|
 | **F** | Fullscreen with only the wallpaper. F or Esc comes back. |
 | **/** | Find: type a few letters of any bookmark (in any folder) and press Enter to open it, or run a command. ↑ ↓ choose. |
-| **S** | SYSTEM: bookmarks source, backups, restore, appearance (palette, wallpaper, glow) |
+| **S** | SYSTEM: appearance (colours, wallpaper, glow), bookmarks source, backups, restore |
 | **← ↑ → ↓** | Move between bookmarks, folders and links (Home / End: the first / last) |
 | **Esc** | Closes SYSTEM or the finder |
 
 Bookmarks open in a new tab, so the dashboard stays put. With the bridge, links show their site icons, and NAV's header has **CHROME NEW TAB ↗** (Chrome's own New Tab page, with your bookmarks bar, to edit) and **BOOKMARK MANAGER ↗**.
 
-**Appearance** (SYSTEM ▸ APPEARANCE), all saved with your layout and its backups:
-- **Palette:** PHOSPHOR (the original green), AMBER, ICE, NEON or BLOOD. It recolours the whole dashboard and the wallpaper.
-- **Wallpaper:** MATRIX RAIN or NEURAL NET (a drifting network of glowing nodes and links, with signals running along it). Any wallpaper works with any palette.
+**Appearance** (SYSTEM ▸ APPEARANCE, at the top), all saved with your layout and its backups:
+- **Dashboard colours:** PHOSPHOR (the original green), AMBER, ICE, NEON or BLOOD.
+- **Wallpaper:** MATRIX RAIN or NEURAL NET (a drifting network of glowing nodes and links, with signals running along it).
+- **Wallpaper colours:** the same five palettes, chosen on their own: any dashboard colours with any wallpaper and any wallpaper colours.
 - **Glow:** from LOW (the original look) to MAX. HIGH is the default.
 
 The wallpaper runs on a thread of its own, so it never slows the dashboard down.

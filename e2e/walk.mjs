@@ -512,19 +512,27 @@ try {
     await page.keyboard.press('Escape');
   });
 
-  await path('APPEARANCE: a palette recolours the page and the wallpaper; the neural net runs in the worker; both survive a reload', async () => {
+  await path('APPEARANCE: the dashboard and the wallpaper each take their own palette; the neural net runs in the worker; all survive a reload', async () => {
     const accent = () => page.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue('--accent').trim());
+    const wallAccent = () => page.evaluate(() => getComputedStyle(document.querySelector('.wallpaper')).getPropertyValue('--accent').trim());
+    const swatch = (group, name) => page.getByRole('radiogroup', { name: group }).locator('.swatch', { hasText: name });
     await page.keyboard.press('s');
-    await page.locator('.swatch', { hasText: 'BLOOD' }).click();
+    // APPEARANCE comes first in SYSTEM.
+    expect((await page.locator('.settings-group').first().getAttribute('aria-label')) === 'Appearance', 'APPEARANCE isn’t first');
+    await swatch('DASHBOARD COLOURS', 'BLOOD').click();
+    await swatch('WALLPAPER COLOURS', 'ICE').click();
     expect((await accent()) === '#ff3040', `--accent is ${await accent()}`);
+    expect((await wallAccent()) === '#1ee8ff', `the wallpaper's --accent is ${await wallAccent()}`);
     await page.getByRole('radio', { name: 'NEURAL NET' }).check({ force: true });
     await settled();
     expect((await page.evaluate(() => localStorage.getItem('cyberdeck_terminal:palette'))) === 'blood', 'the palette hint wasn’t saved');
+    expect((await page.evaluate(() => localStorage.getItem('cyberdeck_terminal:wallpaper-palette'))) === 'ice', 'the wallpaper palette hint wasn’t saved');
     await page.keyboard.press('Escape');
     await page.reload();
     await page.locator('.brand').waitFor();
     await page.locator('.wallpaper-canvas[data-ready]').waitFor({ state: 'attached', timeout: 5000 });
     expect((await accent()) === '#ff3040', 'the palette wasn’t kept');
+    expect((await wallAccent()) === '#1ee8ff', 'the wallpaper’s palette wasn’t kept');
     expect((await page.evaluate(() => document.querySelector('.wallpaper')?.getAttribute('data-wallpaper'))) === 'neural-net', 'the neural net isn’t showing');
     expect((await page.evaluate(() => window.__cyberdeckRain.mode())) === 'worker', 'the neural net isn’t in the worker');
     const a = await rain();
@@ -535,11 +543,12 @@ try {
     // Accessibility in another palette (contrast especially), with SYSTEM open.
     await page.addScriptTag({ path: join(root, 'node_modules/axe-core/axe.min.js') });
     await page.keyboard.press('s');
-    await page.getByRole('radiogroup', { name: 'PALETTE' }).waitFor();
+    await page.getByRole('radiogroup', { name: 'DASHBOARD COLOURS' }).waitFor();
     await shot('13-appearance');
     await audit('SYSTEM in BLOOD, over the neural net');
     // Back to the defaults for the paths after this one.
-    await page.locator('.swatch', { hasText: 'PHOSPHOR' }).click();
+    await swatch('DASHBOARD COLOURS', 'PHOSPHOR').click();
+    await swatch('WALLPAPER COLOURS', 'PHOSPHOR').click();
     await page.getByRole('radio', { name: 'MATRIX RAIN' }).check({ force: true });
     await settled();
     await page.keyboard.press('Escape');

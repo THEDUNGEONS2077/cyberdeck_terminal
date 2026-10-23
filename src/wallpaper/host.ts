@@ -32,13 +32,14 @@
  *   - copies the wallpaper's performance measures into the page's
  *     timeline, and gives the browser tests a probe (window.__cyberdeckRain).
  *
- * Which wallpaper to start with, and how strongly it glows, are
+ * Which wallpaper to start with, its palette and how strongly it glows, are
  * remembered in localStorage (hints only, written by the app whenever the
  * layout's choices change), because the layout itself is read later, from
  * IndexedDB.
  */
 import fontUrl from '@/assets/fonts/JetBrainsMono-Regular.woff2?url';
 import { DEFAULT_RAIN_GLOW, DEFAULT_WALLPAPER_ID, GLOW_LEVELS, type GlowLevel } from '@/lib/layout';
+import { DEFAULT_PALETTE, findPalette, PALETTE_TOKENS, type PaletteColors, type PaletteId } from '@/lib/palettes';
 
 import { knownWallpaperId } from './catalog';
 import type { WallpaperInstance, WallpaperPalette } from './types';
@@ -53,6 +54,7 @@ const RESIZE_DEBOUNCE_MS = 150;
 /** The localStorage keys of the start-up hints: this app's own prefix (quest_log_desktop shares the origin). */
 const HINT_KEY = 'cyberdeck_terminal:wallpaper';
 const GLOW_KEY = 'cyberdeck_terminal:glow';
+const COLORS_KEY = 'cyberdeck_terminal:wallpaper-palette';
 
 /** A canvas size: CSS px, and the device pixel ratio. */
 interface Size {
@@ -105,19 +107,29 @@ function saveHint(key: string, value: string): void {
 /** The glow wallpapers are drawn with: the last visit's, until the layout says otherwise. */
 let glow: GlowLevel = GLOW_LEVELS.find((g) => g === readHint(GLOW_KEY)) ?? DEFAULT_RAIN_GLOW;
 
-/** The wallpaper palette, read from theme.css's tokens (so the canvas uses the same colours as the UI). */
+/**
+ * The wallpaper's own palette (lib/palettes.ts), chosen apart from the
+ * dashboard's (user request, 2026-10-23): the last visit's, until the
+ * layout says otherwise.
+ */
+let colors: PaletteId = findPalette(readHint(COLORS_KEY) ?? DEFAULT_PALETTE).id;
+
+/** The wallpaper's colours, for the engine. */
 function readPalette(): WallpaperPalette {
-  const css = getComputedStyle(document.documentElement);
-  const token = (name: string, fallback: string) => css.getPropertyValue(name).trim() || fallback;
-  return {
-    bg: token('--bg', '#000000'),
-    line: token('--line', '#12301a'),
-    dim: token('--text-dim', '#2b903f'),
-    text: token('--text', '#2fb344'),
-    accent: token('--accent', '#39ff14'),
-    bright: token('--text-bright', '#b6ffb0'),
-    cool: token('--cool', '#1d7f8f'),
-  };
+  const c = findPalette(colors).colors;
+  return { bg: c.bg, line: c.line, dim: c.textDim, text: c.text, accent: c.accent, bright: c.textBright, cool: c.cool };
+}
+
+/**
+ * Puts the wallpaper's palette on its own element: the base colour tokens,
+ * set on `.wallpaper` itself, so its CSS light layers (background, haze,
+ * floor) use the wallpaper's colours while the dashboard keeps its own.
+ */
+function paintLayers(): void {
+  const layer = document.querySelector<HTMLElement>('.wallpaper');
+  if (!layer) return;
+  const palette = findPalette(colors);
+  for (const [key, token] of Object.entries(PALETTE_TOKENS) as [keyof PaletteColors, string][]) layer.style.setProperty(token, palette.colors[key]);
 }
 
 const motion = matchMedia('(prefers-reduced-motion: reduce)');
@@ -284,11 +296,13 @@ export function setWallpaperGlow(level: GlowLevel): void {
   current?.instance.setGlow(level);
 }
 
-/**
- * Tells the wallpaper the palette changed (the app, after palette.ts has put
- * the new colours on the page): it reads them from the tokens again.
- */
-export function setWallpaperPalette(): void {
+/** Sets the wallpaper's palette (the app, when the layout's choice is known or changes). */
+export function setWallpaperColors(id: string): void {
+  const next = findPalette(id).id;
+  saveHint(COLORS_KEY, next);
+  if (next === colors) return;
+  colors = next;
+  paintLayers();
   current?.instance.setPalette(readPalette());
 }
 
@@ -303,8 +317,9 @@ export function showWallpaper(id: string): void {
   if (current?.id === wallpaper.id) return;
   current?.instance.destroy();
   current = null;
-  // Each wallpaper's own light layers (app.css .wallpaper[data-wallpaper]).
+  // Each wallpaper's own light layers (app.css .wallpaper[data-wallpaper]), in its palette.
   document.querySelector<HTMLElement>('.wallpaper')?.setAttribute('data-wallpaper', wallpaper.id);
+  paintLayers();
 
   /** Runs the wallpaper on a fresh canvas, in a worker if it can. */
   const run = (worker: boolean) => {

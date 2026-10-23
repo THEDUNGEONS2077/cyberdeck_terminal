@@ -45,6 +45,14 @@ describe('palettes', () => {
     expect(migrateLayout({ ...defaultLayout(), prefs: { backupReminderDays: 7 } }).doc.prefs.palette).toBe(DEFAULT_PALETTE);
     expect(migrateLayout({ ...defaultLayout(), prefs: { ...prefs, palette: 'plaid' } }).doc.prefs.palette).toBe(DEFAULT_PALETTE);
   });
+
+  it('keeps the wallpaper’s palette apart; a layout from before gives it the dashboard’s', () => {
+    const { prefs } = defaultLayout();
+    const before = migrateLayout({ ...defaultLayout(), prefs: { backupReminderDays: 14, rainGlow: 'high', palette: 'blood' } }).doc.prefs;
+    expect(before.wallpaperPalette).toBe('blood');
+    const apart = migrateLayout({ ...defaultLayout(), prefs: { ...prefs, palette: 'amber', wallpaperPalette: 'ice' } }).doc.prefs;
+    expect([apart.palette, apart.wallpaperPalette]).toEqual(['amber', 'ice']);
+  });
 });
 
 describe('neural net', () => {

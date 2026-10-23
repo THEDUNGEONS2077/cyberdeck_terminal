@@ -18,7 +18,7 @@ describe('layout', () => {
     const b = {
       panels: { brand: null, nav: null },
       bookmarks: { arrangement: { hidden: [], areas: [], order: [] }, open: [], importedAt: null, imported: null },
-      prefs: { backupReminderDays: 14, rainGlow: 'high' as const, palette: 'phosphor' as const },
+      prefs: { backupReminderDays: 14, rainGlow: 'high' as const, palette: 'phosphor' as const, wallpaperPalette: 'phosphor' as const },
       wallpaper: 'matrix-rain',
       schemaVersion: 3 as const,
     };
@@ -28,14 +28,14 @@ describe('layout', () => {
 
   it('knows a fresh layout has nothing worth backing up', () => {
     expect(hasCustomContent(defaultLayout())).toBe(false);
-    expect(hasCustomContent({ ...defaultLayout(), prefs: { backupReminderDays: 30, rainGlow: 'high', palette: 'phosphor' as const } })).toBe(true);
-    expect(hasCustomContent({ ...defaultLayout(), prefs: { backupReminderDays: 14, rainGlow: 'low', palette: 'phosphor' as const } })).toBe(true);
+    expect(hasCustomContent({ ...defaultLayout(), prefs: { backupReminderDays: 30, rainGlow: 'high', palette: 'phosphor' as const, wallpaperPalette: 'phosphor' as const } })).toBe(true);
+    expect(hasCustomContent({ ...defaultLayout(), prefs: { backupReminderDays: 14, rainGlow: 'low', palette: 'phosphor' as const, wallpaperPalette: 'phosphor' as const } })).toBe(true);
   });
 
   it('summarizes for lists and previews', () => {
     expect(summarizeLayout(defaultLayout())).toBe('WALLPAPER MATRIX-RAIN · REMIND 14D');
-    expect(summarizeLayout({ ...defaultLayout(), prefs: { backupReminderDays: 0, rainGlow: 'high', palette: 'phosphor' as const } })).toBe('WALLPAPER MATRIX-RAIN · REMIND OFF');
-    expect(summarizeLayout({ ...defaultLayout(), prefs: { backupReminderDays: 14, rainGlow: 'max', palette: 'phosphor' as const } })).toBe('WALLPAPER MATRIX-RAIN · GLOW MAX · REMIND 14D');
+    expect(summarizeLayout({ ...defaultLayout(), prefs: { backupReminderDays: 0, rainGlow: 'high', palette: 'phosphor' as const, wallpaperPalette: 'phosphor' as const } })).toBe('WALLPAPER MATRIX-RAIN · REMIND OFF');
+    expect(summarizeLayout({ ...defaultLayout(), prefs: { backupReminderDays: 14, rainGlow: 'max', palette: 'phosphor' as const, wallpaperPalette: 'phosphor' as const } })).toBe('WALLPAPER MATRIX-RAIN · GLOW MAX · REMIND 14D');
   });
 });
 
@@ -54,9 +54,9 @@ describe('migrateLayout', () => {
 
   it('gives a layout without a glow level the default, and keeps a valid one', () => {
     const { prefs } = defaultLayout();
-    expect(migrateLayout({ ...defaultLayout(), prefs: { backupReminderDays: 7 } }).doc.prefs).toEqual({ backupReminderDays: 7, rainGlow: 'high', palette: 'phosphor' as const });
+    expect(migrateLayout({ ...defaultLayout(), prefs: { backupReminderDays: 7 } }).doc.prefs).toEqual({ backupReminderDays: 7, rainGlow: 'high', palette: 'phosphor' as const, wallpaperPalette: 'phosphor' as const });
     expect(migrateLayout({ ...defaultLayout(), prefs: { ...prefs, rainGlow: 'blinding' } }).doc.prefs.rainGlow).toBe('high');
-    expect(migrateLayout({ ...defaultLayout(), prefs: { ...prefs, rainGlow: 'low', palette: 'phosphor' as const } }).doc.prefs.rainGlow).toBe('low');
+    expect(migrateLayout({ ...defaultLayout(), prefs: { ...prefs, rainGlow: 'low', palette: 'phosphor' as const, wallpaperPalette: 'phosphor' as const } }).doc.prefs.rainGlow).toBe('low');
   });
 
   it('drops fields this version does not know', () => {
@@ -78,7 +78,7 @@ describe('migrateLayout', () => {
 
 describe('backup files', () => {
   it('round-trips: export, then parse, gives the same layout back', () => {
-    const layout = { ...defaultLayout(), prefs: { backupReminderDays: 30, rainGlow: 'max' as const, palette: 'phosphor' as const } };
+    const layout = { ...defaultLayout(), prefs: { backupReminderDays: 30, rainGlow: 'max' as const, palette: 'phosphor' as const, wallpaperPalette: 'phosphor' as const } };
     const parsed = parseBackup(JSON.stringify(makeBackup(layout, NOW, APP)));
     expect(parsed.layout).toEqual(layout);
     expect(parsed.exportedAt).toBe(NOW);
@@ -107,7 +107,7 @@ describe('backup files', () => {
 });
 
 describe('snapshots', () => {
-  const layoutWith = (days: number) => ({ ...defaultLayout(), prefs: { backupReminderDays: days, rainGlow: 'high' as const, palette: 'phosphor' as const } });
+  const layoutWith = (days: number) => ({ ...defaultLayout(), prefs: { backupReminderDays: days, rainGlow: 'high' as const, palette: 'phosphor' as const, wallpaperPalette: 'phosphor' as const } });
 
   it('skips a copy identical to the newest (by content fingerprint)', () => {
     const newest = makeSnapshot(defaultLayout(), 'startup', NOW);

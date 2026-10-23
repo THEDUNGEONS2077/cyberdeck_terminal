@@ -4,8 +4,8 @@
  * Layer: entry point helper (DOM, no React, no stores), used by main.tsx
  * at the very start and by the app when the layout's palette changes. A
  * palette (lib/palettes.ts) sets the base colour tokens on <html>; theme.css
- * mixes every other colour from them, and the wallpaper reads them too
- * (wallpaper/host.ts setWallpaperPalette).
+ * mixes every other colour from them. The wallpaper has a palette of its
+ * own (wallpaper/host.ts setWallpaperColors).
  *
  * Which palette to start with is remembered in localStorage (a hint only,
  * like the wallpaper's), because the layout itself is read later, from

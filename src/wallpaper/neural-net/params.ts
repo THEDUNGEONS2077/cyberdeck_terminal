@@ -75,11 +75,11 @@ export const PULSES_PER_SECOND = 1.1;
 export const PULSE_SPEED: readonly [number, number] = [240, 460];
 export const PULSE_HOPS: readonly [number, number] = [1, 4];
 export const FLASH_SECONDS = 0.8;
+/** How long a reached node's light takes to rise (s): a quick swell, not a pop. */
+export const FLASH_RISE = 0.12;
 
-/** Colours along the diagonal (the screen is shaded in this many steps). */
-export const COLOR_STEPS = 12;
-/** Link opacities are drawn in this many steps (one path per colour and opacity step). */
-export const ALPHA_STEPS = 4;
+/** Colours along the diagonal, in this many steps: fine enough that a node or link drifting across one doesn't visibly change colour. */
+export const COLOR_STEPS = 32;
 
 /** One glow level: the nodes' halo strength and size, and the links' soft second stroke. */
 export interface NeuralGlow {
@@ -98,9 +98,6 @@ export const NEURAL_GLOW: Record<GlowLevel, NeuralGlow> = {
   high: { halo: 0.65, haloSize: 6.5, lineGlow: 0.14 },
   max: { halo: 0.8, haloSize: 8, lineGlow: 0.22 },
 };
-
-/** The shortest time between drawn frames (ms): about 60–72 a second, as the rain. */
-export const MIN_FRAME_MS = 1000 / 72;
 
 /** The longest real time step taken in one frame (s): after a stall the motion resumes instead of jumping. */
 export const MAX_FRAME_STEP = 0.1;

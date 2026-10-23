@@ -123,7 +123,9 @@ ul {
 }
 
 /* --- Wallpaper ------------------------------------------------------------ */
-/* The back layer: the wallpaper's canvas between two light layers. */
+/* The back layer: the wallpaper's canvas between two light layers. It has its own palette
+   (wallpaper/host.ts sets the base tokens on it), so its rules use only base tokens mixed
+   here, never the page's mixed ones (those follow the dashboard's palette). */
 .wallpaper {
   position: fixed;
   inset: 0;
@@ -138,8 +140,8 @@ ul {
   position: absolute;
   inset: 0;
   background:
-    radial-gradient(120% 60% at 50% 10%, var(--accent-05), transparent 70%),
-    linear-gradient(to bottom, var(--accent-05), var(--accent-05) 55%, transparent 95%);
+    radial-gradient(120% 60% at 50% 10%, color-mix(in srgb, var(--accent) 5%, transparent), transparent 70%),
+    linear-gradient(to bottom, color-mix(in srgb, var(--accent) 5%, transparent), color-mix(in srgb, var(--accent) 5%, transparent) 55%, transparent 95%);
   opacity: 0.6;
 }
 /* The canvas is the size of the screen (wallpaper/host.ts sets its CSS size; its pixels
@@ -157,9 +159,10 @@ ul {
   opacity: 1;
 }
 /*
- * The neural net's light (its reference: a deep teal sky, and a strong red
- * glow rising from the bottom right): --cool tints the background from the
- * top, the --accent glows in the corner. The canvas draws only the network.
+ * The neural net's light (its reference: a deep teal sky, and a red glow
+ * rising from the bottom right, softened at the user's request, 2026-10-23):
+ * --cool tints the background from the top, the --accent glows in the
+ * corner. The canvas draws only the network.
  */
 .wallpaper[data-wallpaper='neural-net'] {
   background: linear-gradient(
@@ -171,8 +174,8 @@ ul {
 }
 .wallpaper[data-wallpaper='neural-net'] .wallpaper-haze {
   background:
-    radial-gradient(62% 70% at 82% 98%, var(--accent), color-mix(in srgb, var(--accent) 82%, transparent) 34%, color-mix(in srgb, var(--accent) 30%, transparent) 68%, transparent),
-    radial-gradient(85% 62% at 55% 100%, color-mix(in srgb, var(--accent) 30%, transparent), transparent 85%);
+    radial-gradient(58% 62% at 84% 100%, color-mix(in srgb, var(--accent) 52%, transparent), color-mix(in srgb, var(--accent) 34%, transparent) 36%, color-mix(in srgb, var(--accent) 12%, transparent) 70%, transparent),
+    radial-gradient(85% 58% at 55% 100%, color-mix(in srgb, var(--accent) 16%, transparent), transparent 85%);
   opacity: 1;
 }
 .wallpaper[data-wallpaper='neural-net'] .wallpaper-floor {

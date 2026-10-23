@@ -11,8 +11,8 @@
  *   BACKUP     export a file, import one (preview, then REPLACE), the
  *              reminder interval, and when the last export was;
  *   RESTORE    the automatic snapshots, newest first; RESTORE asks to confirm;
- *   APPEARANCE the colour palette, the wallpaper and its glow (any palette
- *              with any wallpaper);
+ *   APPEARANCE (first) the dashboard's colours, the wallpaper, the
+ *              wallpaper's colours and the glow;
  *   KEYS       the shortcuts.
  */
 import { type ChangeEvent, type CSSProperties, useId, useRef, useState } from 'react';
@@ -21,7 +21,7 @@ import { BRIDGE_VERSION } from '@/bridge/client';
 import { BackupError, type ParsedBackup, formatStamp } from '@/lib/backup';
 import { countLinks } from '@/lib/bookmarks';
 import { GLOW_LEVELS, REMINDER_DAY_CHOICES, summarizeLayout } from '@/lib/layout';
-import { PALETTES } from '@/lib/palettes';
+import { type PaletteId, PALETTES } from '@/lib/palettes';
 import { exportAge } from '@/lib/reminder';
 import { reasonLabel, type SnapshotInfo } from '@/lib/snapshots';
 import { compareVersions } from '@/lib/versions';
@@ -41,16 +41,43 @@ export function SystemPanel({ leaving }: { leaving: boolean }) {
   return (
     <Dialog title="SYSTEM" onClose={close} leaving={leaving} wide>
       <div className="panel-body">
+        <AppearanceSection />
         <BookmarksSection />
         <BackupSection />
         <RestoreSection />
-        <AppearanceSection />
         <KeysSection />
         <p className="small dim">
           CYBERDECK_TERMINAL v{APP_INFO.version} (BUILD {APP_INFO.build}) · YOUR LAYOUT STAYS IN THIS BROWSER
         </p>
       </div>
     </Dialog>
+  );
+}
+
+/** A row of palette swatches (a radio group), each chip previewing its palette in that palette's own colours. */
+function PaletteChoice({ label, name, value, onChange }: { label: string; name: string; value: PaletteId; onChange: (id: PaletteId) => void }) {
+  const labelId = useId();
+  return (
+    <>
+      <span className="setting-label" id={labelId}>
+        {label}
+      </span>
+      <div className="swatches" role="radiogroup" aria-labelledby={labelId}>
+        {PALETTES.map((p) => (
+          <label key={p.id} className="swatch">
+            <input className="sr-only" type="radio" name={name} value={p.id} checked={value === p.id} onChange={() => onChange(p.id)} />
+            {/* A preview in the palette's own colours (set here: they aren't the page's tokens until chosen). */}
+            <span
+              className="swatch-chip"
+              style={{ '--sw-surface': p.colors.surfaceRaised, '--sw-line': p.colors.line, '--sw-accent': p.colors.accent, '--sw-cool': p.colors.cool, '--sw-text': p.colors.text } as CSSProperties}
+            >
+              <span className="swatch-bar" aria-hidden />
+              <span className="swatch-name">{p.label}</span>
+            </span>
+          </label>
+        ))}
+      </div>
+    </>
   );
 }
 
@@ -259,38 +286,21 @@ function RestoreSection() {
 }
 
 /**
- * APPEARANCE: the palette (swatches, each in its own colours), the
- * wallpaper and the glow. They're independent: every wallpaper takes its
- * colours from the palette.
+ * APPEARANCE (first in SYSTEM): the dashboard's colours, the wallpaper, the
+ * wallpaper's colours and the glow. The two palettes are chosen apart (user
+ * request, 2026-10-23): any dashboard colours with any wallpaper colours.
  */
 function AppearanceSection() {
   const current = useLayout((s) => s.layout.wallpaper);
   const glow = useLayout((s) => s.layout.prefs.rainGlow);
   const palette = useLayout((s) => s.layout.prefs.palette);
+  const wallpaperPalette = useLayout((s) => s.layout.prefs.wallpaperPalette);
   const glowId = useId();
-  const paletteId = useId();
   const wallpaperId = useId();
   return (
     <section className="settings-group" aria-label="Appearance">
       <h3 className="section-title">APPEARANCE</h3>
-      <span className="setting-label" id={paletteId}>
-        PALETTE
-      </span>
-      <div className="swatches" role="radiogroup" aria-labelledby={paletteId}>
-        {PALETTES.map((p) => (
-          <label key={p.id} className="swatch">
-            <input className="sr-only" type="radio" name="palette" value={p.id} checked={palette === p.id} onChange={() => layoutStore().getState().setPalette(p.id)} />
-            {/* A preview in the palette's own colours (set here: they aren't the page's tokens until chosen). */}
-            <span
-              className="swatch-chip"
-              style={{ '--sw-surface': p.colors.surfaceRaised, '--sw-line': p.colors.line, '--sw-accent': p.colors.accent, '--sw-cool': p.colors.cool, '--sw-text': p.colors.text } as CSSProperties}
-            >
-              <span className="swatch-bar" aria-hidden />
-              <span className="swatch-name">{p.label}</span>
-            </span>
-          </label>
-        ))}
-      </div>
+      <PaletteChoice label="DASHBOARD COLOURS" name="palette" value={palette} onChange={(id) => layoutStore().getState().setPalette(id)} />
       <span className="setting-label" id={wallpaperId}>
         WALLPAPER
       </span>
@@ -302,6 +312,7 @@ function AppearanceSection() {
           </label>
         ))}
       </div>
+      <PaletteChoice label="WALLPAPER COLOURS" name="wallpaper-palette" value={wallpaperPalette} onChange={(id) => layoutStore().getState().setWallpaperPalette(id)} />
       {/* The glow changes as the wallpaper runs (the rain: new glyphs at once, the rest as they fade). */}
       <div className="setting">
         <span id={glowId}>GLOW</span>

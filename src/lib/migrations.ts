@@ -104,6 +104,8 @@ export function normalizeLayout(doc: Record<string, unknown>): LayoutDocument {
   if (GLOW_LEVELS.includes(saved.rainGlow as GlowLevel)) prefs.rainGlow = saved.rainGlow as GlowLevel;
   // The palette (added in 0.6.0, the same way).
   if (PALETTE_IDS.includes(saved.palette as PaletteId)) prefs.palette = saved.palette as PaletteId;
+  // The wallpaper's own palette (0.6.1). Until then the wallpaper used the dashboard's: start from that.
+  prefs.wallpaperPalette = PALETTE_IDS.includes(saved.wallpaperPalette as PaletteId) ? (saved.wallpaperPalette as PaletteId) : prefs.palette;
 
   return { schemaVersion: LAYOUT_SCHEMA_VERSION, wallpaper: doc.wallpaper, prefs, bookmarks: normalizeBookmarks(doc.bookmarks), panels: normalizePanels(doc.panels) };
 }

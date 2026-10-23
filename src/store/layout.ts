@@ -34,8 +34,10 @@ export interface LayoutState {
   setReminderDays(days: number): void;
   /** Sets how strongly the rain glows. */
   setRainGlow(level: GlowLevel): void;
-  /** Sets the colour palette. */
+  /** Sets the dashboard's colour palette. */
   setPalette(id: PaletteId): void;
+  /** Sets the wallpaper's colour palette. */
+  setWallpaperPalette(id: PaletteId): void;
   /** Opens or collapses a bookmarks folder (by folderKey). */
   setFolderOpen(key: string, open: boolean): void;
   /** Keeps `bar` as the imported copy of the bookmarks bar (replacing any earlier copy). */
@@ -127,6 +129,11 @@ export function createLayoutStore(kv: KV, boot: Boot, onSaveError: SaveErrorHand
       setPalette(id) {
         const layout = get().layout;
         if (layout.prefs.palette !== id) commit({ ...layout, prefs: { ...layout.prefs, palette: id } });
+      },
+
+      setWallpaperPalette(id) {
+        const layout = get().layout;
+        if (layout.prefs.wallpaperPalette !== id) commit({ ...layout, prefs: { ...layout.prefs, wallpaperPalette: id } });
       },
 
       setRainGlow(level) {

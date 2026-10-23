@@ -43,8 +43,10 @@ export interface LayoutPrefs {
   backupReminderDays: number;
   /** How strongly the rain glows. */
   rainGlow: GlowLevel;
-  /** The colour palette (lib/palettes.ts), for the UI and the wallpaper alike. */
+  /** The dashboard's colour palette (lib/palettes.ts). */
   palette: PaletteId;
+  /** The wallpaper's colour palette: chosen on its own, not tied to the dashboard's (user request, 2026-10-23). */
+  wallpaperPalette: PaletteId;
 }
 
 /** The bookmarks part of the layout. */
@@ -83,7 +85,7 @@ export function defaultBookmarks(): BookmarksLayout {
 
 /** Preferences a new layout starts with. */
 export function defaultPrefs(): LayoutPrefs {
-  return { backupReminderDays: 14, rainGlow: DEFAULT_RAIN_GLOW, palette: DEFAULT_PALETTE };
+  return { backupReminderDays: 14, rainGlow: DEFAULT_RAIN_GLOW, palette: DEFAULT_PALETTE, wallpaperPalette: DEFAULT_PALETTE };
 }
 
 /** A new, empty layout. */
@@ -160,7 +162,8 @@ export function summarizeLayout(doc: LayoutDocument): string {
   if (open.length) parts.push(`${open.length} OPEN`);
   parts.push(`WALLPAPER ${doc.wallpaper.toUpperCase()}`);
   // The glow only when it isn't the default (keeps the usual summary short).
-  if (doc.prefs.palette !== DEFAULT_PALETTE) parts.push(`PALETTE ${doc.prefs.palette.toUpperCase()}`);
+  if (doc.prefs.palette !== DEFAULT_PALETTE) parts.push(`COLOURS ${doc.prefs.palette.toUpperCase()}`);
+  if (doc.prefs.wallpaperPalette !== DEFAULT_PALETTE) parts.push(`WALLPAPER COLOURS ${doc.prefs.wallpaperPalette.toUpperCase()}`);
   if (doc.prefs.rainGlow !== DEFAULT_RAIN_GLOW) parts.push(`GLOW ${doc.prefs.rainGlow.toUpperCase()}`);
   parts.push(doc.prefs.backupReminderDays ? `REMIND ${doc.prefs.backupReminderDays}D` : 'REMIND OFF');
   return parts.join(' · ');

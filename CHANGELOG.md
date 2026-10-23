@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.6.1 (build 11)
+- **APPEARANCE is first in SYSTEM.**
+- **The dashboard and the wallpaper have their own palettes:** DASHBOARD COLOURS and WALLPAPER COLOURS are chosen apart, any with any. Your current choice carries over to both.
+- **NEURAL NET's corner glow is softer:** about half as strong.
+- **NEURAL NET is smoother:** it draws on every frame your screen shows (no cap, so 120–144 Hz screens get every frame); each link fades at its own exact brightness as it stretches, instead of stepping between a few levels; colours change in finer steps; and a node a signal reaches swells into light instead of popping on.
+
 ## 0.6.0 (build 10)
 **A second wallpaper, and colour palettes: any palette with any wallpaper.**
 - **NEURAL NET wallpaper,** animated from your reference (a plexus): glowing nodes joined by long thin links, drifting slowly round their places, with out-of-focus particles rising behind and signals running along the links that light each node they reach. A deep cool sky above, the accent glowing up from the bottom right. With BLOOD it matches the reference within a few percent, region by region. It runs in the wallpaper's worker like the rain, at about 22 ms of drawing a second (the rain: 30).
