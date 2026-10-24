@@ -20,7 +20,8 @@ describe('layout', () => {
       bookmarks: { arrangement: { hidden: [], areas: [], order: [] }, open: [], importedAt: null, imported: null },
       prefs: { backupReminderDays: 14, rainGlow: 'high' as const, palette: 'phosphor' as const, wallpaperPalette: 'phosphor' as const, wallpaperZoom: {} },
       wallpaper: 'matrix-rain',
-      schemaVersion: 3 as const,
+      modules: [],
+      schemaVersion: 4 as const,
     };
     expect(sameLayout(a, b)).toBe(true);
     expect(canonicalJson({ b: 1, a: { d: 2, c: 3 } })).toBe('{"a":{"c":3,"d":2},"b":1}');
@@ -118,7 +119,7 @@ describe('snapshots', () => {
 
   it('fingerprints content, not key order', () => {
     const a = defaultLayout();
-    const reordered = JSON.parse(JSON.stringify({ panels: a.panels, bookmarks: a.bookmarks, prefs: a.prefs, wallpaper: a.wallpaper, schemaVersion: a.schemaVersion }));
+    const reordered = JSON.parse(JSON.stringify({ modules: a.modules, panels: a.panels, bookmarks: a.bookmarks, prefs: a.prefs, wallpaper: a.wallpaper, schemaVersion: a.schemaVersion }));
     expect(layoutFingerprint(reordered)).toBe(layoutFingerprint(a));
     expect(layoutFingerprint(layoutWith(30))).not.toBe(layoutFingerprint(a));
   });

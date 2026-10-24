@@ -12,12 +12,16 @@
  *   /  the finder: find a bookmark, or run a command (Finder.tsx)
  *   + −  zoom the wallpaper in / out a step, 0 back to 100% (zoom.ts; in
  *        fullscreen too: it's the wallpaper alone there)
+ *   1–9  open the QUICK LAUNCH tile with that key (modules/actions.ts; not
+ *        while editing, when tiles don't open, nor in immersive mode)
  */
 import { useEffect } from 'react';
 
+import { editStore } from '@/store/edit';
 import { uiStore } from '@/store/ui';
 
 import { toggleFullscreen } from './fullscreen';
+import { openKeyedTile } from './modules/actions';
 import { zoomWallpaper } from './zoom';
 
 /** Is the key event aimed at somewhere you type? */
@@ -31,8 +35,11 @@ export function modified(e: Pick<KeyboardEvent, 'ctrlKey' | 'altKey' | 'metaKey'
   return e.ctrlKey || e.altKey || e.metaKey;
 }
 
+/** A QUICK LAUNCH key's shortcut: `launch-1` … `launch-9`. */
+export type LaunchShortcut = `launch-${1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9}`;
+
 /** What a shortcut does. */
-export type Shortcut = 'fullscreen' | 'system' | 'find' | 'zoom-in' | 'zoom-out' | 'zoom-reset';
+export type Shortcut = 'fullscreen' | 'system' | 'find' | 'zoom-in' | 'zoom-out' | 'zoom-reset' | LaunchShortcut;
 
 /**
  * The action for a key press, or null when the page should leave it alone.
@@ -57,7 +64,8 @@ export function shortcutFor(e: Pick<KeyboardEvent, 'key' | 'target' | 'ctrlKey' 
     case '0':
       return 'zoom-reset';
     default:
-      return null;
+      // 1–9: the QUICK LAUNCH keys (0 stays the zoom's reset).
+      return /^[1-9]$/.test(e.key) ? (`launch-${e.key}` as LaunchShortcut) : null;
   }
 }
 
@@ -68,6 +76,12 @@ export function useShortcuts(blocked: boolean): void {
     const onKey = (e: KeyboardEvent) => {
       const action = shortcutFor(e);
       if (!action) return;
+      if (action.startsWith('launch-')) {
+        // A key with no tile on it (or while editing, or immersive) stays the browser's.
+        if (editStore.getState().editing || uiStore.getState().immersive) return;
+        if (openKeyedTile(Number(action.slice(7)))) e.preventDefault();
+        return;
+      }
       e.preventDefault();
       if (action === 'fullscreen') void toggleFullscreen();
       // Zoom works in fullscreen too (the wallpaper is all there is to see there).

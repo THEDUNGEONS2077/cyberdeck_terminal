@@ -17,7 +17,8 @@ A terminal/cyberdeck start page: a **webpage** the user sets as Chrome's homepag
   - Never write over data you couldn't read: keep it under `corrupt.*`.
 - **Shared origin.** quest_log_desktop is served from the same origin, `thedungeons2077.github.io`. Use only the IndexedDB database `cyberdeck_terminal` and the cache prefix `cyberdeck_terminal-`, and never touch the other app's storage.
 - **No network code and no analytics.** The page is static files.
-- **Arranging:** everything goes through `lib/arrange.ts` (pure, tested) and `editStore.apply` (undoable). Drags need a keyboard alternative (the ⋯ menu, or grip arrow keys).
+- **Arranging:** everything goes through `lib/arrange.ts` and `lib/modules.ts` (pure, tested) and `editStore.apply` (undoable). Drags need a keyboard alternative (the ⋯ menu, or grip arrow keys).
+- **Modules** (`app/modules/`): a new kind gets a case in `lib/modules.ts`, its rules in a pure `lib/<kind>.ts`, an entry in `app/modules/catalog.ts`, and a file exporting `Panel` and `Settings` (loaded with the app: see catalog.ts for why not lazily). Nothing in a module may loop or tick while it can't be seen.
 - **Startup:** keep `src/main.tsx` tiny (styles + wallpaper only); the app loads as a separate chunk.
 - **Links open in a new tab** (`target=_blank rel="noopener noreferrer"`): the user's choice, 2026-10-22.
 - **The bridge:**

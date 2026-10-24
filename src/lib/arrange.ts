@@ -42,7 +42,7 @@ export interface Arrangement {
   hidden: string[];
 }
 
-/** Where a panel sits: its top-left corner as a share of the window (0–1), and its width in px (NAV only). */
+/** Where a panel sits: its top-left corner as a share of the window (0–1), and its width in px (NAV and the modules). */
 export interface PanelPlace {
   x: number;
   y: number;
@@ -65,6 +65,14 @@ export const MAX_AREAS = 50;
 /** NAV's width limits (px). */
 export const NAV_MIN_W = 360;
 export const NAV_MAX_W = 2400;
+
+/** How narrow and how wide a resizable panel can be (px). */
+export interface WidthLimits {
+  min: number;
+  max: number;
+}
+/** NAV's width limits, as WidthLimits. */
+export const NAV_WIDTH: WidthLimits = { min: NAV_MIN_W, max: NAV_MAX_W };
 
 /** No arrangement: everything where Chrome has it. */
 export function emptyArrangement(): Arrangement {
@@ -303,10 +311,10 @@ export function chromeOrder(arr: Arrangement): Arrangement {
   return { ...arr, order: [], areas: [] };
 }
 
-/** A panel place kept inside sensible bounds (shares 0–0.95; NAV width within its limits). */
-export function clampPlace(place: PanelPlace): PanelPlace {
+/** A panel place kept inside sensible bounds (shares 0–0.95; a width within `width`, NAV's unless said). */
+export function clampPlace(place: PanelPlace, width: WidthLimits = NAV_WIDTH): PanelPlace {
   const clamp = (v: number, lo: number, hi: number) => (Number.isFinite(v) ? Math.min(hi, Math.max(lo, v)) : lo);
   const out: PanelPlace = { x: clamp(place.x, 0, 0.95), y: clamp(place.y, 0, 0.95) };
-  if (place.w !== undefined) out.w = Math.round(clamp(place.w, NAV_MIN_W, NAV_MAX_W));
+  if (place.w !== undefined) out.w = Math.round(clamp(place.w, width.min, width.max));
   return out;
 }

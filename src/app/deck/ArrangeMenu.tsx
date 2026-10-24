@@ -11,16 +11,20 @@
  *   MOVE TO A NEW AREA             makes an area with just this in it
  *   BACK TO CHROME'S PLACE         undoes your placement of it
  *   HIDE                           into the HIDDEN tray
+ *   PIN TO QUICK LAUNCH            a link becomes a QUICK LAUNCH tile
+ *                                  (app/modules/actions.ts)
  */
 import { type KeyboardEvent, useLayoutEffect, useRef } from 'react';
 
 import { type Arranged, addArea, hideItem, isPlaced, keyKind, moveItem, unplaceItem } from '@/lib/arrange';
+import { isOpenable } from '@/lib/bookmarks';
 import { editStore } from '@/store/edit';
 
 import { uiStore } from '@/store/ui';
 
 import { G } from '../glyphs';
 import { useLayout } from '../hooks';
+import { isPinned, pinToLaunch } from '../modules/actions';
 
 /** What the menu is for: an item shown in `section`, under the ⋯ button `anchor`. */
 export interface MenuState {
@@ -73,7 +77,7 @@ export function ArrangeMenu({ menu, arranged, onClose, onNewArea }: { menu: Menu
     run((s) => ({ ...s, arrangement: moveItem(s.arrangement, key, { section: target, before }, arranged.mainKeys) }), said);
 
   // The menu's items, in groups (a rule between groups): along the section; into another section; back or away.
-  const groups: { glyph: string; label: string; act: () => void }[][] = [[], [], []];
+  const groups: { glyph: string; label: string; act: () => void }[][] = [[], [], [], []];
   if (at > 0) groups[0]!.push({ glyph: G.earlier, label: 'MOVE EARLIER', act: () => moveTo(section, same[at - 1]!, `MOVED ${label} EARLIER`) });
   if (at >= 0 && at < same.length - 1) groups[0]!.push({ glyph: G.later, label: 'MOVE LATER', act: () => moveTo(section, same[at + 2] ?? null, `MOVED ${label} LATER`) });
   if (section !== 'main') groups[1]!.push({ glyph: G.moveTo, label: 'MOVE TO NAV', act: () => moveTo('main', null, `MOVED ${label} TO NAV`) });
@@ -94,6 +98,18 @@ export function ArrangeMenu({ menu, arranged, onClose, onNewArea }: { menu: Menu
   });
   if (isPlaced(arrangement, key)) groups[2]!.push({ glyph: G.restore, label: 'BACK TO CHROME’S PLACE', act: () => run((s) => ({ ...s, arrangement: unplaceItem(s.arrangement, key) }), `${label} IS BACK WHERE CHROME HAS IT`) });
   groups[2]!.push({ glyph: G.hide, label: 'HIDE', act: () => run((s) => ({ ...s, arrangement: hideItem(s.arrangement, key) }), `HID ${label}: SHOW IT FROM THE HIDDEN TRAY`, true) });
+  // A link a webpage can open can be pinned to QUICK LAUNCH (once).
+  const url = arranged.all.get(key)?.node.url;
+  if (url !== undefined && isOpenable(url) && !isPinned(url)) {
+    groups[3]!.push({
+      glyph: '»',
+      label: 'PIN TO QUICK LAUNCH',
+      act: () => {
+        pinToLaunch(url, title);
+        onClose();
+      },
+    });
+  }
   const rows = groups.filter((g) => g.length);
   const count = rows.reduce((n, g) => n + g.length, 0);
 

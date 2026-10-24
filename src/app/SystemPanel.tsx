@@ -369,7 +369,11 @@ function KeysSection() {
         </div>
         <div>
           <dt>/</dt>
-          <dd>FIND: TYPE TO FIND A BOOKMARK OR A COMMAND; ↑↓ CHOOSE, ENTER OPENS.</dd>
+          <dd>FIND: TYPE TO FIND A BOOKMARK OR A COMMAND, OR SEARCH THE WEB; ↑↓ CHOOSE, ENTER OPENS.</dd>
+        </div>
+        <div>
+          <dt>1–9</dt>
+          <dd>OPEN A QUICK LAUNCH TILE (ITS KEY IS ON IT).</dd>
         </div>
         <div>
           <dt>+ −</dt>

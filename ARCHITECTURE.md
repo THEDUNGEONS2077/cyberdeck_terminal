@@ -8,7 +8,7 @@
 | `src/wallpaper/` | Animated wallpapers on a canvas: `host.ts` owns the canvas and runs the wallpaper in `worker.ts`; `catalog.ts` names them, `registry.ts` holds their engines | `lib` (ids and glow levels only) |
 | `src/bridge/` | `client.ts`: messaging with the bridge extension (Chrome's externally_connectable API) | `lib` |
 | `bridge/` | The **CYBERDECK BRIDGE** extension itself (MV3, plain JS), zipped into the build as `cyberdeck-bridge.zip` | nothing |
-| `src/app/` | React UI: `App`, `Hud`, `SystemPanel`, `Dialog`, `Toast`, shortcuts, fullscreen; the deck in `Bookmarks.tsx` + `deck/`; `arrangeDrag.ts`, `panels.tsx` | everything |
+| `src/app/` | React UI: `App`, `Hud`, `SystemPanel`, `Dialog`, `Toast`, `PopupMenu`, shortcuts, fullscreen; the deck in `Bookmarks.tsx` + `deck/`; `arrangeDrag.ts`, `panels.tsx`; the modules in `modules/` | everything |
 
 ## Palettes
 - **`src/lib/palettes.ts`** (pure): the palettes, each a set of base colours keyed by token (`PALETTE_TOKENS`), plus WCAG contrast maths for the test that holds every palette to the colour rule.
@@ -46,8 +46,9 @@ A first visit: rain about 0.37 s, dashboard about 0.43 s (the test server's HTTP
 ## The page
 ```
 .wallpaper         fixed, z 0 (index.html): haze · canvas (screen-sized, drawn by the worker) · fade to black at the bottom
-<main.ui-layer>    fixed, z 1: HUD, NAV, toast. Fades out and goes inert in immersive mode
+<main.ui-layer>    fixed, z 1: HUD, NAV, the modules, toast. Fades out and goes inert in immersive mode
 <SystemPanel>      modal dialog (S)
+<ModuleSettings>   modal dialog (a module's ⋯ ▸ SETTINGS)
 <Finder>           modal dialog (/)
 ```
 **Immersive mode (F):**
@@ -94,7 +95,8 @@ bridge/background.js ──(externally_connectable)──▶ src/bridge/client.t
 **`bookmarks.html` import:** `lib/bookmarks.ts` `parseBookmarksHtml` reads the Netscape export without a DOM and takes the folder marked `PERSONAL_TOOLBAR_FOLDER`.
 
 ## Arranging (edit mode)
-- **`lib/arrange.ts`** (pure) holds your `Arrangement`: `order` (NAV), `areas` and `hidden`, plus the `Panels` places. Both are stored in the layout document (schema 3), so backups and snapshots cover them.
+- **`lib/arrange.ts`** (pure) holds your `Arrangement`: `order` (NAV), `areas` and `hidden`, plus the `Panels` places. Both are stored in the layout document (since schema 3), so backups and snapshots cover them.
+- **An edit is an `EditShape`:** the arrangement, the panels and the modules (`store/edit.ts`). `withPlace(shape, id, place)` places any panel, NAV, the brand panel or a module, so the grips and drags share one path.
 - **Item keys** are `l:<url>` (`#2`… for repeats) and `f:<folder path>`.
 - **`arrange(bar, arrangement)`** works out NAV, the areas, the hidden items, and what folders leave out. Unplaced items follow Chrome's order (`mergeOrder`).
 - **`store/edit.ts`:** `begin` takes a BEFORE EDIT snapshot. `apply` pushes an undo step and saves at once. `undoLast` / `revert` step back. `done` locks and snapshots.
@@ -106,6 +108,19 @@ bridge/background.js ──(externally_connectable)──▶ src/bridge/client.t
   - `uiStore.announce` feeds a polite live region (`App.tsx` `Announcer`).
   - Drags dim their source (`data-drag-source`) and show `.drop-line` or `.drop-zone`.
 - **Panels** are placed with `left`/`top` from shares of the window, clamped on screen. There are no transforms, so text stays crisp, and narrow windows ignore the places.
+
+## Modules
+- **What they are:** panels you add, place and size yourself (SEARCH, QUICK LAUNCH, TIME). They're kept in `layout.modules` (schema 4: the 3 → 4 step adds an empty list), so saving, snapshots, backups and restore cover them.
+- **`lib/modules.ts`** (pure) holds the list's rules: `newModule` at a free spot down the right-hand side, `addModule`, `placeModule`, `removeModule`, `setSettings`, and `normalizeModules`, which drops unknown kinds, bad ids and malformed entries one by one, never the whole layout. Ids are `m…`, so they can't be taken for `nav` or `brand`.
+- **Each kind's rules** are their own pure files:
+  - `lib/search.ts`: the engines, a custom address with `%s`, and `searchUrl` (the words URL-encoded). The page only opens the address.
+  - `lib/launch.ts`: tiles (`cleanUrl` takes only http(s) addresses), add, move, remove, and `launchTargets` for keys 1–9 across modules.
+  - `lib/time.ts`: countdowns counted in calendar days (UTC midnights, so clock changes don't matter), `monthGrid` (Monday first), `clockText`.
+- **The page:**
+  - `app/modules/catalog.ts` names each kind and holds its file (`SearchModule`, `LaunchModule`, `TimeModule`, each exporting `Panel` and `Settings`). They load with the app: lazily, the bundler split their shared code into seven small chunks, and a first visit was ~130 ms slower.
+  - `app/modules/Modules.tsx` draws the frames: grip, ⋯ (`PopupMenu`), resize edge, the kind's panel (inert while editing), and the SETTINGS dialog (`ui.moduleSettings`). Narrow windows (`useNarrow`) stack them inside NAV's scrolling area instead.
+  - `app/modules/actions.ts` is what the rest of the page uses: the finder's web search, keys 1–9 (`useShortcuts`), and PIN TO QUICK LAUNCH from a bookmark's ⋯.
+- **TIME and the battery.** Nothing loops. The clock redraws once a second, the calendar and countdowns at midnight, and the timer and stopwatch only while they run. All of it pauses while the tab is hidden or the page is immersive, and reads the clock afresh when it's seen again. A running timer has one timeout to its end, so its notice arrives even from the background.
 
 ## Storage and recovery
 IndexedDB, database `cyberdeck_terminal`, store `kv`. quest_log_desktop shares the origin, so the name is this app's own. The keys:

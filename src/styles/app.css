@@ -1904,6 +1904,343 @@ a.text-btn {
   background: var(--line);
 }
 
+/* --- Modules (app/modules/) ------------------------------------------------ */
+/* A module: a framed panel where you put it (lib/modules.ts place, as CSS variables
+   from app/panels.tsx placeStyle), kept on screen with clamp(); no transforms, so its
+   text stays crisp. Solid surfaces: text never sits on the wallpaper. */
+.module {
+  position: absolute;
+  left: clamp(8px, calc(var(--px) * 100vw), calc(100vw - var(--pw, 320px) - 8px));
+  top: clamp(8px, calc(var(--py) * 100vh), calc(100vh - 120px));
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-sm);
+  width: min(var(--pw, 320px), calc(100vw - 16px));
+  max-height: calc(100vh - 16px);
+  padding: var(--s-sm);
+  border: var(--hairline) solid var(--line);
+  border-radius: var(--radius);
+  background: var(--scanlines), var(--phosphor), var(--surface);
+}
+/* Narrow windows: one under another, under NAV, in its scrolling area. */
+.module-stack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-sm);
+  margin-top: var(--s-sm);
+}
+.module.stacked {
+  position: static;
+  width: auto;
+  max-height: none;
+}
+.module.editing {
+  border-style: dashed;
+  border-color: var(--accent-35);
+}
+/* While editing, the content keeps clear of the resize edge. */
+.module.editing:not(.stacked) {
+  padding-right: 14px;
+}
+.module-head {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: var(--s-sm);
+  min-height: 24px;
+  padding-bottom: var(--s-xs);
+}
+.module-head::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: var(--hairline);
+  background: var(--lit-rule);
+}
+.module-title {
+  color: var(--text-bright);
+  font-size: var(--fs-small);
+  font-weight: 700;
+  letter-spacing: 1px;
+}
+.module-note {
+  margin-left: auto;
+  color: var(--text-dim);
+  font-size: var(--fs-micro);
+  letter-spacing: 1px;
+}
+/* The ⋯ sits at the right end (.item-menu-btn's own auto margin), right after the note when there is one. */
+.module-note + .item-menu-btn {
+  margin-left: 0;
+}
+.module-body {
+  min-height: 0;
+  overflow-y: auto;
+}
+/* Editing: the module's own controls rest (it's inert), shown a little dimmer. */
+.module.editing .module-body {
+  opacity: 0.6;
+}
+/* A text field in a module or its SETTINGS. */
+.module-input {
+  flex: 1;
+  min-width: 0;
+  height: var(--control);
+  padding: 0 var(--s-sm);
+  border: 0;
+  outline: none;
+  background: transparent;
+  color: var(--text-bright);
+  caret-color: var(--accent);
+  font-size: var(--fs-meta);
+  letter-spacing: 0.5px;
+  color-scheme: dark;
+}
+.module-input::placeholder {
+  color: var(--text-dim);
+}
+.module-input.boxed {
+  /* Its own height in a column (flex: 1 would squash it to its text). */
+  flex: none;
+  width: 100%;
+  border: var(--hairline) solid var(--line);
+  border-radius: var(--radius);
+  background: var(--bg);
+}
+.module-input.boxed:focus {
+  border-color: var(--accent);
+  box-shadow: var(--glow-faint);
+}
+.module-input.boxed[aria-invalid='true'] {
+  border-color: var(--accent-35);
+  border-style: dashed;
+}
+.module-input.number {
+  flex: none;
+  width: 96px;
+}
+.field-row {
+  display: flex;
+  gap: var(--s-sm);
+}
+.field-row .module-input.boxed {
+  flex: 1;
+}
+
+/* SEARCH: the prompt, the field, GO. */
+.search-form {
+  display: flex;
+  align-items: center;
+  gap: var(--s-xs);
+  padding: 0 var(--s-xs) 0 var(--s-sm);
+  border: var(--hairline) solid var(--line);
+  border-radius: var(--radius);
+  background: var(--bg);
+}
+.search-form:focus-within {
+  border-color: var(--accent);
+  box-shadow: var(--glow-faint);
+}
+/* The browser's own ✕ in a search field doesn't fit the look; Esc still clears it. */
+.search-form input::-webkit-search-cancel-button {
+  display: none;
+}
+
+/* QUICK LAUNCH: big tiles, the key in the corner. */
+.launch-tiles {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(112px, 1fr));
+  gap: 6px;
+}
+.launch-tile {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  min-height: 72px;
+  padding: var(--s-sm);
+  border: var(--hairline) solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--text-bright);
+  font-size: var(--fs-meta);
+  line-height: var(--lh-meta);
+  text-decoration: none;
+  transition-property: color, background-color, border-color, box-shadow;
+  transition-duration: var(--fast);
+  transition-timing-function: var(--ease);
+}
+.launch-tile:hover,
+.launch-tile:focus-visible {
+  border-color: var(--accent-35);
+  background: var(--surface-raised);
+  box-shadow:
+    inset 0 2px 0 var(--accent),
+    var(--glow-faint);
+}
+.launch-tile:active {
+  background: var(--accent-10);
+}
+.launch-tile .favicon,
+.launch-tile .link-glyph {
+  margin-bottom: 2px;
+}
+.launch-title {
+  max-width: 100%;
+  overflow: hidden;
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.launch-tile .link-host {
+  max-width: 100%;
+}
+.launch-key {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  min-width: 18px;
+  height: 18px;
+  font-size: var(--fs-micro);
+}
+/* A list of tiles or countdowns in SETTINGS, each with its buttons. */
+.tile-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-xs);
+  padding: 0;
+  list-style: none;
+}
+.tile-list-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, auto) auto;
+  align-items: center;
+  gap: var(--s-sm);
+  min-height: var(--control);
+  padding-left: var(--s-sm);
+  border: var(--hairline) solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+.tile-list-title {
+  overflow: hidden;
+  color: var(--text-bright);
+  font-size: var(--fs-meta);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.tile-list-actions {
+  display: flex;
+  gap: 2px;
+}
+.tile-add {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-xs);
+  padding-top: var(--s-sm);
+}
+
+/* TIME: the clock, the month, the countdowns, the timer and the stopwatch. */
+.time-module {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-sm);
+}
+.time-clock {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--s-xs) var(--s-md);
+  font-size: var(--fs-small);
+  letter-spacing: 1px;
+}
+.time-now {
+  color: var(--text-bright);
+  font-size: var(--fs-title);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 1px;
+  text-shadow: var(--glow-text-faint);
+}
+.time-month {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--fs-micro);
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+}
+.time-month caption {
+  padding-bottom: var(--s-xs);
+  text-align: left;
+}
+.time-month th {
+  padding: 2px 0;
+  color: var(--text-dim);
+  font-weight: 400;
+}
+.time-month td {
+  padding: 2px 0;
+  color: var(--text);
+}
+.time-month td.today {
+  outline: var(--hairline) solid var(--accent);
+  outline-offset: -1px;
+  background: var(--accent-10);
+  color: var(--text-bright);
+  font-weight: 700;
+  text-shadow: var(--glow-text);
+}
+.time-countdowns {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+/* A row: the label, a dotted rule, the value (a terminal readout). */
+.time-row {
+  display: flex;
+  align-items: center;
+  gap: var(--s-sm);
+  min-height: 22px;
+  font-size: var(--fs-small);
+  letter-spacing: 1px;
+}
+.time-label {
+  flex: none;
+  color: var(--text);
+}
+.time-fill {
+  flex: 1;
+  min-width: var(--s-md);
+  border-bottom: var(--hairline) dotted var(--line);
+}
+.time-value {
+  flex: none;
+  color: var(--text-bright);
+  font-variant-numeric: tabular-nums;
+}
+.time-row.due .time-value,
+.time-row.due .time-label {
+  color: var(--accent);
+  text-shadow: var(--glow-text);
+}
+.time-tool {
+  padding-top: var(--s-xs);
+  border-top: var(--hairline) solid var(--line);
+}
+.time-big {
+  font-size: var(--fs-body);
+  font-weight: 700;
+}
+.time-actions {
+  display: flex;
+  gap: var(--s-xs);
+  margin-left: auto;
+}
+
 /* --- Narrow windows ------------------------------------------------------ */
 @media (max-width: 600px) {
   .hud-brand,

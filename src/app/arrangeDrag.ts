@@ -1,7 +1,8 @@
 /**
  * src/app/arrangeDrag.ts: dragging in edit mode: bookmarks and folders
  * between NAV, your areas and the HIDDEN tray; areas up and down; the
- * panels around the screen, and NAV's width.
+ * panels (NAV, the brand panel, the modules) around the screen, and the
+ * widths of NAV and the modules.
  *
  * Layer: UI (pointer events and the DOM). Pointer events, so a mouse, a
  * pen and a touch screen all work. A press only becomes a drag after the
@@ -20,8 +21,9 @@
 import { useCallback, useEffect, useRef } from 'react';
 import { createStore } from 'zustand/vanilla';
 
-import { type PanelId, type PanelPlace, clampPlace, hideItem, keyKind, moveArea, moveItem } from '@/lib/arrange';
-import { editStore } from '@/store/edit';
+import { NAV_WIDTH, type PanelPlace, type WidthLimits, clampPlace, hideItem, keyKind, moveArea, moveItem } from '@/lib/arrange';
+import { MODULE_WIDTH } from '@/lib/modules';
+import { editStore, withPlace } from '@/store/edit';
 import { layoutStore } from '@/store/instance';
 import { uiStore } from '@/store/ui';
 
@@ -35,8 +37,8 @@ const SCROLL_EDGE = 48;
 export type DragPayload =
   | { kind: 'item'; key: string; label: string; mainKeys: readonly string[] }
   | { kind: 'area'; id: string; label: string }
-  | { kind: 'panel'; id: PanelId; el: HTMLElement }
-  | { kind: 'resize'; el: HTMLElement };
+  | { kind: 'panel'; id: string; el: HTMLElement }
+  | { kind: 'resize'; id: string; el: HTMLElement };
 
 /** Where a drop would land, and the line that shows it (viewport px). */
 type Target =
@@ -120,9 +122,15 @@ function areaTarget(y: number, id: string): Target | null {
   return { kind: 'area', before: null, line: { left: r.left, top: r.bottom + 2, width: r.width, height: 2 } };
 }
 
-/** A panel's place from its box on screen (shares of the window; NAV keeps its width). */
-export function placeFromRect(r: DOMRect, withWidth: boolean): PanelPlace {
-  return clampPlace({ x: r.left / window.innerWidth, y: r.top / window.innerHeight, w: withWidth ? r.width : undefined });
+/** A panel's place from its box on screen (shares of the window; a panel with `width` limits keeps its width). */
+export function placeFromRect(r: DOMRect, width: WidthLimits | null): PanelPlace {
+  return clampPlace({ x: r.left / window.innerWidth, y: r.top / window.innerHeight, w: width ? r.width : undefined }, width ?? NAV_WIDTH);
+}
+
+/** How wide panel `id` may be: NAV's limits, a module's, or null for the brand panel (it has no width). */
+export function widthOf(id: string): WidthLimits | null {
+  if (id === 'brand') return null;
+  return id === 'nav' ? NAV_WIDTH : MODULE_WIDTH;
 }
 
 /** A section's name for announcements: NAV, or the area's title. */
@@ -188,12 +196,13 @@ export function useArrangeDrag(scroller: React.RefObject<HTMLElement | null>) {
         if (payload.kind === 'panel') {
           el.style.setProperty('--px', String((box.left + px - sx) / window.innerWidth));
           el.style.setProperty('--py', String((box.top + py - sy) / window.innerHeight));
-          if (payload.id === 'nav') el.style.setProperty('--pw', `${box.width}px`);
+          if (widthOf(payload.id)) el.style.setProperty('--pw', `${box.width}px`);
         } else {
-          const place = placeFromRect(box, true);
+          const width = widthOf(payload.id) ?? NAV_WIDTH;
+          const place = placeFromRect(box, width);
           el.style.setProperty('--px', String(place.x));
           el.style.setProperty('--py', String(place.y));
-          el.style.setProperty('--pw', `${clampPlace({ ...place, w: box.width + px - sx }).w}px`);
+          el.style.setProperty('--pw', `${clampPlace({ ...place, w: box.width + px - sx }, width).w}px`);
         }
         return;
       }
@@ -238,10 +247,10 @@ export function useArrangeDrag(scroller: React.RefObject<HTMLElement | null>) {
       setTimeout(() => window.removeEventListener('click', swallow, true), 0);
       if (payload.kind === 'panel' || payload.kind === 'resize') {
         const el = payload.el;
-        const id: PanelId = payload.kind === 'panel' ? payload.id : 'nav';
+        const { id } = payload;
         if (commit) {
-          const place = placeFromRect(el.getBoundingClientRect(), id === 'nav');
-          editStore.getState().apply((s) => ({ ...s, panels: { ...s.panels, [id]: place } }));
+          const place = placeFromRect(el.getBoundingClientRect(), widthOf(id));
+          editStore.getState().apply((s) => withPlace(s, id, place));
         } else {
           // Cancelled: back where it was (React's next render restores the saved place).
           el.style.removeProperty('--px');

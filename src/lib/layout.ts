@@ -16,13 +16,15 @@
  *      folders are open (0.2.0)
  *   3  + bookmarks.arrangement (your areas, order, hidden items) and
  *      panels (where NAV and the brand sit) (0.3.0)
+ *   4  + modules: SEARCH, QUICK LAUNCH, TIME panels you add (0.11.0)
  */
 import { DEFAULT_PALETTE, type PaletteId } from './palettes';
 import { type Arrangement, type Panels, defaultPanels, emptyArrangement } from './arrange';
 import { type BookmarkNode, countLinks } from './bookmarks';
+import type { ModuleInstance } from './modules';
 
 /** The current schema version of the layout document. */
-export const LAYOUT_SCHEMA_VERSION = 3;
+export const LAYOUT_SCHEMA_VERSION = 4;
 
 /** The wallpaper a new layout starts with (src/wallpaper/registry.ts lists them all). */
 export const DEFAULT_WALLPAPER_ID = 'matrix-rain';
@@ -130,7 +132,7 @@ export interface BookmarksLayout {
   arrangement: Arrangement;
 }
 
-/** The layout document (schema version 3). */
+/** The layout document (schema version 4). */
 export interface LayoutDocument {
   schemaVersion: typeof LAYOUT_SCHEMA_VERSION;
   /** The id of the wallpaper shown behind the dashboard. */
@@ -139,6 +141,8 @@ export interface LayoutDocument {
   bookmarks: BookmarksLayout;
   /** Where NAV and the brand panel sit (null each = the default place). */
   panels: Panels;
+  /** The modules you've added, bottom to top (lib/modules.ts). */
+  modules: ModuleInstance[];
 }
 
 /** Most open folders remembered. */
@@ -156,7 +160,7 @@ export function defaultPrefs(): LayoutPrefs {
 
 /** A new, empty layout. */
 export function defaultLayout(): LayoutDocument {
-  return { schemaVersion: LAYOUT_SCHEMA_VERSION, wallpaper: DEFAULT_WALLPAPER_ID, prefs: defaultPrefs(), bookmarks: defaultBookmarks(), panels: defaultPanels() };
+  return { schemaVersion: LAYOUT_SCHEMA_VERSION, wallpaper: DEFAULT_WALLPAPER_ID, prefs: defaultPrefs(), bookmarks: defaultBookmarks(), panels: defaultPanels(), modules: [] };
 }
 
 /**
@@ -224,6 +228,7 @@ export function summarizeLayout(doc: LayoutDocument): string {
   if (arrangement.order.length) parts.push('CUSTOM ORDER');
   if (arrangement.hidden.length) parts.push(`${arrangement.hidden.length} HIDDEN`);
   if (doc.panels.nav || doc.panels.brand) parts.push('PANELS MOVED');
+  if (doc.modules.length) parts.push(`${doc.modules.length} MODULE${doc.modules.length === 1 ? '' : 'S'}`);
   if (imported) parts.push(`BAR COPY ${countLinks(imported)} LINKS`);
   if (open.length) parts.push(`${open.length} OPEN`);
   parts.push(`WALLPAPER ${doc.wallpaper.toUpperCase()}`);

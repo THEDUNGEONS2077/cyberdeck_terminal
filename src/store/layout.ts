@@ -15,6 +15,7 @@ import { createStore, type StoreApi } from 'zustand/vanilla';
 import type { Arrangement, Panels } from '@/lib/arrange';
 import type { BookmarkNode } from '@/lib/bookmarks';
 import { type GlowLevel, type LayoutDocument, withZoom, zoomOf } from '@/lib/layout';
+import type { ModuleInstance } from '@/lib/modules';
 import type { PaletteId } from '@/lib/palettes';
 import { type BackupMeta, SNOOZE_MS } from '@/lib/reminder';
 import { CHANGE_DEBOUNCE_MS, type SnapshotInfo, type SnapshotReason } from '@/lib/snapshots';
@@ -50,6 +51,8 @@ export interface LayoutState {
   setArrangement(arrangement: Arrangement): void;
   /** Sets where the panels sit. */
   setPanels(panels: Panels): void;
+  /** Sets the modules (their places and settings). */
+  setModules(modules: ModuleInstance[]): void;
   /** Takes a snapshot of the layout now (if it differs from the newest), e.g. as edit mode starts. */
   snapshotNow(reason: SnapshotReason): Promise<void>;
   /**
@@ -175,6 +178,11 @@ export function createLayoutStore(kv: KV, boot: Boot, onSaveError: SaveErrorHand
       setPanels(panels) {
         const layout = get().layout;
         if (layout.panels !== panels) commit({ ...layout, panels });
+      },
+
+      setModules(modules) {
+        const layout = get().layout;
+        if (layout.modules !== modules) commit({ ...layout, modules });
       },
 
       async snapshotNow(reason) {

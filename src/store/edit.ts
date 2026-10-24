@@ -11,11 +11,13 @@
  *   - UNDO: steps back through this session's changes, one at a time;
  *   - REVERT: back to how it all was when editing started (itself undoable);
  *   - DONE: locks the layout again and snapshots the result.
- * A change is an arrangement (areas, order, hidden) plus panel places.
+ * A change is an arrangement (areas, order, hidden), panel places and the
+ * modules (where they sit, what they hold).
  */
 import { createStore } from 'zustand/vanilla';
 
-import type { Arrangement, Panels } from '@/lib/arrange';
+import type { Arrangement, PanelPlace, Panels } from '@/lib/arrange';
+import { type ModuleInstance, placeModule } from '@/lib/modules';
 
 import { layoutStore } from './instance';
 
@@ -23,6 +25,13 @@ import { layoutStore } from './instance';
 export interface EditShape {
   arrangement: Arrangement;
   panels: Panels;
+  modules: ModuleInstance[];
+}
+
+/** The shape with panel `id` (NAV, the brand panel, or a module) at `place`. */
+export function withPlace(shape: EditShape, id: string, place: PanelPlace): EditShape {
+  if (id === 'nav' || id === 'brand') return { ...shape, panels: { ...shape.panels, [id]: place } };
+  return { ...shape, modules: placeModule(shape.modules, id, place) };
 }
 
 /** Most undo steps kept per session. */
@@ -39,7 +48,7 @@ export interface EditState {
   begin(): void;
   /** Locks it again. */
   done(): void;
-  /** Applies a change to the arrangement and/or panels (undoable). */
+  /** Applies a change to the arrangement, panels and/or modules (undoable). */
   apply(change: (shape: EditShape) => EditShape): void;
   /** Steps back one change. */
   undoLast(): void;
@@ -50,7 +59,7 @@ export interface EditState {
 /** The layout's current shape. */
 function current(): EditShape {
   const { layout } = layoutStore().getState();
-  return { arrangement: layout.bookmarks.arrangement, panels: layout.panels };
+  return { arrangement: layout.bookmarks.arrangement, panels: layout.panels, modules: layout.modules };
 }
 
 /** Writes a shape to the layout (saved at once). */
@@ -58,6 +67,7 @@ function write(shape: EditShape): void {
   const store = layoutStore().getState();
   store.setArrangement(shape.arrangement);
   store.setPanels(shape.panels);
+  store.setModules(shape.modules);
 }
 
 /** The app's edit store. */
@@ -82,7 +92,7 @@ export const editStore = createStore<EditState>((set, get) => ({
   apply(change) {
     const before = current();
     const after = change(before);
-    if (after.arrangement === before.arrangement && after.panels === before.panels) return;
+    if (after.arrangement === before.arrangement && after.panels === before.panels && after.modules === before.modules) return;
     set({ undo: [...get().undo, before].slice(-MAX_UNDO) });
     write(after);
   },

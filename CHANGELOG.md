@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.11.0 (build 18)
+- **Modules:** panels you add to the dashboard yourself, beside NAV. In EDIT, **+ MODULE** adds one at a free spot down the right-hand side. Move it by its grip (drag, or the arrow keys), resize it by its right edge, and use its ⋯ for SETTINGS and REMOVE. Everything is undoable, saved with your layout and in its backups, and in a narrow window the modules stack under NAV.
+  - **SEARCH:** type and press Enter to search the web in a new tab, with DuckDuckGo, Google, Bing, Kagi or your own engine (any address with `%s` where the words go). The page only opens the address; it sends nothing itself. The finder (`/`) now ends with "SEARCH … FOR" whatever you typed, so `/` + words + Enter searches when no bookmark matches.
+  - **QUICK LAUNCH:** big tiles for the sites you open most. Add one in its SETTINGS, or from a bookmark's ⋯ in EDIT (**PIN TO QUICK LAUNCH**); order and remove them there. Keys **1–9** open the first nine (**0** is still the wallpaper's zoom reset).
+  - **TIME:** a large clock, this month's calendar with today lit, your countdowns (a label and a date: "12 DAYS", "TOMORROW", "TODAY"), a timer (25 minutes unless you set another length) and a stopwatch. A finished timer says so with a notice. It's light: it ticks only while you can see it, and only the parts that change redraw.
+
 ## 0.10.1 (build 17)
 - **MEGACITY without the figure** (your call): the city is seen from the rooftop ledge alone, its glass railing now running the length of it.
 

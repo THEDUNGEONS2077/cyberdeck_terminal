@@ -1,6 +1,7 @@
 /**
  * src/app/App.tsx: the page: the wallpaper at the back, the UI layer above
- * it, and the SYSTEM panel when open.
+ * it (the brand panel, NAV, your modules), and the SYSTEM panel or a
+ * module's SETTINGS when open.
  *
  * Layer: UI. In immersive mode (F) the UI layer fades out, is made inert
  * (no focus, no clicks, hidden from screen readers) and the idle pointer
@@ -20,6 +21,7 @@ import { useLayout, useUi } from './hooks';
 import { BookmarksDeck } from './Bookmarks';
 import { Finder } from './Finder';
 import { Hud } from './Hud';
+import { ModuleSettingsDialog, Modules } from './modules/Modules';
 import { SystemPanel } from './SystemPanel';
 import { Toast } from './Toast';
 import { usePresence } from './usePresence';
@@ -69,6 +71,7 @@ export function App() {
   const immersive = useUi((s) => s.immersive);
   const panelOpen = useUi((s) => s.panelOpen);
   const finderOpen = useUi((s) => s.finderOpen);
+  const settingsOpen = useUi((s) => s.moduleSettings !== null);
   const panel = usePresence(panelOpen ? true : null, PANEL_EXIT_MS);
 
   // The wallpaper runs outside React (wallpaper/host.ts, started by main.tsx): only its choice is passed on.
@@ -85,7 +88,7 @@ export function App() {
 
   useFullscreenSync();
   useIdleCursor(immersive);
-  useShortcuts(panelOpen || finderOpen);
+  useShortcuts(panelOpen || finderOpen || settingsOpen);
   useBackupReminder();
   useBridge();
 
@@ -95,9 +98,11 @@ export function App() {
       <main className="ui-layer" data-hidden={immersive || undefined} inert={immersive}>
         <Hud />
         <BookmarksDeck />
+        <Modules />
         <Toast />
       </main>
       {panel.shown && <SystemPanel leaving={panel.leaving} />}
+      <ModuleSettingsDialog />
       <Finder />
       <Announcer />
     </>

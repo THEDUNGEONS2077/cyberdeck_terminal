@@ -6,6 +6,7 @@
  * The bar says the layout is unlocked and that changes save as they're
  * made, and holds:
  *   + AREA          a new area at the end, its name ready to type
+ *   + MODULE        a module (SEARCH, QUICK LAUNCH, TIME) at a free spot
  *   CHROME ORDER    everything back where Chrome has it (asks first)
  *   RESET PANELS    NAV and the brand back to their usual places
  *   UNDO            one step back (also Ctrl+Z)
@@ -19,11 +20,56 @@ import { useState } from 'react';
 
 import { type TreeItem, addArea, chromeOrder, defaultPanels, showItem } from '@/lib/arrange';
 import { hostOf } from '@/lib/bookmarks';
+import { MAX_MODULES, MODULE_KINDS, type ModuleKind, addModule, newModule, newModuleId } from '@/lib/modules';
 import { editStore } from '@/store/edit';
 import { uiStore } from '@/store/ui';
 
 import { useEdit, useLayout } from '../hooks';
+import { CATALOG } from '../modules/catalog';
+import { PopupMenu } from '../PopupMenu';
 import { newAreaId } from './ArrangeMenu';
+
+/** Adds a module of `kind` (undoable), says so, and puts the keyboard on its grip. */
+function addKind(kind: ModuleKind): void {
+  const id = newModuleId();
+  editStore.getState().apply((s) => ({ ...s, modules: addModule(s.modules, newModule(kind, id, s.modules)) }));
+  uiStore.getState().announce(`ADDED ${CATALOG[kind].label}: MOVE IT WITH ITS GRIP, OR THE ARROW KEYS`);
+  requestAnimationFrame(() => document.querySelector<HTMLElement>(`[data-module="${CSS.escape(id)}"] .panel-grip, [data-module="${CSS.escape(id)}"] .item-menu-btn`)?.focus());
+}
+
+/** + MODULE and its menu of kinds. */
+function AddModule() {
+  const count = useLayout((s) => s.layout.modules.length);
+  const [anchor, setAnchor] = useState<HTMLElement | null>(null);
+  const full = count >= MAX_MODULES;
+  return (
+    <>
+      <button
+        type="button"
+        className="text-btn small-btn primary"
+        data-add-module
+        aria-haspopup="menu"
+        disabled={full}
+        title={full ? `At most ${MAX_MODULES} modules` : 'Add a module: search, quick launch, time'}
+        onClick={(e) => setAnchor(e.currentTarget)}
+      >
+        + MODULE
+      </button>
+      {anchor && (
+        <PopupMenu
+          heading="ADD A MODULE"
+          label="Add a module"
+          anchor={anchor}
+          onClose={() => {
+            setAnchor(null);
+            if (anchor.isConnected) anchor.focus();
+          }}
+          groups={[MODULE_KINDS.map((kind) => ({ glyph: CATALOG[kind].glyph, label: CATALOG[kind].label, hint: CATALOG[kind].about, act: () => addKind(kind) }))]}
+        />
+      )}
+    </>
+  );
+}
 
 /** The toolbar. `onNewArea` is told a new area's id (so its name field takes the cursor). */
 export function EditBar({ onNewArea }: { onNewArea: (id: string) => void }) {
@@ -76,6 +122,7 @@ export function EditBar({ onNewArea }: { onNewArea: (id: string) => void }) {
         >
           + AREA
         </button>
+        <AddModule />
         <button type="button" className="text-btn small-btn" onClick={() => setConfirming(true)} title="Everything back where Chrome has it">
           CHROME ORDER
         </button>

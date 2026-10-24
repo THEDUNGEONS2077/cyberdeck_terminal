@@ -20,7 +20,8 @@
  * (store/edit.ts): the edit bar, dragging (app/arrangeDrag.ts), the ⋯
  * menus (deck/ArrangeMenu.tsx), area names and grips (deck/Areas.tsx), the
  * HIDDEN tray, and grips to move NAV and the brand panel and resize NAV
- * (app/panels.tsx). Esc locks it again; Ctrl+Z undoes.
+ * (app/panels.tsx); the modules get theirs too (app/modules/Modules.tsx).
+ * Esc locks it again; Ctrl+Z undoes.
  *
  * With bridge 1.1+ (its `features`): site icons, and CHROME NEW TAB /
  * BOOKMARK MANAGER (Chrome's own pages, in a new tab: hence ↗). An older
@@ -56,6 +57,7 @@ import { type BarSource, useShownBar } from './useShownBar';
 import { G } from './glyphs';
 import { useBookmarks, useEdit, useLayout } from './hooks';
 import { CopyAddress, DownloadBridgeButton, ImportBookmarksButton } from './ImportBookmarks';
+import { StackedModules } from './modules/Modules';
 import { MoveGrip, ResizeGrip, placeStyle } from './panels';
 import { Prompted } from './Prompted';
 import { typing } from './useShortcuts';
@@ -73,6 +75,8 @@ export function BookmarksDeck() {
   return (
     <div ref={area} className="deck-area" data-placed={place ? '' : undefined} style={placeStyle(place)}>
       {bar ? <Deck bar={bar} source={source} importedAt={importedAt} area={area} /> : status === 'absent' ? <ConnectPrompt /> : null}
+      {/* Narrow windows: the modules stack under NAV, in its scrolling area. */}
+      <StackedModules />
     </div>
   );
 }
@@ -93,7 +97,8 @@ function Deck({ bar, source, importedAt, area }: { bar: BookmarkNode; source: So
   useEffect(() => {
     if (!editing) return;
     const onKey = (e: KeyboardEvent) => {
-      if (typing(e) || menu) return;
+      // Not while a module's SETTINGS is open either: its Esc closes it, not edit mode.
+      if (typing(e) || menu || uiStore.getState().moduleSettings) return;
       if (e.key === 'Escape') {
         e.preventDefault();
         toggleEdit();

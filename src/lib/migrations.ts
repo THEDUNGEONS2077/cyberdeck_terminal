@@ -14,6 +14,7 @@
 import { type Arrangement, type Area, type PanelPlace, type Panels, MAX_AREAS, cleanTitle, clampPlace, defaultPanels, emptyArrangement } from './arrange';
 import { sanitizeTree } from './bookmarks';
 import { type BookmarksLayout, type GlowLevel, type LayoutDocument, GLOW_LEVELS, LAYOUT_SCHEMA_VERSION, MAX_OPEN_FOLDERS, defaultBookmarks, defaultPrefs, normalizeZooms } from './layout';
+import { normalizeModules } from './modules';
 import { PALETTE_IDS, type PaletteId } from './palettes';
 
 /** The document was written by a newer version of the app than this one. */
@@ -31,10 +32,12 @@ function isRecord(v: unknown): v is Record<string, unknown> {
  * Migration steps: STEPS[n] turns a version-n document into version n+1.
  *   1 → 2: bookmarks arrive (nothing imported, every folder collapsed).
  *   2 → 3: an empty arrangement (Chrome's order, no areas), panels in place.
+ *   3 → 4: no modules yet.
  */
 const STEPS: Record<number, (doc: Record<string, unknown>) => Record<string, unknown>> = {
   1: (doc) => ({ ...doc, bookmarks: { imported: null, importedAt: null, open: [] } }),
   2: (doc) => ({ ...doc, bookmarks: { ...(isRecord(doc.bookmarks) ? doc.bookmarks : {}), arrangement: emptyArrangement() }, panels: defaultPanels() }),
+  3: (doc) => ({ ...doc, modules: [] }),
 };
 
 /** Strings only, each once, at most `max`. */
@@ -109,7 +112,7 @@ export function normalizeLayout(doc: Record<string, unknown>): LayoutDocument {
   // Each wallpaper's zoom (0.9.0, the same way: an older layout has every wallpaper at 100%).
   prefs.wallpaperZoom = normalizeZooms(saved.wallpaperZoom);
 
-  return { schemaVersion: LAYOUT_SCHEMA_VERSION, wallpaper: doc.wallpaper, prefs, bookmarks: normalizeBookmarks(doc.bookmarks), panels: normalizePanels(doc.panels) };
+  return { schemaVersion: LAYOUT_SCHEMA_VERSION, wallpaper: doc.wallpaper, prefs, bookmarks: normalizeBookmarks(doc.bookmarks), panels: normalizePanels(doc.panels), modules: normalizeModules(doc.modules) };
 }
 
 /**

@@ -135,6 +135,14 @@ The motion is our own, and slow: a few windows go on or off every second, each a
 - **Drops:** a 2 px `--accent` line with `--glow-bright` marks the gap, or a lit outline marks an empty section or the tray. A small label follows the pointer.
 - **Destructive actions** (delete area, CHROME ORDER) confirm inline with a `danger` button, and are undoable.
 
+## Modules
+- **A module is a panel like NAV's:** a solid frame with scanlines and phosphor, a header with `> TITLE` (11 px, bold) and a short dimmed note on the right (the engine, the tile count), and a lit rule under it.
+- **In EDIT** its frame turns dashed and lit, as NAV's does. It gets a `⠿` grip on the left, a `⋯` on the right and a resize edge down its right side. Its contents dim and rest: nothing opens mid-arrangement.
+- **Where they go:** down the right-hand side, beside NAV (at 380 px or less, they clear NAV on a 1920 px screen). In a narrow window, they stack under NAV.
+- **SEARCH:** a field with the prompt `>` and GO ↗, lit on focus like the finder's.
+- **QUICK LAUNCH:** big tiles (72 px tall: the icon, the title in bold, the host dimmed), lit along the top on hover. The first nine carry their key in a `kbd` in the corner.
+- **TIME:** a terminal readout. The clock is large and bright (22 px, tabular figures). The month is a small grid with today outlined in the accent. Countdowns, the timer and the stopwatch are rows of label · dotted rule · value; a countdown due today, or a finished timer, is lit in the accent.
+
 ## The UI over the wallpaper
 - **The HUD.** The brand panel (the desktop's `.masthead`: scanlines, corner brackets) sits top left, compact (since 0.8.1: the name at half the title size, 11 px; the panel about 30% smaller; the time on the left and the date on the right). The key hints (`[F] FULLSCREEN`, `[S] SYSTEM`) sit bottom right, and both are buttons.
 - **Panels** sit on solid `--surface` / `--surface-raised`, so text never sits directly on the rain.

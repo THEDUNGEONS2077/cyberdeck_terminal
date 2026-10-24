@@ -362,6 +362,181 @@ try {
     await settled();
   });
 
+  // --- Modules (app/modules/): SEARCH, QUICK LAUNCH, TIME ---
+  /** A module's panel, by its kind's name. */
+  const mod = (name) => page.getByRole('region', { name, exact: true });
+  /** Opens a module's ⋯ ▸ SETTINGS (edit mode). */
+  const settingsOf = async (name) => {
+    await page.getByRole('button', { name: `${name} module options` }).click();
+    await page.getByRole('menuitem', { name: 'SETTINGS…' }).click();
+    await page.getByRole('dialog', { name: `${name} · SETTINGS` }).waitFor();
+  };
+  /** Every request off this page's own server gets a blank page (searches, tiles): the walk stays offline. */
+  // (globalThis.URL: this file's own URL is the page's address.)
+  const offline = (route) => (new globalThis.URL(route.request().url()).hostname === '127.0.0.1' ? route.continue() : route.fulfill({ body: 'ok', contentType: 'text/plain' }));
+
+  await path('+ MODULE adds SEARCH, QUICK LAUNCH and TIME, each at a free spot, with the keyboard on its grip', async () => {
+    await page.getByRole('button', { name: 'EDIT', exact: true }).click();
+    for (const name of ['SEARCH', 'QUICK LAUNCH', 'TIME']) {
+      await editBar().getByRole('button', { name: '+ MODULE' }).click();
+      await page.getByRole('menu', { name: 'Add a module' }).waitFor();
+      await page.getByRole('menuitem', { name }).click();
+      await mod(name).waitFor();
+      await page.waitForFunction((n) => document.activeElement?.getAttribute('aria-label')?.startsWith(`Move the ${n} module`), name);
+    }
+    const tops = await page.locator('.module').evaluateAll((els) => els.map((el) => Math.round(el.getBoundingClientRect().top)));
+    expect(tops.length === 3 && tops[0] < tops[1] && tops[1] < tops[2], `modules at ${tops}`);
+    // Beside NAV on a 1920 px screen, not over it.
+    const nav = await page.locator('.deck-area').boundingBox();
+    const left = await page.locator('.module').first().boundingBox();
+    expect(left.x >= nav.x + nav.width - 4, `SEARCH overlaps NAV (${left.x} < ${nav.x + nav.width})`);
+    await shot('18-modules-edit');
+  });
+
+  await path('modules move (drag, arrow keys) and resize (arrow keys), undoably', async () => {
+    const time = page.locator('.module[data-kind="time"]');
+    const t0 = await time.boundingBox();
+    const grip = await page.getByRole('button', { name: /^Move the TIME module/ }).boundingBox();
+    await page.mouse.move(grip.x + 8, grip.y + 8);
+    await page.mouse.down();
+    await page.mouse.move(grip.x - 300, grip.y + 60, { steps: 6 });
+    await page.mouse.up();
+    await page.waitForTimeout(150);
+    const t1 = await time.boundingBox();
+    expect(Math.abs(t1.x - (t0.x - 308)) < 4 && Math.abs(t1.y - (t0.y + 52)) < 4, `TIME moved by ${t1.x - t0.x}, ${t1.y - t0.y}`);
+    await page.getByRole('button', { name: /^Move the TIME module/ }).focus();
+    await page.keyboard.press('Shift+ArrowUp');
+    await page.waitForTimeout(100);
+    expect((await time.boundingBox()).y < t1.y - 40, 'the arrow keys didn’t move TIME');
+    await page.getByRole('button', { name: /^Resize the TIME module/ }).focus();
+    await page.keyboard.press('Shift+ArrowRight');
+    await page.waitForTimeout(100);
+    expect((await time.boundingBox()).width > t1.width + 40, 'TIME didn’t widen');
+    for (let i = 0; i < 3; i++) await editBar().getByRole('button', { name: 'UNDO' }).click();
+    await page.waitForTimeout(100);
+    const back = await time.boundingBox();
+    expect(Math.abs(back.x - t0.x) < 2 && Math.abs(back.y - t0.y) < 2 && Math.abs(back.width - t0.width) < 2, 'UNDO didn’t put TIME back');
+  });
+
+  await path('SETTINGS: SEARCH takes a custom engine, QUICK LAUNCH a tile, TIME a countdown', async () => {
+    await settingsOf('SEARCH');
+    const field = page.getByLabel(/^CUSTOM ENGINE/);
+    await field.fill('search.example/?q=%s');
+    expect(await page.getByRole('button', { name: 'USE IT' }).isDisabled(), 'an address without https:// was taken');
+    await field.fill('https://search.example/?q=%s');
+    await page.getByRole('button', { name: 'USE IT' }).click();
+    await page.getByRole('radio', { name: /^CUSTOM/ }).waitFor();
+    expect(await page.getByRole('radio', { name: /^CUSTOM/ }).isChecked(), 'the custom engine isn’t chosen');
+    await page.keyboard.press('Escape');
+    await mod('SEARCH').getByText('CUSTOM', { exact: true }).waitFor();
+
+    await settingsOf('QUICK LAUNCH');
+    await page.getByLabel('+ TILE · ADDRESS').fill('example.com');
+    await page.getByLabel('TITLE (OPTIONAL)').fill('Example');
+    await page.getByRole('button', { name: '+ TILE', exact: true }).click();
+    await page.locator('.tile-list-row', { hasText: 'Example' }).waitFor();
+    await page.keyboard.press('Escape');
+
+    await settingsOf('TIME');
+    const inTwelve = await page.evaluate(() => {
+      const d = new Date();
+      d.setDate(d.getDate() + 12);
+      return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    });
+    await page.getByLabel('+ COUNTDOWN · LABEL').fill('launch');
+    await page.getByLabel('DATE', { exact: true }).fill(inTwelve);
+    await page.getByRole('button', { name: '+ COUNTDOWN' }).click();
+    await page.locator('.tile-list-row', { hasText: 'LAUNCH' }).waitFor();
+    await shot('19-module-settings');
+    await page.keyboard.press('Escape');
+    await page.getByRole('dialog').waitFor({ state: 'detached' });
+    // Esc closed SETTINGS only: still editing.
+    await editBar().waitFor();
+    await mod('TIME').getByText('12 DAYS').waitFor();
+  });
+
+  await path('a bookmark’s ⋯ ▸ PIN TO QUICK LAUNCH makes it a tile', async () => {
+    await page.getByRole('button', { name: 'Arrange Hacker News' }).click();
+    await page.getByRole('menuitem', { name: 'PIN TO QUICK LAUNCH' }).click();
+    await mod('QUICK LAUNCH').locator('.launch-tile', { hasText: 'Hacker News' }).waitFor();
+    // Pinned once: the menu doesn't offer it again.
+    await page.getByRole('button', { name: 'Arrange Hacker News' }).click();
+    expect((await page.getByRole('menuitem', { name: 'PIN TO QUICK LAUNCH' }).count()) === 0, 'PIN offered twice');
+    await page.keyboard.press('Escape');
+  });
+
+  await path('⋯ ▸ REMOVE takes a module away; UNDO brings it back', async () => {
+    await page.getByRole('button', { name: 'TIME module options' }).click();
+    await page.getByRole('menuitem', { name: 'REMOVE' }).click();
+    await mod('TIME').waitFor({ state: 'detached' });
+    expect(await page.evaluate(() => document.activeElement?.textContent?.includes('+ MODULE')), 'the keyboard isn’t on + MODULE');
+    await editBar().getByRole('button', { name: 'UNDO' }).click();
+    await mod('TIME').getByText('12 DAYS').waitFor();
+  });
+
+  await path('no accessibility violations with modules, editing and locked', async () => {
+    // (The page was reloaded since axe was added.)
+    await page.addScriptTag({ path: join(root, 'node_modules/axe-core/axe.min.js') });
+    await audit('modules in edit mode');
+    await page.getByRole('button', { name: 'DONE' }).click();
+    await page.waitForFunction(() => !document.querySelector('[role="toolbar"]'));
+    await audit('modules');
+    await shot('20-modules');
+  });
+
+  await path('locked: SEARCH opens the engine in a new tab; a tile, its key (1–9) and the finder’s web search open too', async () => {
+    await context.route('**/*', offline);
+    try {
+      const box = mod('SEARCH').getByRole('searchbox');
+      await box.fill('hello world');
+      const [found] = await Promise.all([context.waitForEvent('page'), box.press('Enter')]);
+      expect(found.url() === 'https://search.example/?q=hello%20world', `searched ${found.url()}`);
+      await found.close();
+      expect((await box.inputValue()) === '', 'the field wasn’t cleared');
+      const [tile] = await Promise.all([context.waitForEvent('page'), mod('QUICK LAUNCH').locator('.launch-tile', { hasText: 'Example' }).click()]);
+      expect(tile.url() === 'https://example.com/', `the tile opened ${tile.url()}`);
+      await tile.close();
+      await page.locator('body').click({ position: { x: 5, y: 600 } });
+      const [keyed] = await Promise.all([context.waitForEvent('page'), page.keyboard.press('2')]);
+      expect(keyed.url().includes('ycombinator'), `key 2 opened ${keyed.url()}`);
+      await keyed.close();
+      await page.keyboard.press('/');
+      await page.keyboard.type('zzqqxx');
+      await page.getByRole('option', { name: /SEARCH CUSTOM FOR/ }).waitFor();
+      const [web] = await Promise.all([context.waitForEvent('page'), page.keyboard.press('Enter')]);
+      expect(web.url() === 'https://search.example/?q=zzqqxx', `the finder searched ${web.url()}`);
+      await web.close();
+    } finally {
+      await context.unroute('**/*', offline);
+    }
+  });
+
+  await path('TIME: the timer counts down, pauses and resets; the stopwatch runs', async () => {
+    const time = mod('TIME');
+    const timer = time.locator('.time-tool', { hasText: 'TIMER' }).getByRole('timer');
+    expect((await timer.innerText()) === '25:00', `the timer shows ${await timer.innerText()}`);
+    await time.getByRole('button', { name: 'START' }).first().click();
+    await page.waitForFunction(() => document.querySelector('.module[data-kind="time"] .time-tool [role="timer"]')?.textContent === '24:59', null, { timeout: 3000 });
+    await time.getByRole('button', { name: 'PAUSE' }).click();
+    await time.getByRole('button', { name: 'RESUME' }).waitFor();
+    await time.getByRole('button', { name: 'RESET' }).first().click();
+    expect((await timer.innerText()) === '25:00', 'RESET didn’t reset the timer');
+    const watch = time.locator('.time-tool', { hasText: 'STOPWATCH' });
+    await watch.getByRole('button', { name: 'START' }).click();
+    await page.waitForFunction(() => [...document.querySelectorAll('.module[data-kind="time"] [role="timer"]')].at(-1)?.textContent === '00:01', null, { timeout: 3000 });
+    await watch.getByRole('button', { name: 'STOP' }).click();
+    // Today is lit in the month.
+    expect((await time.locator('td[aria-current="date"]').innerText()) === String(new Date().getDate()), 'today isn’t lit');
+  });
+
+  await path('modules and their settings survive a reload', async () => {
+    await settled();
+    await page.reload();
+    await mod('TIME').getByText('12 DAYS').waitFor({ timeout: 5000 });
+    await mod('SEARCH').getByText('CUSTOM', { exact: true }).waitFor();
+    expect((await mod('QUICK LAUNCH').locator('.launch-tile').count()) === 2, 'QUICK LAUNCH lost a tile');
+  });
+
   await path('the rain moves', async () => {
     const a = (await rain()).sig;
     await page.waitForTimeout(500);
@@ -429,7 +604,8 @@ try {
     backupPath = join(shots, 'backup.json');
     await download.saveAs(backupPath);
     const file = JSON.parse(readFileSync(backupPath, 'utf8'));
-    expect(file.format === 'cyberdeck_terminal-backup' && file.layout?.schemaVersion === 3, 'not a backup file');
+    expect(file.format === 'cyberdeck_terminal-backup' && file.layout?.schemaVersion === 4, 'not a backup file');
+    expect(file.layout.modules?.length === 3, 'the backup has no modules');
     expect(file.layout.prefs.backupReminderDays === 14 && file.layout.prefs.rainGlow === 'high', 'unexpected layout in backup');
     await page.locator('.toast', { hasText: 'BACKUP EXPORTED' }).waitFor();
     // LAST EXPORT updates the next time the panel opens.
@@ -444,6 +620,7 @@ try {
     await page.getByLabel('Backup file to import').setInputFiles(backupPath);
     const preview = page.getByRole('group', { name: 'Backup to import' });
     await preview.waitFor();
+    await preview.getByText('3 MODULES').waitFor();
     await preview.getByText('WALLPAPER MATRIX-RAIN · REMIND 14D').waitFor();
     await shot('04-import-preview');
     await preview.getByRole('button', { name: 'REPLACE LAYOUT' }).click();
@@ -662,6 +839,9 @@ try {
     await page.waitForTimeout(400);
     const box = await page.locator('.hud-brand').boundingBox();
     expect(box && box.x >= 0 && box.x + box.width <= 420, 'the brand panel overflows');
+    // The modules stack under NAV, inside the window.
+    const mods = await page.locator('.module.stacked').evaluateAll((els) => els.map((el) => el.getBoundingClientRect()).map((r) => [r.left, r.right]));
+    expect(mods.length === 3 && mods.every(([l, r]) => l >= 0 && r <= 420), `stacked modules: ${JSON.stringify(mods)}`);
     await shot('06-narrow');
     await page.setViewportSize({ width: 1920, height: 1080 });
   });

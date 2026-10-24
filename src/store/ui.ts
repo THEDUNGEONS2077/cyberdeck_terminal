@@ -5,6 +5,7 @@
  *   - immersive: the page is fullscreen with the UI hidden (F);
  *   - panelOpen: the SYSTEM panel is open (S);
  *   - finderOpen: the finder is open (/);
+ *   - moduleSettings: the module whose SETTINGS dialog is open, if any;
  *   - toast: the message at the bottom, if any;
  *   - announcement: the last change to tell screen readers about (app/App.tsx
  *     reads it into a polite live region: a move, a hide, an undo…).
@@ -30,10 +31,14 @@ export interface UiState {
   immersive: boolean;
   panelOpen: boolean;
   finderOpen: boolean;
+  /** The id of the module whose SETTINGS dialog is open, or null. */
+  moduleSettings: string | null;
   toast: ToastState | null;
   setImmersive(on: boolean): void;
   setPanelOpen(open: boolean): void;
   setFinderOpen(open: boolean): void;
+  /** Opens module `id`'s SETTINGS dialog (null closes it). */
+  setModuleSettings(id: string | null): void;
   /** Shows a toast (replacing any other). */
   showToast(message: string, options?: { action?: ToastAction; sticky?: boolean }): void;
   /** Hides the toast with `key` (if it's still the one showing). */
@@ -52,10 +57,12 @@ export function createUiStore() {
     immersive: false,
     panelOpen: false,
     finderOpen: false,
+    moduleSettings: null,
     toast: null,
     setImmersive: (immersive) => set({ immersive }),
     setPanelOpen: (panelOpen) => set({ panelOpen }),
     setFinderOpen: (finderOpen) => set({ finderOpen }),
+    setModuleSettings: (moduleSettings) => set({ moduleSettings }),
     showToast: (message, options = {}) => set({ toast: { key: nextKey++, message, ...options } }),
     dismissToast: (key) => {
       if (get().toast?.key === key) set({ toast: null });

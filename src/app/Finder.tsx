@@ -1,7 +1,10 @@
 /**
  * src/app/Finder.tsx: the finder (press `/`): type to find any bookmark on
  * the dashboard, at any depth, or to run a command; ↑ / ↓ to choose, Enter
- * to open (in a new tab, like every link here), Esc to close.
+ * to open (in a new tab, like every link here), Esc to close. Last of all,
+ * with anything typed: SEARCH THE WEB FOR it (the first SEARCH module's
+ * engine, or DuckDuckGo), so `/` + words + Enter searches when nothing on
+ * the dashboard matches.
  *
  * Layer: UI. The command-palette pattern (Raycast, VS Code, Linear):
  * keyboard first, results as you type, the best match chosen already, so
@@ -21,6 +24,7 @@ import { type KeyboardEvent, useId, useLayoutEffect, useMemo, useRef, useState }
 import { openChromePage } from '@/bridge/client';
 import { arrange } from '@/lib/arrange';
 import { type FindHit, findEntries, markPieces, search } from '@/lib/find';
+import { engineOf } from '@/lib/search';
 import { uiStore } from '@/store/ui';
 
 import { downloadBackup } from './backupFile';
@@ -32,6 +36,7 @@ import { G } from './glyphs';
 import { useBookmarks, useEdit, useLayout, useUi } from './hooks';
 import { usePresence } from './usePresence';
 import { useShownBar } from './useShownBar';
+import { defaultEngine, openSearch } from './modules/actions';
 import { zoomWallpaper } from './zoom';
 
 /** How long the finder takes to fade out (matches --fast in theme.css). */
@@ -100,6 +105,11 @@ function FinderPanel({ leaving }: { leaving: boolean }) {
   const q = query.trim().toLowerCase();
   const hits = search(entries, q, 8);
   const shownCommands = q ? commands.filter((c) => q.split(/\s+/).every((w) => c.label.toLowerCase().includes(w))).slice(0, 4) : commands;
+  // The web, last: chosen at once when nothing on the dashboard matches.
+  if (q) {
+    const engine = defaultEngine();
+    shownCommands.push({ id: 'web', glyph: G.external, label: `SEARCH ${engineOf(engine).label} FOR “${query.trim()}”`, run: () => void openSearch(engine, query) });
+  }
   const rows: Row[] = [...hits.map((hit) => ({ kind: 'link' as const, hit })), ...shownCommands.map((command) => ({ kind: 'command' as const, command }))];
   const chosen = Math.min(active, Math.max(0, rows.length - 1));
   const optionId = (i: number) => `${listId}-${i}`;
