@@ -1,5 +1,28 @@
 # Changelog
 
+## 0.14.0 (build 22)
+The polish and speed pass (C4).
+- **Full sharpness on sharp screens.** On a screen scaled to 200% or more, the wallpapers now draw at its own pixel ratio, up to 3×; before, they stopped at 2× (VELOCITY 1.5×). A guard watches each wallpaper's first seconds on screen: if a frame takes more than 8 ms to draw, it steps back to the old cap and remembers that. SYSTEM ▸ APPEARANCE ▸ **SHARPNESS** shows what it draws at, with **TRY AGAIN** when it stepped back. At 100–150% scaling nothing changes.
+- **COPY DIAGNOSTICS** (foot of SYSTEM): copies what this browser, screen and wallpaper are doing, to paste back while tuning:
+  - the browser and GPU;
+  - the screen and its scaling;
+  - what the wallpaper draws at, and its recent frames;
+  - startup times;
+  - your layout's counts.
+
+  It has no addresses or bookmarks, and nothing is sent anywhere.
+- **Dragging snaps.** A panel you drop within 8 px of the window's edge, or of another panel's edge, settles flush: lined up, or beside it with an 8 px gap. Arrow-key nudges stay exact.
+- **The finder knows the modules:** FOCUS SEARCH, START TIMER, STOP TIMER, ADD … MODULE, and SHOW THE BRAND PANEL when it's off.
+- **Readable modules.** The smallest module text (the date, labels, key badges) no longer goes below 9 px. The rest stays at 70%.
+- **Keyboard:**
+  - The arrow keys move between QUICK LAUNCH tiles, as in NAV.
+  - Esc in the search box clears it, then leaves it.
+  - Tab goes brand panel, NAV, modules top to bottom, then the key hints.
+- **Fixes:**
+  - The finder, reopened right after running a command, showed the last search still typed; it opens empty now.
+  - With the brand panel removed, the page kept no main heading for screen readers; it keeps one now.
+- **Speed checked:** startup and the rain's smoothness match 0.13.1 (e2e:perf, e2e:motion).
+
 ## 0.13.1 (build 21)
 - **MEGACITY is lighter on the graphics card.** The city is drawn once a second and copied in between, since it only changes when a window goes on or off. The picture is the same; windows now switch on the second's edge. The same change is in fluid_motion 0.7.0, where your phone measured the city as most of the cost.
 

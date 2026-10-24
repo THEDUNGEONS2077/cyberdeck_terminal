@@ -19,6 +19,7 @@
  * speeds (near ones faster) and come round again, the streaks race, the
  * long lines flicker, the flare breathes.
  */
+import { SHARP_DPR } from '@/lib/sharpness';
 import type { GlowLevel } from '@/lib/layout';
 
 /** A panel's look: how wide (share of the screen), how far its top leans right of its bottom (share of the width), how bright, how fast it drifts (share of the width a second). */
@@ -65,5 +66,10 @@ export const MIN_FRAME_MS = 1000 / 72;
 /** The longest real time step (s) the motion takes in one frame. */
 export const MAX_FRAME_STEP = 0.1;
 
-/** Pixel ratio cap: the scene is soft, so 1.5 looks the same as 2. */
-export const MAX_DPR = 1.5;
+/**
+ * The most canvas pixels per CSS px this engine draws (before the zoom:
+ * types.ts zoomedSize): the screen's own, up to SHARP_DPR. The wallpaper
+ * host passes in the ratio in force, its safe cap (catalog.ts) if the
+ * sharpness guard stepped back (lib/sharpness.ts).
+ */
+export const MAX_DPR = SHARP_DPR;

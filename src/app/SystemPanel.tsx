@@ -12,8 +12,10 @@
  *              reminder interval, and when the last export was;
  *   RESTORE    the automatic snapshots, newest first; RESTORE asks to confirm;
  *   APPEARANCE (first) the dashboard's colours, the wallpaper, the
- *              wallpaper's colours and the glow;
- *   KEYS       the shortcuts.
+ *              wallpaper's colours, the glow, the zoom, and its SHARPNESS
+ *              (what it draws at; TRY AGAIN after the guard stepped back);
+ *   KEYS       the shortcuts;
+ *   and at the foot, COPY DIAGNOSTICS (app/diagnostics.ts).
  */
 import { type ChangeEvent, type CSSProperties, useId, useRef, useState } from 'react';
 
@@ -28,8 +30,10 @@ import { compareVersions } from '@/lib/versions';
 import { layoutStore } from '@/store/instance';
 import { uiStore } from '@/store/ui';
 import { WALLPAPER_LIST } from '@/wallpaper/catalog';
+import { retrySharpness, sharpnessInfo } from '@/wallpaper/host';
 
 import { APP_INFO, downloadBackup, readBackupFile } from './backupFile';
+import { copyDiagnostics } from './diagnostics';
 import { Dialog } from './Dialog';
 import { useBookmarks, useLayout } from './hooks';
 import { CopyAddress, DownloadBridgeButton, ImportBookmarksButton } from './ImportBookmarks';
@@ -46,9 +50,14 @@ export function SystemPanel({ leaving }: { leaving: boolean }) {
         <BackupSection />
         <RestoreSection />
         <KeysSection />
-        <p className="small dim">
-          CYBERDECK_TERMINAL v{APP_INFO.version} (BUILD {APP_INFO.build}) · YOUR LAYOUT STAYS IN THIS BROWSER
-        </p>
+        <div className="setting">
+          <span className="small dim">
+            CYBERDECK_TERMINAL v{APP_INFO.version} (BUILD {APP_INFO.build}) · YOUR LAYOUT STAYS IN THIS BROWSER
+          </span>
+          <button type="button" className="text-btn small-btn" onClick={() => void copyDiagnostics()} title="This browser, screen and wallpaper's figures, to paste (no addresses)">
+            COPY DIAGNOSTICS
+          </button>
+        </div>
       </div>
     </Dialog>
   );
@@ -349,7 +358,49 @@ function AppearanceSection() {
           </button>
         </div>
       </div>
+      <Sharpness current={current} />
     </section>
+  );
+}
+
+/**
+ * SHARPNESS: how many pixels the wallpaper draws per CSS px (lib/sharpness.ts):
+ * the screen's own, or its safe cap after the guard stepped back (TRY AGAIN
+ * watches it once more). Read as the panel opens (it changes only on a
+ * new screen, or after the guard's few seconds).
+ */
+function Sharpness({ current }: { current: string }) {
+  // Read again when the wallpaper changes, or after TRY AGAIN (the previous-props pattern keeps it out of effects).
+  const [tries, setTries] = useState(0);
+  const [read, setRead] = useState(() => ({ key: `${current}:0`, info: sharpnessInfo() }));
+  const key = `${current}:${tries}`;
+  if (read.key !== key) setRead({ key, info: sharpnessInfo() });
+  const info = read.info;
+  if (!info) return null;
+  let text: string;
+  if (info.verdict === 'safe') text = `${info.drawnDpr}× · STEPPED BACK FROM ${info.screenDpr}× (FRAMES TOO SLOW)`;
+  else if (info.drawnDpr > info.safeDpr) text = `${info.drawnDpr}× · FULL (YOUR SCREEN'S OWN)`;
+  else text = `${info.drawnDpr}× · YOUR SCREEN'S OWN`;
+  return (
+    <div className="setting">
+      <span>SHARPNESS</span>
+      <span className="stepper">
+        <output className="stepper-value small">{text}</output>
+        {info.verdict === 'safe' && (
+          <button
+            type="button"
+            className="text-btn small-btn"
+            onClick={() => {
+              retrySharpness();
+              setTries((t) => t + 1);
+              uiStore.getState().showToast('FULL SHARPNESS AGAIN · WATCHING ITS FRAMES FOR A FEW SECONDS');
+            }}
+          >
+            TRY AGAIN
+          </button>
+        )}
+      </span>
+    </div>
   );
 }
 

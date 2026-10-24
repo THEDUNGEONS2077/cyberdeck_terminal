@@ -12,7 +12,13 @@
  * the size and zoom), then resize, start, stop, still, glow, probe, destroy.
  * Messages out (FromWorker): ready (the first full frame is drawn: the host
  * fades the canvas in), measure (the wallpaper's performance measures, for
- * the page's timeline), and probe answers (for the browser tests).
+ * the page's timeline), and probe answers (for the browser tests, the
+ * sharpness guard and SYSTEM's COPY DIAGNOSTICS).
+ *
+ * Every frame's start and drawing time go into a small ring (the last
+ * RING frames: two numbers each, no allocation), so a `stats` probe is
+ * answered at once: the host's sharpness guard (lib/sharpness.ts) and
+ * COPY DIAGNOSTICS read it.
  */
 import type { GlowLevel } from '@/lib/layout';
 
@@ -43,13 +49,14 @@ export type ToWorker =
   | { type: 'palette'; palette: WallpaperPalette }
   | { type: 'probe'; id: number; what: 'pixels' }
   | { type: 'probe'; id: number; what: 'frames'; ms: number }
+  | { type: 'probe'; id: number; what: 'stats'; ms: number }
   | { type: 'destroy' };
 
 /** What the worker sends back. */
 export type FromWorker =
   | { type: 'ready' }
   | { type: 'measure'; name: string; start: number; duration: number; origin: number }
-  | { type: 'probe'; id: number; result: PixelsProbe | FramesProbe };
+  | { type: 'probe'; id: number; result: PixelsProbe | FramesProbe | StatsProbe };
 
 export type { PixelsProbe };
 
@@ -58,6 +65,14 @@ export type { PixelsProbe };
 export interface FramesProbe {
   gaps: number[];
   busy: number;
+}
+
+/** The frames of the last while (from the ring): gaps between them and each one's drawing time (ms), and the canvas's pixels. */
+export interface StatsProbe {
+  gaps: number[];
+  durations: number[];
+  w: number;
+  h: number;
 }
 
 /** The parts of the worker's global scope used here (the DOM typings describe a window). */
@@ -73,6 +88,13 @@ const scope = self as unknown as WorkerScope;
 // Time spent in animation-frame callbacks (the wallpaper's drawing), for the
 // frames probe: every callback the wallpaper asks for is timed.
 let busy = 0;
+/** How many frames the ring keeps (at 72 a second, a few seconds' worth). */
+const RING = 512;
+// Each frame's start and drawing time (ms), oldest overwritten first.
+const ringStart = new Float64Array(RING);
+const ringDraw = new Float64Array(RING);
+let ringNext = 0;
+let ringCount = 0;
 const nativeFrame = scope.requestAnimationFrame.bind(scope);
 scope.requestAnimationFrame = (callback) =>
   nativeFrame((t) => {
@@ -80,9 +102,30 @@ scope.requestAnimationFrame = (callback) =>
     try {
       callback(t);
     } finally {
-      busy += performance.now() - start;
+      const took = performance.now() - start;
+      busy += took;
+      ringStart[ringNext] = start;
+      ringDraw[ringNext] = took;
+      ringNext = (ringNext + 1) % RING;
+      ringCount = Math.min(RING, ringCount + 1);
     }
   });
+
+/** The frames that started in the last `ms` (from the ring), oldest first. */
+function stats(ms: number): StatsProbe {
+  const since = performance.now() - ms;
+  const gaps: number[] = [];
+  const durations: number[] = [];
+  let prev = Number.NaN;
+  for (let k = ringCount; k > 0; k--) {
+    const i = (ringNext - k + RING) % RING;
+    if (ringStart[i]! < since) continue;
+    if (!Number.isNaN(prev)) gaps.push(ringStart[i]! - prev);
+    prev = ringStart[i]!;
+    durations.push(ringDraw[i]!);
+  }
+  return { gaps, durations, w: canvas?.width ?? 0, h: canvas?.height ?? 0 };
+}
 
 // The wallpaper's performance measures (rain-atlas, rain-prewarm) go to the
 // page's timeline, where e2e/motion.mjs reads them.
@@ -148,6 +191,7 @@ scope.onmessage = ({ data: m }) => {
       break;
     case 'probe':
       if (m.what === 'pixels') scope.postMessage({ type: 'probe', id: m.id, result: pixels() });
+      else if (m.what === 'stats') scope.postMessage({ type: 'probe', id: m.id, result: stats(m.ms) });
       else frames(m.id, m.ms);
       break;
     case 'destroy':

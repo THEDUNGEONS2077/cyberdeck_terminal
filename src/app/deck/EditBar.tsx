@@ -30,16 +30,16 @@ import { CATALOG } from '../modules/catalog';
 import { PopupMenu } from '../PopupMenu';
 import { newAreaId } from './ArrangeMenu';
 
-/** Adds a module of `kind` (undoable), says so, and puts the keyboard on its grip. */
-function addKind(kind: ModuleKind): void {
+/** Adds a module of `kind` (undoable), says so, and puts the keyboard on its grip (the finder's ADD … MODULE too). */
+export function addKind(kind: ModuleKind): void {
   const id = newModuleId();
   editStore.getState().apply((s) => ({ ...s, modules: addModule(s.modules, newModule(kind, id, s.modules)) }));
   uiStore.getState().announce(`ADDED ${CATALOG[kind].label}: MOVE IT WITH ITS GRIP, OR THE ARROW KEYS`);
   requestAnimationFrame(() => document.querySelector<HTMLElement>(`[data-module="${CSS.escape(id)}"] .panel-grip, [data-module="${CSS.escape(id)}"] .item-menu-btn`)?.focus());
 }
 
-/** Puts the brand panel back on the screen, where it was (undoable), with the keyboard on its grip. */
-function addBrand(): void {
+/** Puts the brand panel back on the screen, where it was (undoable), with the keyboard on its grip (the finder's SHOW THE BRAND PANEL too). */
+export function addBrand(): void {
   editStore.getState().apply((s) => {
     const { brandOff: _off, ...panels } = s.panels;
     return { ...s, panels };

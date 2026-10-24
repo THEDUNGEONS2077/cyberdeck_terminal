@@ -21,7 +21,7 @@
 import { useCallback, useEffect, useRef } from 'react';
 import { createStore } from 'zustand/vanilla';
 
-import { NAV_WIDTH, type PanelPlace, type WidthLimits, clampPlace, hideItem, keyKind, moveArea, moveItem } from '@/lib/arrange';
+import { NAV_WIDTH, type PanelPlace, type WidthLimits, clampPlace, hideItem, keyKind, moveArea, moveItem, snapBox } from '@/lib/arrange';
 import { MODULE_SCALE, MODULE_WIDTH, isModuleId } from '@/lib/modules';
 import { editStore, withPlace } from '@/store/edit';
 import { layoutStore } from '@/store/instance';
@@ -134,6 +134,18 @@ export function placeFromRect(r: DOMRect, width: WidthLimits | null, scale = 1):
 /** How big panel `id` is drawn: a module at MODULE_SCALE, NAV and the brand panel as they are. */
 export function scaleOf(id: string): number {
   return isModuleId(id) ? MODULE_SCALE : 1;
+}
+
+/** The other panels on screen now (NAV, the brand panel, the placed modules), but `el`: what a dropped panel can snap to. */
+function otherPanels(el: HTMLElement): DOMRect[] {
+  return [...document.querySelectorAll<HTMLElement>('.deck-area, .hud-brand, .module:not(.stacked)')].filter((o) => o !== el).map((o) => o.getBoundingClientRect());
+}
+
+/** A dropped panel's box, settled against the window's edges and the other panels (lib/arrange.ts snapBox). */
+function snapped(el: HTMLElement): DOMRect {
+  const r = el.getBoundingClientRect();
+  const at = snapBox(r, otherPanels(el), { w: window.innerWidth, h: window.innerHeight });
+  return new DOMRect(at.left, at.top, r.width, r.height);
 }
 
 /** How wide panel `id` may be: NAV's limits, a module's, or null for the brand panel (it has no width). */
@@ -260,7 +272,8 @@ export function useArrangeDrag(scroller: React.RefObject<HTMLElement | null>) {
         const el = payload.el;
         const { id } = payload;
         if (commit) {
-          const place = placeFromRect(el.getBoundingClientRect(), widthOf(id), scaleOf(id));
+          // A moved panel settles flush against an edge within reach (a resized one keeps its place).
+          const place = placeFromRect(payload.kind === 'panel' ? snapped(el) : el.getBoundingClientRect(), widthOf(id), scaleOf(id));
           editStore.getState().apply((s) => withPlace(s, id, place));
         } else {
           // Cancelled: back where it was (React's next render restores the saved place).

@@ -24,7 +24,9 @@ import { type KeyboardEvent, useId, useLayoutEffect, useMemo, useRef, useState }
 import { openChromePage } from '@/bridge/client';
 import { arrange } from '@/lib/arrange';
 import { type FindHit, findEntries, markPieces, search } from '@/lib/find';
+import { MAX_MODULES, MODULE_KINDS, type ModuleKind } from '@/lib/modules';
 import { engineOf } from '@/lib/search';
+import { editStore } from '@/store/edit';
 import { uiStore } from '@/store/ui';
 
 import { downloadBackup } from './backupFile';
@@ -36,7 +38,9 @@ import { G } from './glyphs';
 import { useBookmarks, useEdit, useLayout, useUi } from './hooks';
 import { usePresence } from './usePresence';
 import { useShownBar } from './useShownBar';
-import { defaultEngine, openSearch } from './modules/actions';
+import { addBrand, addKind } from './deck/EditBar';
+import { defaultEngine, focusSearch, openSearch, timerCommand } from './modules/actions';
+import { CATALOG } from './modules/catalog';
 import { openUrl } from './switchTab';
 import { zoomWallpaper } from './zoom';
 
@@ -60,7 +64,15 @@ type Row = { kind: 'link'; hit: FindHit } | { kind: 'command'; command: Command 
 export function Finder() {
   const open = useUi((s) => s.finderOpen);
   const { shown, leaving } = usePresence(open ? true : null, EXIT_MS);
-  return shown ? <FinderPanel leaving={leaving} /> : null;
+  // Each opening is a fresh panel: reopened during its fade-out (/ straight after Enter), it
+  // would otherwise come back with the last search still typed (the previous-props pattern).
+  const [opening, setOpening] = useState(0);
+  const [wasOpen, setWasOpen] = useState(open);
+  if (open !== wasOpen) {
+    setWasOpen(open);
+    if (open) setOpening((n) => n + 1);
+  }
+  return shown ? <FinderPanel key={opening} leaving={leaving} /> : null;
 }
 
 /** Closes the finder and puts the keyboard back where it was. */
@@ -75,6 +87,16 @@ function FinderPanel({ leaving }: { leaving: boolean }) {
   const arrangement = useLayout((s) => s.layout.bookmarks.arrangement);
   const editing = useEdit((s) => s.editing);
   const canOpenChrome = useBookmarks((s) => s.status === 'live' && s.features.includes('open'));
+  // The kinds on the dashboard, as one string (stable between renders while they don't change).
+  const kinds = useLayout((s) => s.layout.modules.map((m) => m.kind).join());
+  const moduleCount = useLayout((s) => s.layout.modules.length);
+  const brandOff = useLayout((s) => s.layout.panels.brandOff === true);
+  const has = (kind: ModuleKind) => kinds.split(',').includes(kind);
+  /** Runs `change` in edit mode (opening it first, so UNDO and DONE are at hand). */
+  const inEditMode = (change: () => void) => () => {
+    if (!editStore.getState().editing) toggleEdit();
+    change();
+  };
   const [query, setQuery] = useState('');
   const [active, setActive] = useState(0);
   const input = useRef<HTMLInputElement>(null);
@@ -94,6 +116,16 @@ function FinderPanel({ leaving }: { leaving: boolean }) {
     { id: 'zoom-in', glyph: '+', label: 'ZOOM THE WALLPAPER IN', key: '+', run: () => zoomWallpaper('in') },
     { id: 'zoom-out', glyph: '−', label: 'ZOOM THE WALLPAPER OUT', key: '−', run: () => zoomWallpaper('out') },
     { id: 'zoom-reset', glyph: '0', label: 'WALLPAPER ZOOM 100%', key: '0', run: () => zoomWallpaper('reset') },
+    // The modules (0.14.0): what's on the dashboard, then what can be added.
+    ...(has('search') ? [{ id: 'focus-search', glyph: CATALOG.search.glyph, label: 'FOCUS SEARCH', run: () => void focusSearch() }] : []),
+    ...(has('time')
+      ? [
+          { id: 'timer-start', glyph: CATALOG.time.glyph, label: 'START TIMER', run: () => void timerCommand('start') },
+          { id: 'timer-stop', glyph: CATALOG.time.glyph, label: 'STOP TIMER', run: () => void timerCommand('stop') },
+        ]
+      : []),
+    ...(moduleCount < MAX_MODULES ? MODULE_KINDS.map((kind) => ({ id: `add-${kind}`, glyph: '+', label: `ADD ${CATALOG[kind].label} MODULE`, run: inEditMode(() => addKind(kind)) })) : []),
+    ...(brandOff ? [{ id: 'brand', glyph: '+', label: 'SHOW THE BRAND PANEL', run: inEditMode(() => addBrand()) }] : []),
     ...(canOpenChrome
       ? [
           { id: 'ntp', glyph: G.external, label: 'CHROME NEW TAB', run: () => void openChromePage('ntp') },

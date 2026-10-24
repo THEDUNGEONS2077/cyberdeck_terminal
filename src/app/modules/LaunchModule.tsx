@@ -8,9 +8,10 @@
  * nine tiles across your QUICK LAUNCH modules have keys 1–9 (shown on the
  * tile; app/useShortcuts.ts). Tiles are added here (+ TILE) or from a
  * bookmark's ⋯ menu in edit mode (PIN TO QUICK LAUNCH), and ordered with
- * the ↑ / ↓ buttons: a keyboard way, as every arrangement has.
+ * the ↑ / ↓ buttons: a keyboard way, as every arrangement has. The arrow
+ * keys move between the tiles, as between NAV's.
  */
-import { type FormEvent, useId, useState } from 'react';
+import { type FormEvent, useId, useRef, useState } from 'react';
 
 import { LAUNCH_KEYS, type LaunchSettings, MAX_TILES, addTile, cleanUrl, moveTile, removeTile } from '@/lib/launch';
 import { modulesOf, setSettings } from '@/lib/modules';
@@ -19,6 +20,7 @@ import { editStore } from '@/store/edit';
 import { uiStore } from '@/store/ui';
 
 import { SiteIcon } from '../deck/Items';
+import { useArrowNav } from '../deck/useArrowNav';
 import { useLayout } from '../hooks';
 import { followLink } from '../switchTab';
 import type { ModuleProps } from './catalog';
@@ -38,28 +40,37 @@ function useKeyOffset(id: string): number {
 /** The tiles. */
 export function Panel({ module }: ModuleProps) {
   const offset = useKeyOffset(module.id);
+  // The arrow keys move between the tiles, as between NAV's (0.14.0).
+  // On a wrapper that's always there, so a module that gets its first tile later still has the keys.
+  const list = useRef<HTMLDivElement>(null);
+  useArrowNav(list, '.launch-tile');
   if (module.kind !== 'launch') return null;
   const { tiles } = module.settings;
-  if (!tiles.length) return <p className="small dim">NO TILES YET · IN EDIT MODE: ⋯ ▸ SETTINGS ▸ + TILE, OR A BOOKMARK’S ⋯ ▸ PIN TO QUICK LAUNCH.</p>;
   return (
-    <ul className="launch-tiles">
-      {tiles.map((t, i) => {
-        const key = offset + i + 1;
-        return (
-          <li key={t.url}>
-            <a className="launch-tile" href={t.url} target="_blank" rel="noopener noreferrer" title={t.url} draggable={false} onClick={(e) => followLink(e, t.url)}>
-              <SiteIcon url={t.url} />
-              <span className="launch-title">{t.title}</span>
-              {key <= LAUNCH_KEYS && (
-                <kbd className="launch-key" aria-label={`key ${key}`}>
-                  {key}
-                </kbd>
-              )}
-            </a>
-          </li>
-        );
-      })}
-    </ul>
+    <div ref={list}>
+      {tiles.length === 0 ? (
+        <p className="small dim">NO TILES YET · IN EDIT MODE: ⋯ ▸ SETTINGS ▸ + TILE, OR A BOOKMARK’S ⋯ ▸ PIN TO QUICK LAUNCH.</p>
+      ) : (
+        <ul className="launch-tiles">
+          {tiles.map((t, i) => {
+            const key = offset + i + 1;
+            return (
+              <li key={t.url}>
+                <a className="launch-tile" href={t.url} target="_blank" rel="noopener noreferrer" title={t.url} draggable={false} onClick={(e) => followLink(e, t.url)}>
+                  <SiteIcon url={t.url} />
+                  <span className="launch-title">{t.title}</span>
+                  {key <= LAUNCH_KEYS && (
+                    <kbd className="launch-key" aria-label={`key ${key}`}>
+                      {key}
+                    </kbd>
+                  )}
+                </a>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+    </div>
   );
 }
 

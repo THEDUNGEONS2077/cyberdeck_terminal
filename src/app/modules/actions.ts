@@ -1,7 +1,8 @@
 /**
  * src/app/modules/actions.ts: what the rest of the page does with modules:
  * search the web (the finder's last command), open a quick-launch tile by
- * its key (1–9), and pin a bookmark to QUICK LAUNCH (its ⋯ menu).
+ * its key (1–9), pin a bookmark to QUICK LAUNCH (its ⋯ menu), and the
+ * finder's module commands (FOCUS SEARCH, START / STOP TIMER).
  *
  * Layer: UI. Kept apart from the kinds' own files, which load lazily: the
  * finder, the shortcuts and the ⋯ menus need these straight away, and
@@ -23,6 +24,29 @@ export function openSearch(settings: SearchSettings, query: string): boolean {
   window.open(url, '_blank', 'noopener,noreferrer');
   uiStore.getState().announce(`SEARCHING ${engineOf(settings).label} FOR ${query.trim().toUpperCase()}`);
   return true;
+}
+
+/** The event the finder's START / STOP TIMER sends the first TIME module (TimeModule.tsx listens). */
+export const TIMER_EVENT = 'cyberdeck:timer';
+/** What a TIMER_EVENT carries: the module, and what to do. */
+export interface TimerCommand {
+  id: string;
+  action: 'start' | 'stop';
+}
+
+/** START TIMER / STOP TIMER: tells the first TIME module's timer (opening its fold to start it); false if there's no TIME module. */
+export function timerCommand(action: TimerCommand['action']): boolean {
+  const time = modulesOf(layoutStore().getState().layout.modules, 'time')[0];
+  if (!time) return false;
+  window.dispatchEvent(new CustomEvent<TimerCommand>(TIMER_EVENT, { detail: { id: time.id, action } }));
+  return true;
+}
+
+/** FOCUS SEARCH: the cursor into the first SEARCH module's field; false if there's none on screen. */
+export function focusSearch(): boolean {
+  const field = document.querySelector<HTMLInputElement>('.module[data-kind="search"] input');
+  field?.focus();
+  return !!field;
 }
 
 /** The engine a search from outside a SEARCH module uses: the first module's, or DuckDuckGo. */

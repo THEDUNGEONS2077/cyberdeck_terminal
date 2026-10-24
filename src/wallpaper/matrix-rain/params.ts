@@ -17,6 +17,7 @@
  *   - a faint green haze in the upper half → CSS behind the canvas
  *     (app.css .wallpaper-haze), plus the very faint residue fading leaves.
  */
+import { SHARP_DPR } from '@/lib/sharpness';
 import type { GlowLevel } from '@/lib/layout';
 
 /** One depth layer of rain. */
@@ -190,5 +191,10 @@ export const MIN_FRAME_MS = 1000 / 72;
 /** The longest real time step taken in one frame (s): after a stall the rain resumes instead of jumping. */
 export const MAX_FRAME_STEP = 0.1;
 
-/** Device pixel ratio cap: sharper than 2 costs fill rate for no visible gain on 7 px glyphs. */
-export const MAX_DPR = 2;
+/**
+ * The most canvas pixels per CSS px this engine draws (before the zoom:
+ * types.ts zoomedSize): the screen's own, up to SHARP_DPR. The wallpaper
+ * host passes in the ratio in force, its safe cap (catalog.ts) if the
+ * sharpness guard stepped back (lib/sharpness.ts).
+ */
+export const MAX_DPR = SHARP_DPR;

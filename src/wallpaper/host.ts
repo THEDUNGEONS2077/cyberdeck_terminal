@@ -30,7 +30,12 @@
  *   - stops the animation while the page is hidden (another tab in front);
  *   - follows Reduce Motion: a still frame instead of animation;
  *   - copies the wallpaper's performance measures into the page's
- *     timeline, and gives the browser tests a probe (window.__cyberdeckRain).
+ *     timeline, and gives the browser tests a probe (window.__cyberdeckRain);
+ *   - decides how sharp it's drawn (lib/sharpness.ts, 0.14.0): at the
+ *     screen's own pixel ratio, unless the guard (watching its first
+ *     seconds in the worker) found its frames too slow, then at its safe cap
+ *     (catalog.ts). The verdicts are a start-up hint, per wallpaper;
+ *   - answers SYSTEM's COPY DIAGNOSTICS (wallpaperReport).
  *
  * Which wallpaper to start with, its palette, how strongly it glows and
  * each wallpaper's zoom are remembered in localStorage (hints only, written
@@ -41,10 +46,12 @@ import fontUrl from '@/assets/fonts/JetBrainsMono-Regular.woff2?url';
 import { DEFAULT_RAIN_GLOW, DEFAULT_WALLPAPER_ID, GLOW_LEVELS, type GlowLevel, normalizeZooms, zoomOf } from '@/lib/layout';
 import { DEFAULT_PALETTE, findPalette, PALETTE_TOKENS, type PaletteColors, type PaletteId } from '@/lib/palettes';
 
-import { knownWallpaperId } from './catalog';
+import { GUARD_BUDGET_MS, GUARD_SETTLE_MS, GUARD_WATCH_MS, type Sharpness, drawnDpr, guardVerdict, normalizeSharpness, wantsGuard } from '@/lib/sharpness';
+
+import { knownWallpaperId, safeDprOf } from './catalog';
 import { measurePixels } from './probe';
 import type { WallpaperInstance, WallpaperPalette } from './types';
-import type { FramesProbe, FromWorker, PixelsProbe, ToWorker } from './worker';
+import type { FramesProbe, FromWorker, PixelsProbe, StatsProbe, ToWorker } from './worker';
 // The worker's code, inlined into this chunk (it starts from a Blob URL): no extra request
 // before the rain can start, on a first visit (a network round trip) or from the service worker.
 import WallpaperWorker from './worker.ts?worker&inline';
@@ -57,6 +64,10 @@ const HINT_KEY = 'cyberdeck_terminal:wallpaper';
 const GLOW_KEY = 'cyberdeck_terminal:glow';
 const COLORS_KEY = 'cyberdeck_terminal:wallpaper-palette';
 const ZOOM_KEY = 'cyberdeck_terminal:zoom';
+/** The sharpness guard's verdicts, per wallpaper (lib/sharpness.ts). */
+const SHARP_KEY = 'cyberdeck_terminal:sharp';
+/** The browser tests' knob: the guard's budget (ms) instead of GUARD_BUDGET_MS (e2e/walk.mjs makes it 0 to see it step back). */
+const BUDGET_KEY = 'cyberdeck_terminal:sharp-budget';
 
 /** A canvas size: CSS px, and the device pixel ratio. */
 interface Size {
@@ -71,6 +82,8 @@ interface Probe {
   pixels(): Promise<PixelsProbe>;
   /** Frame gaps and drawing time over `ms` (drawing time only in a worker; NaN on the page). */
   frames(ms: number): Promise<FramesProbe>;
+  /** The frames of the last `ms`, from the worker's ring, at once (null on the page: no ring there). */
+  stats(ms: number): Promise<StatsProbe | null>;
 }
 
 /** A wallpaper running on a canvas. */
@@ -131,6 +144,85 @@ function readZooms(): Record<string, number> {
 /** Wallpaper `id`'s zoom. */
 const zoomFor = (id: string) => zoomOf(zooms, id);
 
+/** The sharpness guard's verdicts (the last visits', kept as a hint). */
+let sharp: Record<string, Sharpness> = readSharp();
+
+/** The verdicts hint (a JSON map, checked). */
+function readSharp(): Record<string, Sharpness> {
+  try {
+    return normalizeSharpness(JSON.parse(readHint(SHARP_KEY) ?? '{}'));
+  } catch {
+    return {};
+  }
+}
+
+/** The pixel ratio wallpaper `id` draws at on a `dpr` screen: the screen's own, or its safe cap if the guard stepped back. */
+const dprFor = (id: string, dpr: number) => drawnDpr(dpr, safeDprOf(id), sharp[id]);
+
+/** Sends the running wallpaper its size again (the ratio in force changed). */
+function resend(): void {
+  if (current && size) current.instance.resize(size.w, size.h, dprFor(current.id, size.dpr), zoomFor(current.id));
+}
+
+/** The guard's pending watch, if any. */
+let guardTimer: ReturnType<typeof setTimeout> | undefined;
+
+/**
+ * The sharpness guard: after the first full frame has settled, watches the
+ * running wallpaper's frames for a while (in its worker's ring), then
+ * keeps it at full sharpness or steps it back to its safe cap, and
+ * remembers which. Only when full sharpness draws more than the safe cap,
+ * in a worker (on the page there's no ring: it stays at the safe cap), and
+ * not already stepped back.
+ */
+function guard(run: Running): void {
+  clearTimeout(guardTimer);
+  if (run.mode !== 'worker' || !size || !wantsGuard(size.dpr, safeDprOf(run.id)) || sharp[run.id] === 'safe') return;
+  const budget = Number(readHint(BUDGET_KEY) ?? Number.NaN);
+  guardTimer = setTimeout(() => {
+    void run.probe.stats(GUARD_WATCH_MS).then((s) => {
+      if (current !== run || !s) return;
+      const verdict = guardVerdict(s.durations, Number.isFinite(budget) ? budget : GUARD_BUDGET_MS);
+      // Too few frames (hidden, still): no verdict; it watches again next time.
+      if (!verdict) return;
+      sharp = { ...sharp, [run.id]: verdict };
+      saveHint(SHARP_KEY, JSON.stringify(sharp));
+      if (verdict === 'safe') resend();
+    });
+  }, GUARD_SETTLE_MS + GUARD_WATCH_MS);
+}
+
+/** Forgets every verdict and watches the running wallpaper again at full sharpness (SYSTEM ▸ SHARPNESS ▸ TRY AGAIN). */
+export function retrySharpness(): void {
+  sharp = {};
+  saveHint(SHARP_KEY, '{}');
+  resend();
+  if (current) guard(current);
+}
+
+/** What the running wallpaper draws at, for SYSTEM: its safe cap, the ratio in force, and the guard's verdict (none yet: null). */
+export function sharpnessInfo(): { id: string; screenDpr: number; drawnDpr: number; safeDpr: number; verdict: Sharpness | null } | null {
+  if (!current || !size) return null;
+  const safe = safeDprOf(current.id);
+  // On the page it's held at the safe cap (onPage).
+  const drawn = current.mode === 'page' ? Math.min(Math.max(1, size.dpr), safe) : dprFor(current.id, size.dpr);
+  return { id: current.id, screenDpr: size.dpr, drawnDpr: drawn, safeDpr: safe, verdict: sharp[current.id] ?? null };
+}
+
+/** The running wallpaper's figures for COPY DIAGNOSTICS: where it runs, its sharpness, its canvas and its last few seconds of frames. */
+export async function wallpaperReport(ms = 3000): Promise<{
+  id: string;
+  mode: 'worker' | 'page';
+  zoom: number;
+  sharpness: NonNullable<ReturnType<typeof sharpnessInfo>>;
+  stats: StatsProbe | null;
+} | null> {
+  const run = current;
+  const info = sharpnessInfo();
+  if (!run || !info) return null;
+  return { id: run.id, mode: run.mode, zoom: zoomFor(run.id), sharpness: info, stats: await run.probe.stats(ms) };
+}
+
 /** The wallpaper's colours, for the engine. */
 function readPalette(): WallpaperPalette {
   const c = findPalette(colors).colors;
@@ -177,7 +269,9 @@ function measure(): void {
   if (size && next.w === size.w && next.h === size.h && next.dpr === size.dpr) return;
   size = next;
   sizeCanvas(current.canvas, next);
-  current.instance.resize(next.w, next.h, next.dpr, zoomFor(current.id));
+  current.instance.resize(next.w, next.h, dprFor(current.id, next.dpr), zoomFor(current.id));
+  // A new screen (another ratio): the guard watches again.
+  guard(current);
 }
 
 /** Can a wallpaper run in a worker here? */
@@ -197,7 +291,12 @@ function inWorker(id: string, canvas: HTMLCanvasElement, s: Size, onFail: () => 
     });
 
   worker.onmessage = ({ data: m }: MessageEvent<FromWorker>) => {
-    if (m.type === 'ready') canvas.dataset.ready = '';
+    if (m.type === 'ready') {
+      canvas.dataset.ready = '';
+      performance.mark('wallpaper:ready');
+      // The first full frame is on screen: the sharpness guard can start watching.
+      if (current?.canvas === canvas) guard(current);
+    }
     // The worker's clock starts later than the page's: shift its times onto the page's timeline.
     else if (m.type === 'measure') performance.measure(m.name, { start: m.origin + m.start - performance.timeOrigin, duration: m.duration });
     else {
@@ -213,7 +312,7 @@ function inWorker(id: string, canvas: HTMLCanvasElement, s: Size, onFail: () => 
 
   const offscreen = canvas.transferControlToOffscreen();
   send(
-    { type: 'init', id, canvas: offscreen, fontUrl: new URL(fontUrl, document.baseURI).href, palette: readPalette(), glow, still: reduceMotion(), size: s, zoom: zoomFor(id) },
+    { type: 'init', id, canvas: offscreen, fontUrl: new URL(fontUrl, document.baseURI).href, palette: readPalette(), glow, still: reduceMotion(), size: { ...s, dpr: dprFor(id, s.dpr) }, zoom: zoomFor(id) },
     [offscreen],
   );
   return {
@@ -230,6 +329,7 @@ function inWorker(id: string, canvas: HTMLCanvasElement, s: Size, onFail: () => 
     probe: {
       pixels: () => ask<PixelsProbe>((pid) => ({ type: 'probe', id: pid, what: 'pixels' })),
       frames: (ms) => ask<FramesProbe>((pid) => ({ type: 'probe', id: pid, what: 'frames', ms })),
+      stats: (ms) => ask<StatsProbe>((pid) => ({ type: 'probe', id: pid, what: 'stats', ms })),
     },
   };
 }
@@ -242,14 +342,16 @@ function inWorker(id: string, canvas: HTMLCanvasElement, s: Size, onFail: () => 
 function onPage(id: string, canvas: HTMLCanvasElement, s: Size): Omit<Running, 'id' | 'canvas'> {
   const loading = import('./registry').then(({ findWallpaper }) => {
     const engine = findWallpaper(id).create(canvas, { palette: readPalette(), glow, still: reduceMotion(), onReady: () => (canvas.dataset.ready = '') });
-    engine.resize(s.w, s.h, s.dpr, zoomFor(id));
+    // On the page there's no guard (no frame ring): the safe cap, as before 0.14.0.
+    engine.resize(s.w, s.h, Math.min(Math.max(1, s.dpr), safeDprOf(id)), zoomFor(id));
     return engine;
   });
   const later = (call: (engine: WallpaperInstance) => void) => void loading.then(call);
   return {
     mode: 'page',
     instance: {
-      resize: (w, h, dpr, zoom) => later((e) => e.resize(w, h, dpr, zoom)),
+      // On the page, never above the safe cap (no guard watches there).
+      resize: (w, h, dpr, zoom) => later((e) => e.resize(w, h, Math.min(dpr, safeDprOf(id)), zoom)),
       start: () => later((e) => e.start()),
       stop: () => later((e) => e.stop()),
       setStill: (still) => later((e) => e.setStill(still)),
@@ -272,6 +374,7 @@ function onPage(id: string, canvas: HTMLCanvasElement, s: Size): Omit<Running, '
           };
           requestAnimationFrame(record);
         }),
+      stats: async () => null,
     },
   };
 }
@@ -324,7 +427,7 @@ export function setWallpaperZooms(next: Record<string, number>): void {
   saveHint(ZOOM_KEY, JSON.stringify(next));
   const before = current ? zoomFor(current.id) : null;
   zooms = next;
-  if (current && size && zoomFor(current.id) !== before) current.instance.resize(size.w, size.h, size.dpr, zoomFor(current.id));
+  if (current && size && zoomFor(current.id) !== before) resend();
 }
 
 /**
@@ -363,6 +466,8 @@ export function showWallpaper(id: string): void {
   mode: () => current?.mode ?? null,
   /** The running wallpaper's zoom (null when none runs). */
   zoom: () => (current ? zoomFor(current.id) : null),
+  /** What it draws at, and the sharpness guard's verdict (lib/sharpness.ts). */
+  sharpness: () => sharpnessInfo(),
 };
 
 // The window's events, installed once for whichever wallpaper is running.

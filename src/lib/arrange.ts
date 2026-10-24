@@ -317,6 +317,39 @@ export function chromeOrder(arr: Arrangement): Arrangement {
   return { ...arr, order: [], areas: [] };
 }
 
+/** A panel's box on screen (px). */
+export interface Box {
+  left: number;
+  top: number;
+  right: number;
+  bottom: number;
+}
+
+/** How near (px) an edge must come to snap. */
+export const SNAP_PX = 8;
+/** The gap (px) kept between panels snapped side by side, and from the window's edges (app.css keeps panels 8 px in). */
+export const SNAP_GAP = 8;
+
+/**
+ * Where a dropped panel settles (0.14.0): each axis on its own, the edge
+ * nearest within `within` px of a line wins: the window's edges (8 px in),
+ * another panel's same edge (lined up), or its far edge plus the gap (side
+ * by side). Unchanged on an axis with nothing that near.
+ */
+export function snapBox(box: Box, others: readonly Box[], view: { w: number; h: number }, within = SNAP_PX): { left: number; top: number } {
+  const width = box.right - box.left;
+  const height = box.bottom - box.top;
+  /** The nearest shift (within reach) that puts one of `edges` on one of `lines`; 0 if none. */
+  const shift = (edges: readonly number[], lines: readonly number[]) => {
+    let best = Number.POSITIVE_INFINITY;
+    for (const e of edges) for (const l of lines) if (Math.abs(l - e) <= within && Math.abs(l - e) < Math.abs(best)) best = l - e;
+    return Number.isFinite(best) ? best : 0;
+  };
+  const xs = [SNAP_GAP, view.w - SNAP_GAP, ...others.flatMap((o) => [o.left, o.right, o.right + SNAP_GAP, o.left - SNAP_GAP])];
+  const ys = [SNAP_GAP, view.h - SNAP_GAP, ...others.flatMap((o) => [o.top, o.bottom, o.bottom + SNAP_GAP, o.top - SNAP_GAP])];
+  return { left: box.left + shift([box.left, box.left + width], xs), top: box.top + shift([box.top, box.top + height], ys) };
+}
+
 /** A panel place kept inside sensible bounds (shares 0–0.95; a width within `width`, NAV's unless said). */
 export function clampPlace(place: PanelPlace, width: WidthLimits = NAV_WIDTH): PanelPlace {
   const clamp = (v: number, lo: number, hi: number) => (Number.isFinite(v) ? Math.min(hi, Math.max(lo, v)) : lo);

@@ -39,6 +39,14 @@ export function Panel({ module }: ModuleProps) {
         enterKeyHint="search"
         value={query}
         onChange={(e) => setQuery(e.target.value)}
+        // Esc clears what's typed first, then leaves the field (as the finder's does).
+        onKeyDown={(e) => {
+          if (e.key !== 'Escape') return;
+          e.preventDefault();
+          e.stopPropagation();
+          if (query) setQuery('');
+          else e.currentTarget.blur();
+        }}
       />
     </form>
   );

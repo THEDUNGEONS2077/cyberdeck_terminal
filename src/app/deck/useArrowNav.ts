@@ -1,6 +1,7 @@
 /**
  * src/app/deck/useArrowNav.ts: the arrow keys move between NAV's items:
- * tiles, folder headings, the links inside open folders, area headings.
+ * tiles, folder headings, the links inside open folders, area headings;
+ * and between QUICK LAUNCH's tiles (0.14.0: its own `selector`).
  *
  * Layer: UI. Tab still walks everything in order; the arrows are the
  * quick way through a grid (UX pass, 2026-10-22):
@@ -15,9 +16,9 @@ import { type RefObject, useEffect } from 'react';
 /** What the arrows move between. */
 const ITEMS = '.tile, .row-link, .folder-head, .area-toggle';
 
-/** The items that can take the keyboard now, in page order. */
-function items(root: HTMLElement): HTMLElement[] {
-  return [...root.querySelectorAll<HTMLElement>(ITEMS)].filter((el) => !el.closest('[inert]') && el.offsetParent !== null);
+/** The items (matching `selector`) that can take the keyboard now, in page order. */
+function items(root: HTMLElement, selector: string): HTMLElement[] {
+  return [...root.querySelectorAll<HTMLElement>(selector)].filter((el) => !el.closest('[inert]') && el.offsetParent !== null);
 }
 
 /**
@@ -47,16 +48,16 @@ function vertical(from: HTMLElement, all: HTMLElement[], dir: 1 | -1): HTMLEleme
   return best;
 }
 
-/** Moves the keyboard between NAV's items with the arrow keys, inside `root`. */
-export function useArrowNav(root: RefObject<HTMLElement | null>): void {
+/** Moves the keyboard between the items matching `selector` (NAV's, unless said) with the arrow keys, inside `root`. */
+export function useArrowNav(root: RefObject<HTMLElement | null>, selector: string = ITEMS): void {
   useEffect(() => {
     const el = root.current;
     if (!el) return;
     const onKey = (e: KeyboardEvent) => {
       if (e.ctrlKey || e.altKey || e.metaKey || e.shiftKey) return;
       const from = e.target as HTMLElement;
-      if (!from.matches?.(ITEMS)) return;
-      const all = items(el);
+      if (!from.matches?.(selector)) return;
+      const all = items(el, selector);
       const at = all.indexOf(from);
       const targets: Record<string, () => HTMLElement | null | undefined> = {
         ArrowRight: () => all[at + 1],
@@ -76,5 +77,5 @@ export function useArrowNav(root: RefObject<HTMLElement | null>): void {
     };
     el.addEventListener('keydown', onKey);
     return () => el.removeEventListener('keydown', onKey);
-  }, [root]);
+  }, [root, selector]);
 }

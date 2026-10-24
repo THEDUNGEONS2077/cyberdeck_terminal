@@ -44,6 +44,7 @@ import { uiStore } from '@/store/ui';
 import { cx } from '../cx';
 import { G } from '../glyphs';
 import { useUi } from '../hooks';
+import { TIMER_EVENT, type TimerCommand } from './actions';
 import type { ModuleProps } from './catalog';
 
 // Made once (a formatter per call, every second, was a cost the brand clock already learnt).
@@ -143,7 +144,7 @@ interface TimerState {
 }
 
 /** The timer: START / PAUSE, RESET; says when it's done. */
-function Timer({ minutes, seen }: { minutes: number; seen: boolean }) {
+function Timer({ id, minutes, seen }: { id: string; minutes: number; seen: boolean }) {
   const [state, setState] = useState<TimerState>({ end: null, left: null });
   const now = useSecond(seen && state.end !== null);
   const length = minutes * 60_000;
@@ -161,6 +162,19 @@ function Timer({ minutes, seen }: { minutes: number; seen: boolean }) {
 
   const start = () => setState({ end: Date.now() + from, left: from });
   const pause = () => setState({ end: null, left: Math.max(0, (state.end ?? 0) - Date.now()) });
+  const running = state.end !== null && !done;
+
+  // The finder's START TIMER / STOP TIMER (modules/actions.ts timerCommand), for this module.
+  useEffect(() => {
+    const on = (e: Event) => {
+      const { detail } = e as CustomEvent<TimerCommand>;
+      if (detail.id !== id) return;
+      if (detail.action === 'start' && !running) setState({ end: Date.now() + (state.left ?? minutes * 60_000), left: state.left ?? minutes * 60_000 });
+      else if (detail.action === 'stop' && running) setState({ end: null, left: Math.max(0, (state.end ?? 0) - Date.now()) });
+    };
+    window.addEventListener(TIMER_EVENT, on);
+    return () => window.removeEventListener(TIMER_EVENT, on);
+  }, [id, running, state, minutes]);
   return (
     <div className={cx('time-row time-tool', done && 'due')}>
       <span className="time-label">TIMER</span>
@@ -226,9 +240,20 @@ export function Panel({ module }: ModuleProps) {
   const seen = useSeen();
   const today = useToday(seen);
   const foldId = useId();
+  const open = module.kind === 'time' && module.settings.toolsOpen;
+  // START TIMER from the finder opens the fold too, so the timer is seen running.
+  useEffect(() => {
+    const on = (e: Event) => {
+      const { detail } = e as CustomEvent<TimerCommand>;
+      if (detail.id !== module.id || detail.action !== 'start' || open || module.kind !== 'time') return;
+      const store = layoutStore().getState();
+      store.setModules(setSettings(store.layout.modules, module.id, 'time', { ...module.settings, toolsOpen: true }));
+    };
+    window.addEventListener(TIMER_EVENT, on);
+    return () => window.removeEventListener(TIMER_EVENT, on);
+  }, [module, open]);
   if (module.kind !== 'time') return null;
   const { settings } = module;
-  const open = settings.toolsOpen;
   // Kept with the layout straight away, like a folder's fold (not an undo step).
   const toggle = () => {
     const store = layoutStore().getState();
@@ -247,7 +272,7 @@ export function Panel({ module }: ModuleProps) {
       {/* Folded, they stay (a running timer keeps its time, and still says when it's done) but don't tick. */}
       <div className={cx('time-fold', open && 'open')} id={foldId} inert={!open}>
         <div className="time-fold-inner">
-          <Timer minutes={settings.timerMinutes} seen={seen && open} />
+          <Timer id={module.id} minutes={settings.timerMinutes} seen={seen && open} />
           <Stopwatch seen={seen && open} />
         </div>
       </div>

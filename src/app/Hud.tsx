@@ -75,6 +75,8 @@ export function Hud() {
   const [menu, setMenu] = useState<HTMLElement | null>(null);
   return (
     <>
+      {/* The page's main heading stays for screen readers when the brand panel (which holds it) is off. */}
+      {off && <h1 className="sr-only">cyberdeck_terminal</h1>}
       {!off && (
         <header ref={brand} className={cx('masthead hud-brand', editing && 'editing')} data-placed={place ? '' : undefined} style={placeStyle(place)}>
           {editing && (
@@ -105,17 +107,27 @@ export function Hud() {
           )}
         </header>
       )}
-      <nav className="hud-keys" aria-label="Controls">
-        <button type="button" className="hint" onClick={() => void toggleFullscreen()}>
-          <kbd>F</kbd> FULLSCREEN
-        </button>
-        <button type="button" className="hint" onClick={() => uiStore.getState().setFinderOpen(true)}>
-          <kbd>/</kbd> FIND
-        </button>
-        <button type="button" className="hint" onClick={() => uiStore.getState().setPanelOpen(true)}>
-          <kbd>S</kbd> SYSTEM
-        </button>
-      </nav>
     </>
+  );
+}
+
+/**
+ * The key hints, bottom right: drawn last in the page (app/App.tsx), so Tab
+ * reaches them after the brand panel, NAV and the modules, in screen order
+ * (0.14.0).
+ */
+export function HudKeys() {
+  return (
+    <nav className="hud-keys" aria-label="Controls">
+      <button type="button" className="hint" onClick={() => void toggleFullscreen()}>
+        <kbd>F</kbd> FULLSCREEN
+      </button>
+      <button type="button" className="hint" onClick={() => uiStore.getState().setFinderOpen(true)}>
+        <kbd>/</kbd> FIND
+      </button>
+      <button type="button" className="hint" onClick={() => uiStore.getState().setPanelOpen(true)}>
+        <kbd>S</kbd> SYSTEM
+      </button>
+    </nav>
   );
 }

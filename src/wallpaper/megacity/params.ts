@@ -18,6 +18,7 @@
  * zoomed in, the towers and windows grow; the ledge keeps its place on
  * the screen.
  */
+import { SHARP_DPR } from '@/lib/sharpness';
 import type { GlowLevel } from '@/lib/layout';
 
 /**
@@ -100,8 +101,13 @@ export const MIN_FRAME_MS = 1000 / 72;
 /** The longest step the motion takes in one frame (s). */
 export const MAX_FRAME_STEP = 0.1;
 
-/** The most canvas pixels per CSS px (before the zoom: types.ts zoomedSize). */
-export const MAX_DPR = 2;
+/**
+ * The most canvas pixels per CSS px this engine draws (before the zoom:
+ * types.ts zoomedSize): the screen's own, up to SHARP_DPR. The wallpaper
+ * host passes in the ratio in force, its safe cap (catalog.ts) if the
+ * sharpness guard stepped back (lib/sharpness.ts).
+ */
+export const MAX_DPR = SHARP_DPR;
 
 /** The skyline texture's width (texels): a layer's columns wrap onto as many rows as they need. */
 export const SKYLINE_WIDTH = 2048;

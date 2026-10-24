@@ -23,7 +23,7 @@
  * is inert while editing (nothing opens mid-arrangement, as links don't).
  * Every change goes through editStore.apply, so UNDO and REVERT cover it.
  */
-import { memo, useRef, useState, useSyncExternalStore } from 'react';
+import { memo, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 
 import { type ModuleInstance, removeModule } from '@/lib/modules';
 import { editStore } from '@/store/edit';
@@ -58,10 +58,12 @@ export function useNarrow(): boolean {
 export function Modules() {
   const modules = useLayout((s) => s.layout.modules);
   const narrow = useNarrow();
+  // In screen order (top to bottom, then left to right), so Tab goes through them as they're seen (0.14.0).
+  const shown = useMemo(() => [...modules].sort((a, b) => a.place.y - b.place.y || a.place.x - b.place.x), [modules]);
   if (narrow) return null;
   return (
     <>
-      {modules.map((m) => (
+      {shown.map((m) => (
         <ModulePanel key={m.id} module={m} stacked={false} />
       ))}
     </>

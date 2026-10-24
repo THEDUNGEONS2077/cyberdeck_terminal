@@ -137,6 +137,7 @@ The motion is our own, and slow: a few windows go on or off every second, each a
 
 ## Modules
 - **A module is a panel like NAV's:** a solid frame with scanlines and phosphor, a header with `> TITLE` and a short dimmed note on the right, and a lit rule under it.
+- **A 9 px floor** (0.14.0): the small sizes (`--fs-meta`, `--fs-small`, `--fs-micro`) never go below 9 px in a module; 70% of them was 7–8 px, too small to read.
 - **Drawn at 70%** (user request, 2026-10-24): `.module` sets the type, spacing and control tokens again, scaled (`--m: 0.7`), and draws its stored width as `--mw`. No `zoom` or transform, so text stays on whole pixels. What you click keeps WCAG 2.2's 24 px target (buttons, grip, ⋯, the fold heading). The brand panel and NAV keep their sizes.
 - **Bare modules** (SEARCH, QUICK LAUNCH): no header outside EDIT; the frame is only a 3 px scanlined ring round the field or the tiles.
 - **In EDIT** its frame turns dashed and lit, as NAV's does. It gets a `⠿` grip on the left, a `⋯` on the right and a resize edge down its right side. Its contents dim and rest: nothing opens mid-arrangement.

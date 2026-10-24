@@ -16,6 +16,7 @@
  *     whole bus fires a volley.
  * Sizes are CSS px (grid cells for the board).
  */
+import { SHARP_DPR } from '@/lib/sharpness';
 import type { GlowLevel } from '@/lib/layout';
 
 /** The board's grid pitch (CSS px): traces run on its points. */
@@ -98,5 +99,10 @@ export const FLOW_GLOW: Record<GlowLevel, FlowGlow> = {
 /** The longest real time step (s) the motion takes in one frame. */
 export const MAX_FRAME_STEP = 0.1;
 
-/** Pixel ratio cap: thin traces want the screen's own sharpness, up to 2. */
-export const MAX_DPR = 2;
+/**
+ * The most canvas pixels per CSS px this engine draws (before the zoom:
+ * types.ts zoomedSize): the screen's own, up to SHARP_DPR. The wallpaper
+ * host passes in the ratio in force, its safe cap (catalog.ts) if the
+ * sharpness guard stepped back (lib/sharpness.ts).
+ */
+export const MAX_DPR = SHARP_DPR;

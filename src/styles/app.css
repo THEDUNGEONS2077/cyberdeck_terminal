@@ -1924,11 +1924,13 @@ a.text-btn {
   --fs-title: calc(22px * var(--text-scale) * var(--m));
   --fs-display: calc(18px * var(--text-scale) * var(--m));
   --fs-body: calc(14px * var(--text-scale) * var(--m));
-  --fs-meta: calc(12px * var(--text-scale) * var(--m));
-  --fs-small: calc(11px * var(--text-scale) * var(--m));
-  --fs-micro: calc(10px * var(--text-scale) * var(--m));
+  /* The small sizes have a 9 px floor (0.14.0): at 70% they'd be 7–8 px, too small to read
+     (the date, the fold's label, key badges, tile titles). */
+  --fs-meta: max(9px, calc(12px * var(--text-scale) * var(--m)));
+  --fs-small: max(9px, calc(11px * var(--text-scale) * var(--m)));
+  --fs-micro: max(9px, calc(10px * var(--text-scale) * var(--m)));
   --lh-body: calc(20px * var(--text-scale) * var(--m));
-  --lh-meta: calc(16px * var(--text-scale) * var(--m));
+  --lh-meta: max(12px, calc(16px * var(--text-scale) * var(--m)));
   --s-xs: calc(4px * var(--m));
   --s-sm: calc(8px * var(--m));
   --s-md: calc(12px * var(--m));

@@ -20,7 +20,7 @@ import { useFullscreenSync, useIdleCursor } from './fullscreen';
 import { useLayout, useUi } from './hooks';
 import { BookmarksDeck } from './Bookmarks';
 import { Finder } from './Finder';
-import { Hud } from './Hud';
+import { Hud, HudKeys } from './Hud';
 import { ModuleSettingsDialog, Modules } from './modules/Modules';
 import { SystemPanel } from './SystemPanel';
 import { Toast } from './Toast';
@@ -99,6 +99,7 @@ export function App() {
         <Hud />
         <BookmarksDeck />
         <Modules />
+        <HudKeys />
         <Toast />
       </main>
       {panel.shown && <SystemPanel leaving={panel.leaving} />}

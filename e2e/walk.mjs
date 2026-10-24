@@ -77,6 +77,8 @@ const rain = () => page.evaluate(() => window.__cyberdeckRain.pixels());
 const litPixels = async () => (await rain()).lit;
 /** axe-core: WCAG 2.2 A/AA and best practice, the same gate as quest_log_desktop. */
 const audit = async (state) => {
+  // axe is added to the page once per load (a reload drops it).
+  if (!(await page.evaluate(() => !!window.axe))) await page.addScriptTag({ path: join(root, 'node_modules/axe-core/axe.min.js') });
   await page.waitForTimeout(400);
   const found = await page.evaluate(async () => {
     const r = await window.axe.run(document, { runOnly: { type: 'tag', values: ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa', 'best-practice'] } });
@@ -418,6 +420,25 @@ try {
     expect(Math.abs(back.x - t0.x) < 2 && Math.abs(back.y - t0.y) < 2 && Math.abs(back.width - t0.width) < 2, 'UNDO didn’t put TIME back');
   });
 
+  await path('a dropped panel settles flush beside NAV (within 8 px), undoably', async () => {
+    const time = page.locator('.module[data-kind="time"]');
+    const nav = await page.locator('.deck-area').boundingBox();
+    const t0 = await time.boundingBox();
+    const grip = await page.getByRole('button', { name: /^Move the TIME module/ }).boundingBox();
+    // Aim 5 px right of the spot beside NAV (its right edge + the 8 px gap), and a little down.
+    const dx = nav.x + nav.width + 8 + 5 - t0.x;
+    await page.mouse.move(grip.x + 8, grip.y + 8);
+    await page.mouse.down();
+    await page.mouse.move(grip.x + 8 + dx, grip.y + 8 + 40, { steps: 8 });
+    await page.mouse.up();
+    await page.waitForTimeout(150);
+    const t1 = await time.boundingBox();
+    expect(Math.abs(t1.x - (nav.x + nav.width + 8)) < 1.5, `TIME settled at ${t1.x}, not beside NAV at ${nav.x + nav.width + 8}`);
+    await editBar().getByRole('button', { name: 'UNDO' }).click();
+    await page.waitForTimeout(100);
+    expect(Math.abs((await time.boundingBox()).x - t0.x) < 2, 'UNDO didn’t put TIME back');
+  });
+
   await path('SETTINGS: SEARCH takes a custom engine, QUICK LAUNCH a tile, TIME a countdown', async () => {
     await settingsOf('SEARCH');
     const field = page.getByLabel(/^CUSTOM ENGINE/);
@@ -448,6 +469,7 @@ try {
     await page.getByRole('button', { name: '+ COUNTDOWN' }).click();
     await page.locator('.tile-list-row', { hasText: 'LAUNCH' }).waitFor();
     await shot('19-module-settings');
+    await audit('TIME’s settings');
     await page.keyboard.press('Escape');
     await page.getByRole('dialog').waitFor({ state: 'detached' });
     // Esc closed SETTINGS only: still editing.
@@ -478,6 +500,7 @@ try {
     await page.getByRole('button', { name: 'Brand panel options' }).click();
     await page.getByRole('menuitem', { name: 'REMOVE' }).click();
     await page.locator('.hud-brand').waitFor({ state: 'detached' });
+    await audit('the brand panel removed');
     await editBar().getByRole('button', { name: '+ MODULE' }).click();
     await page.getByRole('menuitem', { name: 'BRAND PANEL' }).click();
     await page.locator('.hud-brand').waitFor();
@@ -545,6 +568,7 @@ try {
     expect((await fold.getAttribute('aria-expanded')) === 'false', 'the fold starts open');
     await fold.click();
     await page.waitForFunction(() => document.querySelector('.time-fold.open'));
+    await audit('TIME’s timer and stopwatch open');
     const timer = time.locator('.time-tool', { hasText: 'TIMER' }).getByRole('timer');
     expect((await timer.innerText()) === '25:00', `the timer shows ${await timer.innerText()}`);
     await time.getByRole('button', { name: 'START' }).first().click();
@@ -561,6 +585,42 @@ try {
     await page.waitForFunction(() => [...document.querySelectorAll('.module[data-kind="time"] [role="timer"]')].at(-1)?.textContent > '00:00', null, { timeout: 6000 });
     await watch.getByRole('button', { name: 'STOP' }).click();
     // Today is lit in the month.
+  });
+
+  await path('the finder knows the modules: FOCUS SEARCH, START / STOP TIMER', async () => {
+    const run = async (words) => {
+      await page.locator('body').click({ position: { x: 5, y: 600 } });
+      await page.keyboard.press('/');
+      // Typed only once the finder's field has the keyboard (else a letter could be a shortcut: F, S).
+      await page.waitForFunction(() => document.activeElement?.matches('.finder input'));
+      await page.keyboard.type(words);
+      await page.getByRole('option', { name: new RegExp(`^.?\\s*${words}`, 'i') }).first().waitFor();
+      await page.keyboard.press('Enter');
+    };
+    await run('focus search');
+    await page.waitForFunction(() => document.activeElement?.closest('.module[data-kind="search"]'));
+    // Esc in the search box: clears what's typed, then leaves it.
+    await page.keyboard.type('abc');
+    await page.keyboard.press('Escape');
+    expect((await mod('SEARCH').getByRole('searchbox').inputValue()) === '', 'Esc didn’t clear the search');
+    await page.keyboard.press('Escape');
+    expect(!(await page.evaluate(() => document.activeElement?.closest('.module[data-kind="search"]'))), 'Esc didn’t leave the search box');
+    const timer = mod('TIME').locator('.time-tool', { hasText: 'TIMER' });
+    await run('start timer');
+    await timer.getByRole('button', { name: 'PAUSE' }).waitFor();
+    await run('stop timer');
+    await timer.getByRole('button', { name: 'RESUME' }).waitFor();
+    await timer.getByRole('button', { name: 'RESET' }).click();
+  });
+
+  await path('keyboard: the arrows move between QUICK LAUNCH’s tiles; Tab reaches the key hints last', async () => {
+    const tiles = mod('QUICK LAUNCH').locator('.launch-tile');
+    await tiles.first().focus();
+    await page.keyboard.press('ArrowRight');
+    expect(await tiles.nth(1).evaluate((el) => el === document.activeElement), 'ArrowRight didn’t move to the next tile');
+    // In the page: the brand panel, NAV, the modules (top to bottom), then the key hints.
+    const order = await page.evaluate(() => [...document.querySelector('.ui-layer').children].map((el) => el.className.split(' ')[0]).filter((c) => ['masthead', 'deck-area', 'module', 'hud-keys'].includes(c)));
+    expect(order.at(-1) === 'hud-keys' && order.indexOf('deck-area') < order.indexOf('module'), `page order: ${order.join(', ')}`);
   });
 
   await path('modules and their settings survive a reload', async () => {
@@ -880,7 +940,49 @@ try {
     const mods = await page.locator('.module.stacked').evaluateAll((els) => els.map((el) => el.getBoundingClientRect()).map((r) => [r.left, r.right]));
     expect(mods.length === 3 && mods.every(([l, r]) => l >= 0 && r <= 420), `stacked modules: ${JSON.stringify(mods)}`);
     await shot('06-narrow');
+    await audit('a narrow window with modules');
     await page.setViewportSize({ width: 1920, height: 1080 });
+  });
+
+  await path('SYSTEM ▸ COPY DIAGNOSTICS copies the browser, screen, wallpaper and layout figures, and no address', async () => {
+    await context.grantPermissions(['clipboard-read', 'clipboard-write'], { origin: new globalThis.URL(URL).origin });
+    await page.keyboard.press('s');
+    await page.getByRole('button', { name: 'COPY DIAGNOSTICS' }).click();
+    await page.locator('.toast', { hasText: 'DIAGNOSTICS COPIED' }).waitFor();
+    const text = await page.evaluate(() => navigator.clipboard.readText());
+    for (const part of ['=== cyberdeck_terminal DIAGNOSTICS ===', '--- WALLPAPER ---', 'sharpness: drawn at', 'frames: ', '--- STARTUP', 'dashboard on screen', '--- LAYOUT ---', 'modules: SEARCH', '=== END ===']) {
+      expect(text.includes(part), `the diagnostics have no “${part}”`);
+    }
+    expect(!/https?:|www\./.test(text), 'the diagnostics carry an address');
+    await page.keyboard.press('Escape');
+  });
+
+  await path('a sharper screen (2.5×) draws at its own ratio; the guard steps back to 2× when frames are slow, and TRY AGAIN undoes that', async () => {
+    const sharp = await browser.newContext({ viewport: { width: 1280, height: 720 }, deviceScaleFactor: 2.5, serviceWorkers: 'block' });
+    try {
+      const p = await sharp.newPage();
+      await p.goto(URL);
+      await p.locator('.wallpaper-canvas[data-ready]').waitFor({ state: 'attached', timeout: 8000 });
+      const s0 = await p.evaluate(() => window.__cyberdeckRain.sharpness());
+      expect(s0.drawnDpr === 2.5 && s0.safeDpr === 2, `drawn at ${s0.drawnDpr}× (safe ${s0.safeDpr}×)`);
+      const w0 = (await p.evaluate(() => window.__cyberdeckRain.pixels())).w;
+      const css = await p.evaluate(() => Math.max(screen.width, innerWidth));
+      expect(w0 === Math.round(css * 2.5), `the canvas is ${w0} px for ${css} CSS px`);
+      // The tests' knob: a budget no frame can meet, so the guard steps back after its watch.
+      await p.evaluate(() => localStorage.setItem('cyberdeck_terminal:sharp-budget', '0'));
+      await p.evaluate(() => localStorage.removeItem('cyberdeck_terminal:sharp'));
+      await p.reload();
+      await p.locator('.wallpaper-canvas[data-ready]').waitFor({ state: 'attached', timeout: 8000 });
+      await p.waitForFunction(() => window.__cyberdeckRain.sharpness()?.verdict === 'safe', null, { timeout: 10000 });
+      await p.waitForFunction(async () => (await window.__cyberdeckRain.pixels()).w === Math.round(Math.max(screen.width, innerWidth) * 2), null, { timeout: 5000 });
+      // SYSTEM says so, and TRY AGAIN goes back to full sharpness (and watches again).
+      await p.keyboard.press('s');
+      await p.locator('.setting', { hasText: 'SHARPNESS' }).getByText(/STEPPED BACK FROM 2\.5×/).waitFor();
+      await p.getByRole('button', { name: 'TRY AGAIN' }).click();
+      expect((await p.evaluate(() => window.__cyberdeckRain.sharpness())).drawnDpr === 2.5, 'TRY AGAIN didn’t go back to 2.5×');
+    } finally {
+      await sharp.close();
+    }
   });
 
   await path('Reduce Motion: one still frame of rain, already full', async () => {
