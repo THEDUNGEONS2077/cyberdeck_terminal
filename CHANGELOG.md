@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.13.1 (build 21)
+- **MEGACITY is lighter on the graphics card.** The city is drawn once a second and copied in between, since it only changes when a window goes on or off. The picture is the same; windows now switch on the second's edge. The same change is in fluid_motion 0.7.0, where your phone measured the city as most of the cost.
+
 ## 0.13.0 (build 20)
 - **Modules are 30% smaller:** their text, spacing and width. One you've already placed shrinks too, and keeps its place. What you click (buttons, the grip and ⋯ in EDIT) stays at least 24 px, the accessibility minimum.
 - **SEARCH is just the box you type in,** with the scanlined frame as a thin ring around it. The engine is named in the box ("SEARCH DUCKDUCKGO"); Enter searches. Its title and grip show only in EDIT.

@@ -14,6 +14,14 @@
  * city is sent per frame; the lights are a few kilobytes. Up to about 72
  * frames a second.
  *
+ * The city is drawn into a cache once a second and copied each frame
+ * (0.13.1, with fluid_motion 0.7.0). Working it out per pixel is most of a
+ * frame's cost (5 ms a frame on a phone), yet it only changes when a window
+ * goes on or off: its clock is used for nothing else. So its clock runs in
+ * whole seconds (a window switches on the second's edge, not a fraction
+ * after: no one can see it), and a new size, palette or glow draws it again
+ * at once.
+ *
  * The shaders are fluid_motion's too (its assets/shaders/mc_*): the phone
  * draws the same city the same way. If WebGL 2 isn't there, a still 2D
  * picture (the haze and the ledge); if the graphics context is
@@ -33,6 +41,20 @@ import shapeVert from './shaders/shape.vert?raw';
 import signFrag from './shaders/sign.frag?raw';
 import signVert from './shaders/sign.vert?raw';
 import { CitySim, frameRoom, GLOW, packGlows, packSigns, SIGN } from './sim';
+
+/**
+ * The cache's copy: each pixel reads its own texel (the cache is the
+ * canvas's size). The page's own, not one of the shared shaders: the phone
+ * copies with its QUALITY upscale's shader.
+ */
+const COPY_FRAG = `#version 300 es
+precision mediump float;
+uniform sampler2D uCache;
+out vec4 fragColor;
+void main() {
+    fragColor = texelFetch(uCache, ivec2(gl_FragCoord.xy), 0);
+}
+`;
 
 /** A compiled program, its uniforms looked up once each. */
 interface Program {
@@ -77,6 +99,9 @@ function compile(gl: WebGL2RenderingContext, vs: string, fs: string): Program | 
 /** Everything on the graphics card. */
 interface Gpu {
   city: Program;
+  copy: Program;
+  /** The city's cache (the canvas's size, made on the first draw and on resize). */
+  cache: { texture: WebGLTexture; fbo: WebGLFramebuffer; w: number; h: number } | null;
   sign: Program;
   glow: Program;
   shape: Program;
@@ -111,7 +136,8 @@ function setUp(gl: WebGL2RenderingContext): Gpu | null {
   const sign = compile(gl, signVert, signFrag);
   const glow = compile(gl, glowVert, glowFrag);
   const shape = compile(gl, shapeVert, shapeFrag);
-  if (!city || !sign || !glow || !shape) return null;
+  const copy = compile(gl, fullVert, COPY_FRAG);
+  if (!city || !sign || !glow || !shape || !copy) return null;
   const skylineTex = gl.createTexture()!;
   gl.bindTexture(gl.TEXTURE_2D, skylineTex);
   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
@@ -120,6 +146,8 @@ function setUp(gl: WebGL2RenderingContext): Gpu | null {
   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
   return {
     city,
+    copy,
+    cache: null,
     sign,
     glow,
     shape,
@@ -164,6 +192,29 @@ function createMegacity(canvas: HTMLCanvasElement | OffscreenCanvas, options: Wa
   let announced = false;
   let frame = 0;
   let last = 0;
+  /** The whole second the city's cache was drawn at; NaN: it must be drawn. */
+  let cachedSecond = Number.NaN;
+
+  /** The city's cache at the canvas's size (made again when the size changes; a new one must be drawn). */
+  const cacheFor = (g: WebGL2RenderingContext, p: Gpu) => {
+    if (p.cache && p.cache.w === canvas.width && p.cache.h === canvas.height) return p.cache;
+    if (p.cache) {
+      g.deleteFramebuffer(p.cache.fbo);
+      g.deleteTexture(p.cache.texture);
+    }
+    const texture = g.createTexture()!;
+    g.bindTexture(g.TEXTURE_2D, texture);
+    g.texStorage2D(g.TEXTURE_2D, 1, g.RGBA8, canvas.width, canvas.height);
+    g.texParameteri(g.TEXTURE_2D, g.TEXTURE_MIN_FILTER, g.NEAREST);
+    g.texParameteri(g.TEXTURE_2D, g.TEXTURE_MAG_FILTER, g.NEAREST);
+    const fbo = g.createFramebuffer()!;
+    g.bindFramebuffer(g.FRAMEBUFFER, fbo);
+    g.framebufferTexture2D(g.FRAMEBUFFER, g.COLOR_ATTACHMENT0, g.TEXTURE_2D, texture, 0);
+    g.bindFramebuffer(g.FRAMEBUFFER, null);
+    p.cache = { texture, fbo, w: canvas.width, h: canvas.height };
+    cachedSecond = Number.NaN;
+    return p.cache;
+  };
 
   /** The city's skyline to the texture (once per city). */
   const sendCity = () => {
@@ -184,6 +235,8 @@ function createMegacity(canvas: HTMLCanvasElement | OffscreenCanvas, options: Wa
   /** The uniforms that hold until the size, palette or glow changes. */
   const setUniforms = () => {
     if (!gl || !gpu || !city || !size) return;
+    // Whatever changed, the city's cache is drawn again.
+    cachedSecond = Number.NaN;
     const c = gpu.city;
     gl.useProgram(c.program);
     gl.uniform1i(c.u('uSkyline'), 0);
@@ -207,6 +260,8 @@ function createMegacity(canvas: HTMLCanvasElement | OffscreenCanvas, options: Wa
     gl.uniform3f(c.u('uWinPink'), ...tones.winPink);
     gl.uniform3f(c.u('uWinWhite'), ...tones.winWhite);
     gl.uniform1f(c.u('uWindowGlow'), MEGACITY_GLOW[glow].window);
+    gl.useProgram(gpu.copy.program);
+    gl.uniform1i(gpu.copy.u('uCache'), 0);
     for (const p of [gpu.sign, gpu.glow, gpu.shape]) {
       gl.useProgram(p.program);
       gl.uniform2f(p.u('uTarget'), canvas.width, canvas.height);
@@ -230,13 +285,23 @@ function createMegacity(canvas: HTMLCanvasElement | OffscreenCanvas, options: Wa
     if (!size) return;
     if (gl && gpu && !lost && city && sim && room) {
       gl.viewport(0, 0, canvas.width, canvas.height);
-      // 1. The city, every pixel.
       gl.disable(gl.BLEND);
-      gl.useProgram(gpu.city.program);
-      gl.uniform1f(gpu.city.u('uTime'), sim.time);
-      gl.activeTexture(gl.TEXTURE0);
-      gl.bindTexture(gl.TEXTURE_2D, gpu.skyline);
       gl.bindVertexArray(gpu.empty);
+      gl.activeTexture(gl.TEXTURE0);
+      // 1. The city: into its cache when a new second has begun (or something changed), then copied.
+      const cache = cacheFor(gl, gpu);
+      const second = Math.floor(sim.time);
+      if (second !== cachedSecond) {
+        cachedSecond = second;
+        gl.bindFramebuffer(gl.FRAMEBUFFER, cache.fbo);
+        gl.useProgram(gpu.city.program);
+        gl.uniform1f(gpu.city.u('uTime'), second);
+        gl.bindTexture(gl.TEXTURE_2D, gpu.skyline);
+        gl.drawArrays(gl.TRIANGLES, 0, 3);
+        gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+      }
+      gl.useProgram(gpu.copy.program);
+      gl.bindTexture(gl.TEXTURE_2D, cache.texture);
       gl.drawArrays(gl.TRIANGLES, 0, 3);
       // 2. Signs, then haze and lights, then the foreground: premultiplied (what has no alpha is added).
       gl.enable(gl.BLEND);
