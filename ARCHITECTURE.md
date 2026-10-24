@@ -117,17 +117,18 @@ bridge/background.js ──(externally_connectable)──▶ src/bridge/client.t
 - **Panels** are placed with `left`/`top` from shares of the window, clamped on screen. There are no transforms, so text stays crisp, and narrow windows ignore the places.
 
 ## Modules
-- **What they are:** panels you add, place and size yourself (SEARCH, QUICK LAUNCH, TIME). They're kept in `layout.modules` (schema 4: the 3 → 4 step adds an empty list), so saving, snapshots, backups and restore cover them.
+- **What they are:** panels you add, place and size yourself (SEARCH, QUICK LAUNCH, TIME). The brand panel is grouped with them as an optional panel: `panels.brandOff` (only written when true, no schema bump) hides it; + MODULE offers it back.
+- **Drawn at `MODULE_SCALE` (0.7):** a module's stored width is in its own sizes. `app/arrangeDrag.ts` `scaleOf` divides a drawn width by the scale when saving it (drag, resize, arrow keys). They're kept in `layout.modules` (schema 4: the 3 → 4 step adds an empty list), so saving, snapshots, backups and restore cover them.
 - **`lib/modules.ts`** (pure) holds the list's rules: `newModule` at a free spot down the right-hand side, `addModule`, `placeModule`, `removeModule`, `setSettings`, and `normalizeModules`, which drops unknown kinds, bad ids and malformed entries one by one, never the whole layout. Ids are `m…`, so they can't be taken for `nav` or `brand`.
 - **Each kind's rules** are their own pure files:
   - `lib/search.ts`: the engines, a custom address with `%s`, and `searchUrl` (the words URL-encoded). The page only opens the address.
   - `lib/launch.ts`: tiles (`cleanUrl` takes only http(s) addresses), add, move, remove, and `launchTargets` for keys 1–9 across modules.
-  - `lib/time.ts`: countdowns counted in calendar days (UTC midnights, so clock changes don't matter), `monthGrid` (Monday first), `clockText`.
+  - `lib/time.ts`: countdowns counted in calendar days (UTC midnights, so clock changes don't matter), `clockText`, and `toolsOpen` (the timer and stopwatch fold, saved straight to the layout like a folder's, not an undo step).
 - **The page:**
   - `app/modules/catalog.ts` names each kind and holds its file (`SearchModule`, `LaunchModule`, `TimeModule`, each exporting `Panel` and `Settings`). They load with the app: lazily, the bundler split their shared code into seven small chunks, and a first visit was ~130 ms slower.
   - `app/modules/Modules.tsx` draws the frames: grip, ⋯ (`PopupMenu`), resize edge, the kind's panel (inert while editing), and the SETTINGS dialog (`ui.moduleSettings`). Narrow windows (`useNarrow`) stack them inside NAV's scrolling area instead.
   - `app/modules/actions.ts` is what the rest of the page uses: the finder's web search, keys 1–9 (`useShortcuts`), and PIN TO QUICK LAUNCH from a bookmark's ⋯.
-- **TIME and the battery.** Nothing loops. The clock redraws once a second, the calendar and countdowns at midnight, and the timer and stopwatch only while they run. All of it pauses while the tab is hidden or the page is immersive, and reads the clock afresh when it's seen again. A running timer has one timeout to its end, so its notice arrives even from the background.
+- **TIME and the battery.** Nothing loops. The clock redraws once a second, the countdowns at midnight, and the timer and stopwatch only while they run with their fold open. All of it pauses while the tab is hidden or the page is immersive, and reads the clock afresh when it's seen again. A running timer has one timeout to its end, so its notice arrives even from the background.
 
 ## Storage and recovery
 IndexedDB, database `cyberdeck_terminal`, store `kv`. quest_log_desktop shares the origin, so the name is this app's own. The keys:

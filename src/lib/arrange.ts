@@ -53,10 +53,16 @@ export interface PanelPlace {
 export interface Panels {
   nav: PanelPlace | null;
   brand: PanelPlace | null;
+  /**
+   * The brand panel is off the screen (0.13.0: it's optional, added and
+   * removed like a module). Only written when true, so a layout that never
+   * removed it is the same document as before.
+   */
+  brandOff?: true;
 }
 
 /** The movable panels. */
-export type PanelId = keyof Panels;
+export type PanelId = 'nav' | 'brand';
 
 /** Longest area title kept. */
 export const MAX_AREA_TITLE = 40;

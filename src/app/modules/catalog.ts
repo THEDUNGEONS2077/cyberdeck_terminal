@@ -35,6 +35,11 @@ export interface KindInfo {
   about: string;
   /** The short note in the module's header (the engine, how many tiles), or ''. */
   note(module: ModuleInstance): string;
+  /**
+   * No header outside edit mode: the frame is only a thin scanlined ring
+   * round the content (user request, 2026-10-24: SEARCH, QUICK LAUNCH).
+   */
+  bare: boolean;
   Panel: ComponentType<ModuleProps>;
   Settings: ComponentType<ModuleProps>;
 }
@@ -46,6 +51,7 @@ export const CATALOG: Record<ModuleKind, KindInfo> = {
     glyph: '◎',
     about: 'Search the web with the engine you choose (opens in a new tab)',
     note: (m) => (m.kind === 'search' ? engineOf(m.settings).label : ''),
+    bare: true,
     Panel: search.Panel,
     Settings: search.Settings,
   },
@@ -54,6 +60,7 @@ export const CATALOG: Record<ModuleKind, KindInfo> = {
     glyph: '»',
     about: 'Big tiles for the sites you open most; keys 1–9 open the first nine',
     note: (m) => (m.kind === 'launch' ? `${m.settings.tiles.length} TILE${m.settings.tiles.length === 1 ? '' : 'S'}` : ''),
+    bare: true,
     Panel: launch.Panel,
     Settings: launch.Settings,
   },
@@ -62,6 +69,7 @@ export const CATALOG: Record<ModuleKind, KindInfo> = {
     glyph: '◔',
     about: 'A clock, this month, your countdowns, a timer and a stopwatch',
     note: () => '',
+    bare: false,
     Panel: time.Panel,
     Settings: time.Settings,
   },

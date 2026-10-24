@@ -20,7 +20,7 @@ import type { CSSProperties, KeyboardEvent, PointerEvent } from 'react';
 import { NAV_WIDTH, type PanelPlace, clampPlace } from '@/lib/arrange';
 import { editStore, withPlace } from '@/store/edit';
 
-import { type DragPayload, placeFromRect, widthOf } from './arrangeDrag';
+import { type DragPayload, placeFromRect, scaleOf, widthOf } from './arrangeDrag';
 
 /** The CSS variables that put a panel at `place` (app.css `[data-placed]`). */
 export function placeStyle(place: PanelPlace | null): CSSProperties | undefined {
@@ -35,7 +35,7 @@ function nudge(e: KeyboardEvent, id: string, el: HTMLElement | null, resize: boo
   e.preventDefault();
   const big = e.shiftKey;
   const width = widthOf(id);
-  const place = placeFromRect(el.getBoundingClientRect(), width);
+  const place = placeFromRect(el.getBoundingClientRect(), width, scaleOf(id));
   const next: PanelPlace = resize
     ? { ...place, w: (place.w ?? 0) + dir[0]! * (big ? 64 : 16) }
     : { ...place, x: place.x + dir[0]! * (big ? 0.05 : 0.01), y: place.y + dir[1]! * (big ? 0.05 : 0.01) };

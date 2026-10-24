@@ -36,6 +36,14 @@ export type ModuleInstance = Module<'search', SearchSettings> | Module<'launch',
 /** The module of kind `K`. */
 export type ModuleOf<K extends ModuleKind> = Extract<ModuleInstance, { kind: K }>;
 
+/**
+ * How big a module is drawn: 70% of its own sizes (user request,
+ * 2026-10-24: 30% smaller; the brand panel keeps its size). A module's
+ * stored width is in its own sizes, so the screen shows `w × MODULE_SCALE`
+ * (app.css .module, app/arrangeDrag.ts scaleOf).
+ */
+export const MODULE_SCALE = 0.7;
+
 /** Most modules on one dashboard. */
 export const MAX_MODULES = 12;
 /** How narrow and how wide a module can be (px). */

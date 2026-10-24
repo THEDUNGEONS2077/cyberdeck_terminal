@@ -1484,10 +1484,17 @@ a.text-btn {
   box-shadow: var(--glow-faint);
 }
 /* The brand panel's grip sits on its top-right corner. */
-.masthead > .panel-grip {
+/* The brand panel's grip and ⋯ (edit mode) sit on its top-right corner. */
+.masthead > .brand-tools {
   position: absolute;
   top: 6px;
   right: 6px;
+  display: flex;
+  gap: var(--s-xs);
+}
+.brand-tools .item-menu-btn {
+  margin-left: 0;
+  background: var(--surface-raised);
 }
 
 /* Edit mode: the deck's frame is dashed and lit, and everything can be picked up. */
@@ -1673,7 +1680,7 @@ a.text-btn {
 .hud-brand.editing {
   border-style: dashed;
   border-color: var(--accent-35);
-  padding-right: 40px;
+  padding-right: 68px;
 }
 /* While editing, NAV's content keeps clear of its resize edge (the rightmost card's ⋯ sat under it). */
 .deck-area:has(> .deck.editing) {
@@ -1809,7 +1816,6 @@ a.text-btn {
   color: var(--accent);
   text-shadow: var(--glow-text);
 }
-.finder-host,
 .finder-path {
   overflow: hidden;
   color: var(--text-dim);
@@ -1907,20 +1913,67 @@ a.text-btn {
 /* --- Modules (app/modules/) ------------------------------------------------ */
 /* A module: a framed panel where you put it (lib/modules.ts place, as CSS variables
    from app/panels.tsx placeStyle), kept on screen with clamp(); no transforms, so its
-   text stays crisp. Solid surfaces: text never sits on the wallpaper. */
+   text stays crisp. Solid surfaces: text never sits on the wallpaper.
+   Drawn at 70% of its own sizes (lib/modules.ts MODULE_SCALE; user request,
+   2026-10-24): the type, spacing and control tokens are set again here, scaled, and
+   the stored width (--pw, in its own sizes) is drawn as --mw. The brand panel and
+   NAV keep theirs. Scaled with tokens, not `zoom` or a transform, so text stays on
+   whole pixels and the grips measure what's drawn. */
 .module {
+  --m: 0.7;
+  --fs-title: calc(22px * var(--text-scale) * var(--m));
+  --fs-display: calc(18px * var(--text-scale) * var(--m));
+  --fs-body: calc(14px * var(--text-scale) * var(--m));
+  --fs-meta: calc(12px * var(--text-scale) * var(--m));
+  --fs-small: calc(11px * var(--text-scale) * var(--m));
+  --fs-micro: calc(10px * var(--text-scale) * var(--m));
+  --lh-body: calc(20px * var(--text-scale) * var(--m));
+  --lh-meta: calc(16px * var(--text-scale) * var(--m));
+  --s-xs: calc(4px * var(--m));
+  --s-sm: calc(8px * var(--m));
+  --s-md: calc(12px * var(--m));
+  --s-lg: calc(16px * var(--m));
+  --s-xl: calc(24px * var(--m));
+  --control: calc(32px * var(--m));
+  --mw: calc(var(--pw, 320px) * var(--m));
   position: absolute;
-  left: clamp(8px, calc(var(--px) * 100vw), calc(100vw - var(--pw, 320px) - 8px));
-  top: clamp(8px, calc(var(--py) * 100vh), calc(100vh - 120px));
+  left: clamp(8px, calc(var(--px) * 100vw), calc(100vw - var(--mw) - 8px));
+  top: clamp(8px, calc(var(--py) * 100vh), calc(100vh - 80px));
   display: flex;
   flex-direction: column;
   gap: var(--s-sm);
-  width: min(var(--pw, 320px), calc(100vw - 16px));
+  width: min(var(--mw), calc(100vw - 16px));
   max-height: calc(100vh - 16px);
   padding: var(--s-sm);
   border: var(--hairline) solid var(--line);
   border-radius: var(--radius);
   background: var(--scanlines), var(--phosphor), var(--surface);
+}
+/* What you click keeps WCAG 2.2's 24 px minimum target (the grip, ⋯, the small
+   buttons, the fold's heading): only its text shrinks with the rest. */
+.module .small-btn,
+.module .time-toggle {
+  min-height: 24px;
+}
+.module .search-form .module-input {
+  height: 24px;
+}
+.module kbd {
+  min-width: calc(22px * var(--m));
+  height: calc(22px * var(--m));
+}
+.module .caret {
+  width: calc(20px * var(--m));
+}
+.module .favicon {
+  width: calc(16px * var(--m));
+  height: calc(16px * var(--m));
+}
+/* SEARCH and QUICK LAUNCH, outside edit mode: no header, the frame only a thin
+   scanlined ring round the field or the tiles (catalog.ts `bare`). */
+.module.bare:not(.editing) {
+  padding: 3px;
+  gap: 0;
 }
 /* Narrow windows: one under another, under NAV, in its scrolling area. */
 .module-stack {
@@ -1938,9 +1991,10 @@ a.text-btn {
   border-style: dashed;
   border-color: var(--accent-35);
 }
-/* While editing, the content keeps clear of the resize edge. */
+/* While editing, the content keeps clear of the resize edge, far enough that the edge
+   and the ⋯ are each a 24 px target of their own (WCAG 2.2; a short module put them close). */
 .module.editing:not(.stacked) {
-  padding-right: 14px;
+  padding-right: 20px;
 }
 .module-head {
   position: relative;
@@ -2029,12 +2083,10 @@ a.text-btn {
   flex: 1;
 }
 
-/* SEARCH: the prompt, the field, GO. */
+/* SEARCH: the field alone, solid, inside the module's scanlined ring. */
 .search-form {
   display: flex;
   align-items: center;
-  gap: var(--s-xs);
-  padding: 0 var(--s-xs) 0 var(--s-sm);
   border: var(--hairline) solid var(--line);
   border-radius: var(--radius);
   background: var(--bg);
@@ -2048,19 +2100,20 @@ a.text-btn {
   display: none;
 }
 
-/* QUICK LAUNCH: big tiles, the key in the corner. */
+/* QUICK LAUNCH: big tiles, by name, the key in the corner. */
 .launch-tiles {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(112px, 1fr));
-  gap: 6px;
+  grid-template-columns: repeat(auto-fill, minmax(calc(112px * var(--m)), 1fr));
+  gap: calc(6px * var(--m));
 }
 .launch-tile {
   position: relative;
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  gap: 4px;
-  min-height: 72px;
+  justify-content: space-between;
+  gap: var(--s-xs);
+  min-height: calc(56px * var(--m));
   padding: var(--s-sm);
   border: var(--hairline) solid var(--line);
   border-radius: var(--radius);
@@ -2084,10 +2137,6 @@ a.text-btn {
 .launch-tile:active {
   background: var(--accent-10);
 }
-.launch-tile .favicon,
-.launch-tile .link-glyph {
-  margin-bottom: 2px;
-}
 .launch-title {
   max-width: 100%;
   overflow: hidden;
@@ -2095,15 +2144,10 @@ a.text-btn {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.launch-tile .link-host {
-  max-width: 100%;
-}
 .launch-key {
   position: absolute;
-  top: 6px;
-  right: 6px;
-  min-width: 18px;
-  height: 18px;
+  top: calc(6px * var(--m));
+  right: calc(6px * var(--m));
   font-size: var(--fs-micro);
 }
 /* A list of tiles or countdowns in SETTINGS, each with its buttons. */
@@ -2134,6 +2178,7 @@ a.text-btn {
 }
 .tile-list-actions {
   display: flex;
+  grid-column: 3;
   gap: 2px;
 }
 .tile-add {
@@ -2143,7 +2188,7 @@ a.text-btn {
   padding-top: var(--s-sm);
 }
 
-/* TIME: the clock, the month, the countdowns, the timer and the stopwatch. */
+/* TIME: the clock, the countdowns, and the timer and stopwatch in a fold. */
 .time-module {
   display: flex;
   flex-direction: column;
@@ -2166,34 +2211,6 @@ a.text-btn {
   letter-spacing: 1px;
   text-shadow: var(--glow-text-faint);
 }
-.time-month {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: var(--fs-micro);
-  font-variant-numeric: tabular-nums;
-  text-align: center;
-}
-.time-month caption {
-  padding-bottom: var(--s-xs);
-  text-align: left;
-}
-.time-month th {
-  padding: 2px 0;
-  color: var(--text-dim);
-  font-weight: 400;
-}
-.time-month td {
-  padding: 2px 0;
-  color: var(--text);
-}
-.time-month td.today {
-  outline: var(--hairline) solid var(--accent);
-  outline-offset: -1px;
-  background: var(--accent-10);
-  color: var(--text-bright);
-  font-weight: 700;
-  text-shadow: var(--glow-text);
-}
 .time-countdowns {
   display: flex;
   flex-direction: column;
@@ -2204,7 +2221,7 @@ a.text-btn {
   display: flex;
   align-items: center;
   gap: var(--s-sm);
-  min-height: 22px;
+  min-height: calc(22px * var(--m));
   font-size: var(--fs-small);
   letter-spacing: 1px;
 }
@@ -2227,9 +2244,43 @@ a.text-btn {
   color: var(--accent);
   text-shadow: var(--glow-text);
 }
-.time-tool {
+/* The fold's heading: a caret and TIMER · STOPWATCH, on a rule. */
+.time-toggle {
+  display: flex;
+  align-items: center;
+  gap: var(--s-xs);
   padding-top: var(--s-xs);
   border-top: var(--hairline) solid var(--line);
+  color: var(--text-dim);
+  font-size: var(--fs-small);
+  letter-spacing: 1px;
+  text-align: left;
+}
+.time-toggle:hover {
+  color: var(--text-bright);
+}
+.time-toggle[aria-expanded='true'] {
+  color: var(--text);
+}
+/* The fold: the folders' own (its grid row grows from nothing). */
+.time-fold {
+  display: grid;
+  grid-template-rows: 0fr;
+  opacity: 0;
+  transition:
+    grid-template-rows var(--base) var(--ease-fold),
+    opacity var(--base) var(--ease-fold);
+}
+.time-fold.open {
+  grid-template-rows: 1fr;
+  opacity: 1;
+}
+.time-fold-inner {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-xs);
+  min-height: 0;
+  overflow: hidden;
 }
 .time-big {
   font-size: var(--fs-body);

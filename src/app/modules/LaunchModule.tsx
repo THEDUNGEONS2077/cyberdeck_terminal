@@ -1,6 +1,8 @@
 /**
  * src/app/modules/LaunchModule.tsx: the QUICK LAUNCH module: big tiles for
  * the sites you open most, and its SETTINGS (add, order, remove tiles).
+ * Just the tiles, by name (user request, 2026-10-24: no title or count over
+ * them; the frame is a thin scanlined ring, as SEARCH's).
  *
  * Layer: UI. A tile opens in a new tab like every link here. The first
  * nine tiles across your QUICK LAUNCH modules have keys 1–9 (shown on the
@@ -48,7 +50,6 @@ export function Panel({ module }: ModuleProps) {
             <a className="launch-tile" href={t.url} target="_blank" rel="noopener noreferrer" title={t.url} draggable={false} onClick={(e) => followLink(e, t.url)}>
               <SiteIcon url={t.url} />
               <span className="launch-title">{t.title}</span>
-              <span className="link-host">{hostOf(t.url)}</span>
               {key <= LAUNCH_KEYS && (
                 <kbd className="launch-key" aria-label={`key ${key}`}>
                   {key}
@@ -91,8 +92,9 @@ export function Settings({ module }: ModuleProps) {
         <ol className="tile-list">
           {settings.tiles.map((t, i) => (
             <li key={t.url} className="tile-list-row">
-              <span className="tile-list-title">{t.title}</span>
-              <span className="link-host">{hostOf(t.url)}</span>
+              <span className="tile-list-title" title={t.url}>
+                {t.title}
+              </span>
               <span className="tile-list-actions">
                 <button type="button" className="text-btn small-btn" disabled={i === 0} aria-label={`Move ${t.title} earlier`} onClick={() => save(moveTile(settings, t.url, -1))}>
                   ↑

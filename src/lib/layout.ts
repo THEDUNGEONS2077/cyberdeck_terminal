@@ -233,6 +233,7 @@ export function summarizeLayout(doc: LayoutDocument): string {
   if (arrangement.order.length) parts.push('CUSTOM ORDER');
   if (arrangement.hidden.length) parts.push(`${arrangement.hidden.length} HIDDEN`);
   if (doc.panels.nav || doc.panels.brand) parts.push('PANELS MOVED');
+  if (doc.panels.brandOff) parts.push('NO BRAND PANEL');
   if (doc.modules.length) parts.push(`${doc.modules.length} MODULE${doc.modules.length === 1 ? '' : 'S'}`);
   if (imported) parts.push(`BAR COPY ${countLinks(imported)} LINKS`);
   if (open.length) parts.push(`${open.length} OPEN`);

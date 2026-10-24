@@ -24,7 +24,7 @@ import {
   setSettings,
 } from '@/lib/modules';
 import { ENGINES, defaultSearch, isTemplate, normalizeSearch, searchUrl } from '@/lib/search';
-import { addCountdown, clampTimer, clockText, countdownText, dateKey, daysUntil, monthGrid, normalizeTime, parseDate, sortCountdowns } from '@/lib/time';
+import { addCountdown, clampTimer, clockText, countdownText, dateKey, daysUntil, normalizeTime, parseDate, sortCountdowns } from '@/lib/time';
 import { withPlace } from '@/store/edit';
 import { shortcutFor } from '@/app/useShortcuts';
 
@@ -135,15 +135,6 @@ describe('time', () => {
     expect(sortCountdowns(list, NOW).map((c) => c.label)).toEqual(['SOON', 'LATER', 'RECENT', 'PAST']);
   });
 
-  it('lays a month out Monday first', () => {
-    const october = monthGrid(2026, 10);
-    // 1 October 2026 is a Thursday.
-    expect(october[0]).toEqual([null, null, null, 1, 2, 3, 4]);
-    expect(october.at(-1)).toEqual([26, 27, 28, 29, 30, 31, null]);
-    expect(monthGrid(2026, 2)).toHaveLength(5);
-    expect(monthGrid(2026, 2).flat().filter(Boolean)).toHaveLength(28);
-  });
-
   it('shows lengths of time as a clock', () => {
     expect(clockText(0)).toBe('00:00');
     expect(clockText(25 * 60_000)).toBe('25:00');
@@ -159,8 +150,9 @@ describe('time', () => {
     const s = addCountdown(normalizeTime(undefined), 'c1', ' launch day ', '2026-11-03');
     expect(s.countdowns).toEqual([{ id: 'c1', label: 'LAUNCH DAY', date: '2026-11-03' }]);
     expect(addCountdown(s, 'c2', 'x', '2026-13-01')).toBe(s);
-    expect(normalizeTime({ timerMinutes: 0, countdowns: [{ id: 'c1', date: '2026-01-01' }, { id: 'c1', date: '2026-01-02' }, { id: 'c3', date: 'soon' }] })).toEqual({
+    expect(normalizeTime({ timerMinutes: 0, toolsOpen: 'yes', countdowns: [{ id: 'c1', date: '2026-01-01' }, { id: 'c1', date: '2026-01-02' }, { id: 'c3', date: 'soon' }] })).toEqual({
       timerMinutes: 1,
+      toolsOpen: false,
       countdowns: [{ id: 'c1', label: 'COUNTDOWN', date: '2026-01-01' }],
     });
   });

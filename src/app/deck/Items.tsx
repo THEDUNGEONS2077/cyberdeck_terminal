@@ -4,6 +4,9 @@
  *
  * Layer: UI.
  *
+ * Every item shows its name only, never its address (user request,
+ * 2026-10-24; the address is in its tooltip).
+ *
  * Locked (the usual state): links open in a new tab (`noopener
  * noreferrer`, so sites aren't told where you came from), or switch to
  * their open tab where you've turned that on (app/switchTab.ts); folders
@@ -126,7 +129,6 @@ export const LinkItem = memo(function LinkItem({ item, section, className }: { i
           {G.blocked}
         </span>
         <span className="link-title">{title}</span>
-        <span className="link-host">{url.split(':')[0]}</span>
         {editing && <MenuButton item={item} section={section} />}
       </span>
     );
@@ -145,7 +147,6 @@ export const LinkItem = memo(function LinkItem({ item, section, className }: { i
     >
       <SiteIcon url={url} />
       <span className="link-title">{title}</span>
-      {host && <span className="link-host">{host}</span>}
       {editing && <MenuButton item={item} section={section} />}
     </a>
   );

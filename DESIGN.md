@@ -136,12 +136,16 @@ The motion is our own, and slow: a few windows go on or off every second, each a
 - **Destructive actions** (delete area, CHROME ORDER) confirm inline with a `danger` button, and are undoable.
 
 ## Modules
-- **A module is a panel like NAV's:** a solid frame with scanlines and phosphor, a header with `> TITLE` (11 px, bold) and a short dimmed note on the right (the engine, the tile count), and a lit rule under it.
+- **A module is a panel like NAV's:** a solid frame with scanlines and phosphor, a header with `> TITLE` and a short dimmed note on the right, and a lit rule under it.
+- **Drawn at 70%** (user request, 2026-10-24): `.module` sets the type, spacing and control tokens again, scaled (`--m: 0.7`), and draws its stored width as `--mw`. No `zoom` or transform, so text stays on whole pixels. What you click keeps WCAG 2.2's 24 px target (buttons, grip, ⋯, the fold heading). The brand panel and NAV keep their sizes.
+- **Bare modules** (SEARCH, QUICK LAUNCH): no header outside EDIT; the frame is only a 3 px scanlined ring round the field or the tiles.
 - **In EDIT** its frame turns dashed and lit, as NAV's does. It gets a `⠿` grip on the left, a `⋯` on the right and a resize edge down its right side. Its contents dim and rest: nothing opens mid-arrangement.
-- **Where they go:** down the right-hand side, beside NAV (at 380 px or less, they clear NAV on a 1920 px screen). In a narrow window, they stack under NAV.
-- **SEARCH:** a field with the prompt `>` and GO ↗, lit on focus like the finder's.
-- **QUICK LAUNCH:** big tiles (72 px tall: the icon, the title in bold, the host dimmed), lit along the top on hover. The first nine carry their key in a `kbd` in the corner.
-- **TIME:** a terminal readout. The clock is large and bright (22 px, tabular figures). The month is a small grid with today outlined in the accent. Countdowns, the timer and the stopwatch are rows of label · dotted rule · value; a countdown due today, or a finished timer, is lit in the accent.
+- **Where they go:** down the right-hand side, beside NAV. In a narrow window, they stack under NAV.
+- **SEARCH:** the field alone, solid, lit on focus like the finder's; the engine is in its placeholder.
+- **QUICK LAUNCH:** tiles with the icon and the title in bold (no address), lit along the top on hover. The first nine carry their key in a `kbd` in the corner.
+- **TIME:** a terminal readout. The clock is large and bright (tabular figures). Countdowns are rows of label · dotted rule · value. Under them, `▸ TIMER · STOPWATCH` folds the timer and stopwatch open, with the folders' fold. A countdown due today, or a finished timer, is lit in the accent.
+- **Names only, everywhere** (user request, 2026-10-24): tiles, folder rows, QUICK LAUNCH and the finder show a bookmark's name, never its address (it's in the tooltip).
+- **The brand panel is optional:** in EDIT its corner holds the grip and a ⋯ (REMOVE); + MODULE ▸ BRAND PANEL brings it back.
 
 ## The UI over the wallpaper
 - **The HUD.** The brand panel (the desktop's `.masthead`: scanlines, corner brackets) sits top left, compact (since 0.8.1: the name at half the title size, 11 px; the panel about 30% smaller; the time on the left and the date on the right). The key hints (`[F] FULLSCREEN`, `[S] SYSTEM`) sit bottom right, and both are buttons.

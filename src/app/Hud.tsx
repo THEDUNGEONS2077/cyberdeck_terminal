@@ -4,7 +4,10 @@
  *
  * Layer: UI. Each hint is also a button that does what its key does, so
  * everything works with the mouse too. The brand panel sits where you put
- * it (layout.panels.brand); in edit mode it has a grip to move it.
+ * it (layout.panels.brand); in edit mode it has a grip to move it and a ⋯
+ * with REMOVE. It's optional, grouped with the modules (user request,
+ * 2026-10-24): removed, it comes back from the edit bar's + MODULE
+ * (`panels.brandOff`). It keeps its own size (the modules are drawn smaller).
  *
  * Its status line is the time and date only (the link to Chrome is shown
  * in NAV's header; the panel's own LINK LIVE was removed at the user's
@@ -12,6 +15,7 @@
  */
 import { useEffect, useRef, useState } from 'react';
 
+import { editStore } from '@/store/edit';
 import { uiStore } from '@/store/ui';
 
 import { useArrangeDrag } from './arrangeDrag';
@@ -19,6 +23,14 @@ import { cx } from './cx';
 import { toggleFullscreen } from './fullscreen';
 import { useEdit, useLayout } from './hooks';
 import { MoveGrip, placeStyle } from './panels';
+import { PopupMenu } from './PopupMenu';
+
+/** Takes the brand panel off the screen (undoable), says so, and puts the keyboard on + MODULE (where it comes back from). */
+function removeBrand(): void {
+  editStore.getState().apply((s) => ({ ...s, panels: { ...s.panels, brandOff: true } }));
+  uiStore.getState().announce('REMOVED THE BRAND PANEL · + MODULE BRINGS IT BACK');
+  requestAnimationFrame(() => document.querySelector<HTMLElement>('.edit-bar [data-add-module]')?.focus());
+}
 
 // The clock's formatters, made once: toLocale…String with options builds a new one on every
 // call, every second (optimization pass, 2026-10-22).
@@ -55,24 +67,44 @@ function Clock() {
 /** The HUD. */
 export function Hud() {
   const place = useLayout((s) => s.layout.panels.brand);
+  const off = useLayout((s) => s.layout.panels.brandOff === true);
   const editing = useEdit((s) => s.editing);
   const brand = useRef<HTMLElement>(null);
   const noScroll = useRef<HTMLElement>(null);
   const { start } = useArrangeDrag(noScroll);
+  const [menu, setMenu] = useState<HTMLElement | null>(null);
   return (
     <>
-      <header ref={brand} className={cx('masthead hud-brand', editing && 'editing')} data-placed={place ? '' : undefined} style={placeStyle(place)}>
-        {editing && <MoveGrip id="brand" label="the brand panel" target={() => brand.current} startDrag={start} />}
-        <div className="masthead-scan" />
-        <h1 className="brand">
-          <span className="brand-bracket">&lt;</span>
-          <span className="brand-name">cyberdeck_terminal</span>
-          <span className="brand-bracket">&gt;</span>
-        </h1>
-        <p className="hud-status">
-          <Clock />
-        </p>
-      </header>
+      {!off && (
+        <header ref={brand} className={cx('masthead hud-brand', editing && 'editing')} data-placed={place ? '' : undefined} style={placeStyle(place)}>
+          {editing && (
+            <span className="brand-tools">
+              <MoveGrip id="brand" label="the brand panel" target={() => brand.current} startDrag={start} />
+              <button type="button" className="item-menu-btn" aria-label="Brand panel options" aria-haspopup="menu" onClick={(e) => setMenu(e.currentTarget)}>
+                ⋯
+              </button>
+            </span>
+          )}
+          <div className="masthead-scan" />
+          <h1 className="brand">
+            <span className="brand-bracket">&lt;</span>
+            <span className="brand-name">cyberdeck_terminal</span>
+            <span className="brand-bracket">&gt;</span>
+          </h1>
+          <p className="hud-status">
+            <Clock />
+          </p>
+          {menu && (
+            <PopupMenu
+              heading="BRAND PANEL"
+              label="Brand panel options"
+              anchor={menu}
+              onClose={() => setMenu(null)}
+              groups={[[{ glyph: '✕', label: 'REMOVE', act: removeBrand }]]}
+            />
+          )}
+        </header>
+      )}
       <nav className="hud-keys" aria-label="Controls">
         <button type="button" className="hint" onClick={() => void toggleFullscreen()}>
           <kbd>F</kbd> FULLSCREEN

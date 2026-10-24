@@ -1,19 +1,21 @@
 /**
- * src/app/modules/TimeModule.tsx: the TIME module: a large clock, this
- * month's calendar, your countdowns, a timer and a stopwatch; and its
+ * src/app/modules/TimeModule.tsx: the TIME module: a large clock, your
+ * countdowns, and a timer and a stopwatch folded away under them; and its
  * SETTINGS (the timer's length, the countdowns).
  *
  *   14:07:33                      THU 24 OCT 2026
- *   MO TU WE TH FR SA SU          ← this month, today lit
  *   LAUNCH ············· 12 DAYS  ← countdowns, soonest first
- *   TIMER 25:00  [START] [RESET]
- *   STOPWATCH 00:00 [START] [RESET]
+ *   ▸ TIMER · STOPWATCH           ← a fold (user request, 2026-10-24: no calendar)
+ *     TIMER 25:00  [START] [RESET]
+ *     STOPWATCH 00:00 [START] [RESET]
  *
  * Layer: UI. Battery first, as the wallpapers are: nothing loops. Only the
- * parts that change redraw: the clock once a second, the calendar and
- * countdowns at midnight, the timer and stopwatch once a second while they
- * run. And they tick only while you can see them: not while the tab is in
- * the background, nor in immersive mode (the UI is hidden). Coming back,
+ * parts that change redraw: the clock once a second, the countdowns at
+ * midnight, the timer and stopwatch once a second while they run and their
+ * fold is open. And they tick only while you can see them: not while the
+ * tab is in the background, nor in immersive mode (the UI is hidden).
+ * Whether the fold is open is kept with the module, as a folder's is (not
+ * an undo step). Coming back,
  * they read the clock again, so nothing drifts. The running timer and
  * stopwatch aren't saved (a reload starts them over); a finished timer says
  * so with a toast, even from the background (one timeout, not a loop).
@@ -31,24 +33,22 @@ import {
   clockText,
   countdownText,
   daysUntil,
-  monthGrid,
   parseDate,
   removeCountdown,
   sortCountdowns,
 } from '@/lib/time';
 import { editStore } from '@/store/edit';
+import { layoutStore } from '@/store/instance';
 import { uiStore } from '@/store/ui';
 
 import { cx } from '../cx';
+import { G } from '../glyphs';
 import { useUi } from '../hooks';
 import type { ModuleProps } from './catalog';
 
 // Made once (a formatter per call, every second, was a cost the brand clock already learnt).
 const TIME = new Intl.DateTimeFormat('en-GB', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
 const DATE = new Intl.DateTimeFormat('en-GB', { weekday: 'short', day: '2-digit', month: 'short', year: 'numeric' });
-const MONTH = new Intl.DateTimeFormat('en-GB', { month: 'long', year: 'numeric' });
-/** The calendar's column heads, Monday first. */
-const WEEKDAYS = ['MO', 'TU', 'WE', 'TH', 'FR', 'SA', 'SU'];
 
 /** Is the page on screen to look at (tab in front, not immersive)? */
 function useSeen(): boolean {
@@ -83,7 +83,7 @@ function useSecond(on: boolean): Date {
   return now;
 }
 
-/** Today, updated just after midnight (and when the page is seen again, in case midnight passed unseen). */
+/** Today, updated just after midnight (and when the page is seen again, in case midnight passed unseen): the countdowns' day. */
 function useToday(seen: boolean): Date {
   const [today, setToday] = useState(() => new Date());
   useEffect(() => {
@@ -111,37 +111,6 @@ function Clock({ seen }: { seen: boolean }) {
       </time>
       <span className="dim">{DATE.format(now).replace(/,/g, '').toUpperCase()}</span>
     </div>
-  );
-}
-
-/** This month, Monday first, today lit. */
-function Month({ today }: { today: Date }) {
-  const weeks = monthGrid(today.getFullYear(), today.getMonth() + 1);
-  const day = today.getDate();
-  return (
-    <table className="time-month">
-      <caption className="setting-label">{MONTH.format(today).toUpperCase()}</caption>
-      <thead>
-        <tr>
-          {WEEKDAYS.map((d) => (
-            <th key={d} scope="col">
-              {d}
-            </th>
-          ))}
-        </tr>
-      </thead>
-      <tbody>
-        {weeks.map((week, w) => (
-          <tr key={w}>
-            {week.map((d, i) => (
-              <td key={i} className={cx(d === day && 'today')} aria-current={d === day ? 'date' : undefined}>
-                {d ?? ''}
-              </td>
-            ))}
-          </tr>
-        ))}
-      </tbody>
-    </table>
   );
 }
 
@@ -256,14 +225,32 @@ function Stopwatch({ seen }: { seen: boolean }) {
 export function Panel({ module }: ModuleProps) {
   const seen = useSeen();
   const today = useToday(seen);
+  const foldId = useId();
   if (module.kind !== 'time') return null;
+  const { settings } = module;
+  const open = settings.toolsOpen;
+  // Kept with the layout straight away, like a folder's fold (not an undo step).
+  const toggle = () => {
+    const store = layoutStore().getState();
+    store.setModules(setSettings(store.layout.modules, module.id, 'time', { ...settings, toolsOpen: !open }));
+  };
   return (
     <div className="time-module">
       <Clock seen={seen} />
-      <Month today={today} />
-      <Countdowns settings={module.settings} today={today} />
-      <Timer minutes={module.settings.timerMinutes} seen={seen} />
-      <Stopwatch seen={seen} />
+      <Countdowns settings={settings} today={today} />
+      <button type="button" className="time-toggle" aria-expanded={open} aria-controls={foldId} onClick={toggle}>
+        <span className={cx('caret', open && 'open')} aria-hidden>
+          {G.caret}
+        </span>
+        TIMER · STOPWATCH
+      </button>
+      {/* Folded, they stay (a running timer keeps its time, and still says when it's done) but don't tick. */}
+      <div className={cx('time-fold', open && 'open')} id={foldId} inert={!open}>
+        <div className="time-fold-inner">
+          <Timer minutes={settings.timerMinutes} seen={seen && open} />
+          <Stopwatch seen={seen && open} />
+        </div>
+      </div>
     </div>
   );
 }

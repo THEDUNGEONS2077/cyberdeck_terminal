@@ -2,8 +2,10 @@
  * src/app/modules/SearchModule.tsx: the SEARCH module: a field that
  * searches the web with your engine, and its SETTINGS (which engine).
  *
- * Layer: UI. Enter opens the engine's results in a new tab, as every link
- * here opens (`noopener,noreferrer`); the page itself sends nothing
+ * Layer: UI. Just the field (user request, 2026-10-24: the module's frame
+ * is only a thin scanlined ring round it; the engine is named in its
+ * placeholder). Enter opens the engine's results in a new tab, as every
+ * link here opens (`noopener,noreferrer`); the page itself sends nothing
  * (lib/search.ts builds the address). The field is cleared once the search
  * is open, ready for the next.
  */
@@ -13,7 +15,6 @@ import { setSettings } from '@/lib/modules';
 import { ENGINES, type EngineId, type SearchSettings, engineOf, isTemplate } from '@/lib/search';
 import { editStore } from '@/store/edit';
 
-import { G } from '../glyphs';
 import { openSearch } from './actions';
 import type { ModuleProps } from './catalog';
 
@@ -28,9 +29,6 @@ export function Panel({ module }: ModuleProps) {
   };
   return (
     <form className="search-form" role="search" onSubmit={submit}>
-      <span className="prompt" aria-hidden>
-        {G.prompt}
-      </span>
       <input
         className="module-input"
         type="search"
@@ -42,9 +40,6 @@ export function Panel({ module }: ModuleProps) {
         value={query}
         onChange={(e) => setQuery(e.target.value)}
       />
-      <button type="submit" className="text-btn small-btn" disabled={!query.trim()} title="Search (Enter): opens in a new tab">
-        GO <span aria-hidden>{G.external}</span>
-      </button>
     </form>
   );
 }

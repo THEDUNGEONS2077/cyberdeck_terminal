@@ -6,7 +6,8 @@
  * The bar says the layout is unlocked and that changes save as they're
  * made, and holds:
  *   + AREA          a new area at the end, its name ready to type
- *   + MODULE        a module (SEARCH, QUICK LAUNCH, TIME) at a free spot
+ *   + MODULE        a module (SEARCH, QUICK LAUNCH, TIME) at a free spot,
+ *                   or the brand panel back when it's been removed
  *   CHROME ORDER    everything back where Chrome has it (asks first)
  *   RESET PANELS    NAV and the brand back to their usual places
  *   UNDO            one step back (also Ctrl+Z)
@@ -37,11 +38,22 @@ function addKind(kind: ModuleKind): void {
   requestAnimationFrame(() => document.querySelector<HTMLElement>(`[data-module="${CSS.escape(id)}"] .panel-grip, [data-module="${CSS.escape(id)}"] .item-menu-btn`)?.focus());
 }
 
-/** + MODULE and its menu of kinds. */
+/** Puts the brand panel back on the screen, where it was (undoable), with the keyboard on its grip. */
+function addBrand(): void {
+  editStore.getState().apply((s) => {
+    const { brandOff: _off, ...panels } = s.panels;
+    return { ...s, panels };
+  });
+  uiStore.getState().announce('THE BRAND PANEL IS BACK');
+  requestAnimationFrame(() => document.querySelector<HTMLElement>('.hud-brand .panel-grip')?.focus());
+}
+
+/** + MODULE and its menu of kinds (and the brand panel, when it's off). */
 function AddModule() {
   const count = useLayout((s) => s.layout.modules.length);
+  const brandOff = useLayout((s) => s.layout.panels.brandOff === true);
   const [anchor, setAnchor] = useState<HTMLElement | null>(null);
-  const full = count >= MAX_MODULES;
+  const full = count >= MAX_MODULES && !brandOff;
   return (
     <>
       <button
@@ -64,7 +76,11 @@ function AddModule() {
             setAnchor(null);
             if (anchor.isConnected) anchor.focus();
           }}
-          groups={[MODULE_KINDS.map((kind) => ({ glyph: CATALOG[kind].glyph, label: CATALOG[kind].label, hint: CATALOG[kind].about, act: () => addKind(kind) }))]}
+          groups={[
+            MODULE_KINDS.map((kind) => ({ glyph: CATALOG[kind].glyph, label: CATALOG[kind].label, hint: CATALOG[kind].about, act: () => addKind(kind), disabled: count >= MAX_MODULES })),
+            // The brand panel is one of a kind: offered only while it's off the screen.
+            brandOff ? [{ glyph: '<>', label: 'BRAND PANEL', hint: 'The <cyberdeck_terminal> panel with the clock', act: addBrand }] : [],
+          ]}
         />
       )}
     </>
@@ -126,7 +142,7 @@ export function EditBar({ onNewArea }: { onNewArea: (id: string) => void }) {
         <button type="button" className="text-btn small-btn" onClick={() => setConfirming(true)} title="Everything back where Chrome has it">
           CHROME ORDER
         </button>
-        <button type="button" className="text-btn small-btn" disabled={!panelsMoved} onClick={() => apply((s) => ({ ...s, panels: defaultPanels() }))}>
+        <button type="button" className="text-btn small-btn" disabled={!panelsMoved} onClick={() => apply((s) => ({ ...s, panels: { ...defaultPanels(), ...(s.panels.brandOff ? { brandOff: true as const } : {}) } }))}>
           RESET PANELS
         </button>
         <button

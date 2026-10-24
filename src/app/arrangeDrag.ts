@@ -22,7 +22,7 @@ import { useCallback, useEffect, useRef } from 'react';
 import { createStore } from 'zustand/vanilla';
 
 import { NAV_WIDTH, type PanelPlace, type WidthLimits, clampPlace, hideItem, keyKind, moveArea, moveItem } from '@/lib/arrange';
-import { MODULE_WIDTH } from '@/lib/modules';
+import { MODULE_SCALE, MODULE_WIDTH, isModuleId } from '@/lib/modules';
 import { editStore, withPlace } from '@/store/edit';
 import { layoutStore } from '@/store/instance';
 import { uiStore } from '@/store/ui';
@@ -122,9 +122,18 @@ function areaTarget(y: number, id: string): Target | null {
   return { kind: 'area', before: null, line: { left: r.left, top: r.bottom + 2, width: r.width, height: 2 } };
 }
 
-/** A panel's place from its box on screen (shares of the window; a panel with `width` limits keeps its width). */
-export function placeFromRect(r: DOMRect, width: WidthLimits | null): PanelPlace {
-  return clampPlace({ x: r.left / window.innerWidth, y: r.top / window.innerHeight, w: width ? r.width : undefined }, width ?? NAV_WIDTH);
+/**
+ * A panel's place from its box on screen (shares of the window; a panel
+ * with `width` limits keeps its width, in its own sizes: the box's width
+ * divided by how big it's drawn, `scale`).
+ */
+export function placeFromRect(r: DOMRect, width: WidthLimits | null, scale = 1): PanelPlace {
+  return clampPlace({ x: r.left / window.innerWidth, y: r.top / window.innerHeight, w: width ? r.width / scale : undefined }, width ?? NAV_WIDTH);
+}
+
+/** How big panel `id` is drawn: a module at MODULE_SCALE, NAV and the brand panel as they are. */
+export function scaleOf(id: string): number {
+  return isModuleId(id) ? MODULE_SCALE : 1;
 }
 
 /** How wide panel `id` may be: NAV's limits, a module's, or null for the brand panel (it has no width). */
@@ -196,13 +205,15 @@ export function useArrangeDrag(scroller: React.RefObject<HTMLElement | null>) {
         if (payload.kind === 'panel') {
           el.style.setProperty('--px', String((box.left + px - sx) / window.innerWidth));
           el.style.setProperty('--py', String((box.top + py - sy) / window.innerHeight));
-          if (widthOf(payload.id)) el.style.setProperty('--pw', `${box.width}px`);
+          if (widthOf(payload.id)) el.style.setProperty('--pw', `${box.width / scaleOf(payload.id)}px`);
         } else {
           const width = widthOf(payload.id) ?? NAV_WIDTH;
-          const place = placeFromRect(box, width);
+          const scale = scaleOf(payload.id);
+          const place = placeFromRect(box, width, scale);
           el.style.setProperty('--px', String(place.x));
           el.style.setProperty('--py', String(place.y));
-          el.style.setProperty('--pw', `${clampPlace({ ...place, w: box.width + px - sx }, width).w}px`);
+          // The pointer moves the drawn edge; the width kept is in the panel's own sizes.
+          el.style.setProperty('--pw', `${clampPlace({ ...place, w: (box.width + px - sx) / scale }, width).w}px`);
         }
         return;
       }
@@ -249,7 +260,7 @@ export function useArrangeDrag(scroller: React.RefObject<HTMLElement | null>) {
         const el = payload.el;
         const { id } = payload;
         if (commit) {
-          const place = placeFromRect(el.getBoundingClientRect(), widthOf(id));
+          const place = placeFromRect(el.getBoundingClientRect(), widthOf(id), scaleOf(id));
           editStore.getState().apply((s) => withPlace(s, id, place));
         } else {
           // Cancelled: back where it was (React's next render restores the saved place).

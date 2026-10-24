@@ -71,7 +71,8 @@ function normalizePanels(v: unknown): Panels {
   const brand = normalizePlace(v.brand);
   // The brand panel has no width.
   if (brand) delete brand.w;
-  return { nav: normalizePlace(v.nav), brand };
+  // Removed from the screen (0.13.0, no schema bump: an older layout simply has it shown).
+  return { nav: normalizePlace(v.nav), brand, ...(v.brandOff === true ? { brandOff: true as const } : {}) };
 }
 
 /**

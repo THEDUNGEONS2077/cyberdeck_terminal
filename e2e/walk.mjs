@@ -474,6 +474,29 @@ try {
     await mod('TIME').getByText('12 DAYS').waitFor();
   });
 
+  await path('the brand panel is optional: ⋯ ▸ REMOVE takes it away, + MODULE ▸ BRAND PANEL brings it back', async () => {
+    await page.getByRole('button', { name: 'Brand panel options' }).click();
+    await page.getByRole('menuitem', { name: 'REMOVE' }).click();
+    await page.locator('.hud-brand').waitFor({ state: 'detached' });
+    await editBar().getByRole('button', { name: '+ MODULE' }).click();
+    await page.getByRole('menuitem', { name: 'BRAND PANEL' }).click();
+    await page.locator('.hud-brand').waitFor();
+    // Removed again, UNDO brings it back too; and only one: + MODULE doesn't offer it while it's there.
+    await editBar().getByRole('button', { name: '+ MODULE' }).click();
+    expect((await page.getByRole('menuitem', { name: 'BRAND PANEL' }).count()) === 0, 'BRAND PANEL offered while shown');
+    await page.keyboard.press('Escape');
+  });
+
+  await path('modules are drawn 30% smaller; the brand panel keeps its size; items show names, not addresses', async () => {
+    const search = page.locator('.module[data-kind="search"]');
+    const w = await search.evaluate((el) => el.getBoundingClientRect().width);
+    const stored = await page.evaluate(() => window.__cyberdeck.layout().modules.find((m) => m.kind === 'search').place.w);
+    expect(Math.abs(w - stored * 0.7) < 2, `SEARCH drawn ${w} px wide for a width of ${stored}`);
+    const brandSize = await page.locator('.hud-brand .brand-name').evaluate((el) => getComputedStyle(el).fontSize);
+    expect(brandSize === '11px', `the brand name is ${brandSize}`);
+    expect((await page.locator('.tile .link-host, .row-link .link-host, .launch-tile .link-host, .finder-host').count()) === 0, 'an address is shown');
+  });
+
   await path('no accessibility violations with modules, editing and locked', async () => {
     // (The page was reloaded since axe was added.)
     await page.addScriptTag({ path: join(root, 'node_modules/axe-core/axe.min.js') });
@@ -516,6 +539,12 @@ try {
     await page.bringToFront();
     expect(await page.evaluate(() => document.visibilityState === 'visible'), 'the dashboard isn’t visible');
     const time = mod('TIME');
+    // No calendar; the timer and stopwatch are folded away under the clock until opened.
+    expect((await time.locator('table').count()) === 0, 'TIME still has a calendar');
+    const fold = time.getByRole('button', { name: 'TIMER · STOPWATCH' });
+    expect((await fold.getAttribute('aria-expanded')) === 'false', 'the fold starts open');
+    await fold.click();
+    await page.waitForFunction(() => document.querySelector('.time-fold.open'));
     const timer = time.locator('.time-tool', { hasText: 'TIMER' }).getByRole('timer');
     expect((await timer.innerText()) === '25:00', `the timer shows ${await timer.innerText()}`);
     await time.getByRole('button', { name: 'START' }).first().click();
@@ -532,15 +561,17 @@ try {
     await page.waitForFunction(() => [...document.querySelectorAll('.module[data-kind="time"] [role="timer"]')].at(-1)?.textContent > '00:00', null, { timeout: 6000 });
     await watch.getByRole('button', { name: 'STOP' }).click();
     // Today is lit in the month.
-    expect((await time.locator('td[aria-current="date"]').innerText()) === String(new Date().getDate()), 'today isn’t lit');
   });
 
   await path('modules and their settings survive a reload', async () => {
     await settled();
     await page.reload();
     await mod('TIME').getByText('12 DAYS').waitFor({ timeout: 5000 });
-    await mod('SEARCH').getByText('CUSTOM', { exact: true }).waitFor();
+    // Bare: no header, the engine named in the field's placeholder.
+    await mod('SEARCH').getByPlaceholder('SEARCH CUSTOM').waitFor();
+    expect((await mod('SEARCH').locator('.module-head').count()) === 0, 'SEARCH has a header outside edit mode');
     expect((await mod('QUICK LAUNCH').locator('.launch-tile').count()) === 2, 'QUICK LAUNCH lost a tile');
+    expect((await mod('TIME').getByRole('button', { name: 'TIMER · STOPWATCH' }).getAttribute('aria-expanded')) === 'true', 'TIME’s fold didn’t stay open');
   });
 
   await path('the rain moves', async () => {

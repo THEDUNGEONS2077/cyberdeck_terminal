@@ -8,6 +8,11 @@
  *   │ [ search the web…                      ↵ ] │   the kind's own panel
  *   └────────────────────────────────────────────┘   a resize edge on the right
  *
+ * SEARCH and QUICK LAUNCH are bare (catalog.ts `bare`): no header outside
+ * edit mode, the frame only a thin scanlined ring round the field or the
+ * tiles. Every module is drawn at 70% of its own sizes (MODULE_SCALE; the
+ * brand panel keeps its size).
+ *
  * Wide windows: each module sits at its place (app/panels.tsx), on top of
  * NAV where they overlap (added later, drawn later). Narrow windows: the
  * modules stack under NAV in its scrolling area (app/Bookmarks.tsx), and
@@ -93,6 +98,8 @@ const ModulePanel = memo(function ModulePanel({ module, stacked }: { module: Mod
   const [menu, setMenu] = useState<HTMLElement | null>(null);
   const info = CATALOG[module.kind];
   const note = info.note(module);
+  // A bare module shows its header only while it's being arranged (its grip and ⋯ live there).
+  const head = !info.bare || editing;
 
   const closeMenu = () => {
     const anchor = menu;
@@ -103,25 +110,27 @@ const ModulePanel = memo(function ModulePanel({ module, stacked }: { module: Mod
   return (
     <section
       ref={box}
-      className={cx('module', editing && 'editing', stacked && 'stacked')}
+      className={cx('module', editing && 'editing', stacked && 'stacked', info.bare && 'bare')}
       data-module={module.id}
       data-kind={module.kind}
       data-placed={stacked ? undefined : ''}
       style={stacked ? undefined : placeStyle(module.place)}
       aria-label={info.label}
     >
-      <header className="module-head">
-        {editing && !stacked && <MoveGrip id={module.id} label={`the ${info.label} module`} target={() => box.current} startDrag={start} />}
-        <h2 className="module-title">
-          <Prompted>{info.label}</Prompted>
-        </h2>
-        {note && <span className="module-note">{note}</span>}
-        {editing && (
-          <button type="button" className="item-menu-btn" aria-label={`${info.label} module options`} aria-haspopup="menu" onClick={(e) => setMenu(e.currentTarget)}>
-            ⋯
-          </button>
-        )}
-      </header>
+      {head && (
+        <header className="module-head">
+          {editing && !stacked && <MoveGrip id={module.id} label={`the ${info.label} module`} target={() => box.current} startDrag={start} />}
+          <h2 className="module-title">
+            <Prompted>{info.label}</Prompted>
+          </h2>
+          {note && <span className="module-note">{note}</span>}
+          {editing && (
+            <button type="button" className="item-menu-btn" aria-label={`${info.label} module options`} aria-haspopup="menu" onClick={(e) => setMenu(e.currentTarget)}>
+              ⋯
+            </button>
+          )}
+        </header>
+      )}
       <div className="module-body" inert={editing}>
         <info.Panel module={module} />
       </div>

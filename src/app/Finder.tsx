@@ -211,7 +211,7 @@ function FinderPanel({ leaving }: { leaving: boolean }) {
   );
 }
 
-/** A bookmark result: its icon, the title with the matched part lit, its site, and its folders. */
+/** A bookmark result: its icon, the title with the matched part lit, and its folders (no address: names only, user request 2026-10-24). */
 function LinkRow({ hit }: { hit: FindHit }) {
   const { entry } = hit;
   return (
@@ -220,7 +220,6 @@ function LinkRow({ hit }: { hit: FindHit }) {
       <span className="finder-title">
         {markPieces(entry.title, hit.marks).map((p, i) => (p.mark ? <mark key={i}>{p.text}</mark> : <span key={i}>{p.text}</span>))}
       </span>
-      <span className="finder-host">{entry.host}</span>
       {entry.folders.length > 0 && <span className="finder-path">{entry.folders.join(' / ').toUpperCase()}</span>}
     </>
   );

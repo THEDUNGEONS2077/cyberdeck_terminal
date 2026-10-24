@@ -1,6 +1,6 @@
 /**
- * src/lib/time.ts: the TIME module's rules: its countdowns, this month's
- * calendar, and how the timer and stopwatch read.
+ * src/lib/time.ts: the TIME module's rules: its countdowns, and how the
+ * timer and stopwatch read.
  *
  * Layer: pure lib. Dates are calendar days in the browser's own time zone
  * (`YYYY-MM-DD`, as an `<input type="date">` gives them); days between two
@@ -21,6 +21,8 @@ export interface TimeSettings {
   countdowns: Countdown[];
   /** The timer's length (minutes) when it's started. */
   timerMinutes: number;
+  /** The timer and stopwatch are shown (their fold under the clock is open). */
+  toolsOpen: boolean;
 }
 
 /** Most countdowns in one module. */
@@ -33,9 +35,9 @@ export const TIMER_MAX = 999;
 /** A new module's timer (minutes). */
 export const DEFAULT_TIMER = 25;
 
-/** A new TIME module's settings: no countdowns, a 25-minute timer. */
+/** A new TIME module's settings: no countdowns, a 25-minute timer, folded away. */
 export function defaultTime(): TimeSettings {
-  return { countdowns: [], timerMinutes: DEFAULT_TIMER };
+  return { countdowns: [], timerMinutes: DEFAULT_TIMER, toolsOpen: false };
 }
 
 /** The year, month (1–12) and day of a `YYYY-MM-DD` date, or null if it isn't a real one. */
@@ -71,6 +73,7 @@ export function normalizeTime(v: unknown): TimeSettings {
   if (!v || typeof v !== 'object' || Array.isArray(v)) return out;
   const s = v as Record<string, unknown>;
   if (typeof s.timerMinutes === 'number') out.timerMinutes = clampTimer(s.timerMinutes);
+  out.toolsOpen = s.toolsOpen === true;
   for (const c of Array.isArray(s.countdowns) ? s.countdowns : []) {
     if (out.countdowns.length >= MAX_COUNTDOWNS) break;
     if (!c || typeof c !== 'object') continue;
@@ -119,22 +122,6 @@ export function sortCountdowns(list: readonly Countdown[], now: Date): Countdown
     if (da >= 0 !== db >= 0) return da >= 0 ? -1 : 1;
     return da >= 0 ? da - db : db - da;
   });
-}
-
-/**
- * A month as weeks, Monday first: each week seven cells, a day of the
- * month or null for the days of the months either side. `month` is 1–12.
- */
-export function monthGrid(year: number, month: number): (number | null)[][] {
-  const first = new Date(Date.UTC(year, month - 1, 1)).getUTCDay();
-  const length = new Date(Date.UTC(year, month, 0)).getUTCDate();
-  // Monday first: Sunday (0) is the week's last day.
-  const lead = (first + 6) % 7;
-  const cells: (number | null)[] = [...Array<null>(lead).fill(null), ...Array.from({ length }, (_, i) => i + 1)];
-  while (cells.length % 7) cells.push(null);
-  const weeks: (number | null)[][] = [];
-  for (let i = 0; i < cells.length; i += 7) weeks.push(cells.slice(i, i + 7));
-  return weeks;
 }
 
 /** A length of time as the timer and stopwatch show it: `04:07`, or `1:04:07` from an hour up. Never negative. */

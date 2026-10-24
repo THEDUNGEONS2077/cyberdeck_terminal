@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.13.0 (build 20)
+- **Modules are 30% smaller:** their text, spacing and width. One you've already placed shrinks too, and keeps its place. What you click (buttons, the grip and ⋯ in EDIT) stays at least 24 px, the accessibility minimum.
+- **SEARCH is just the box you type in,** with the scanlined frame as a thin ring around it. The engine is named in the box ("SEARCH DUCKDUCKGO"); Enter searches. Its title and grip show only in EDIT.
+- **QUICK LAUNCH is just its tiles,** in the same thin ring: no title, no tile count.
+- **TIME has no calendar.** The timer and stopwatch fold away under the clock and countdowns (**▸ TIMER · STOPWATCH**). The fold remembers whether it's open, and a running timer keeps going while folded.
+- **Names only:** bookmarks, folder links, QUICK LAUNCH tiles and the finder show each bookmark's name, not its address (hover for the address).
+- **The brand panel is optional,** grouped with the modules. In EDIT, its ⋯ has REMOVE, and **+ MODULE ▸ BRAND PANEL** brings it back. It keeps its size.
+
 ## 0.12.0 (build 19)
 - **SWITCH TO ITS OPEN TAB:** a link can now take you to the tab it already has open, instead of opening another. Turn it on per link, from its ⋯ in EDIT. It then covers every link under the same place: quest_log's link brings its open tab to the front, wherever you left it.
   - **No tab of it open?** The link opens one, next to the dashboard, as before. A middle click, or Ctrl+click, still opens a new tab on purpose.
