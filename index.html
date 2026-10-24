@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#000000" />
+    <meta name="color-scheme" content="dark" />
+    <meta name="description" content="cyberdeck_terminal: a terminal-style start page. Your layout never leaves this browser." />
+    <link rel="icon" type="image/svg+xml" href="./icon.svg" />
+    <title>CYBERDECK</title>
+    <!-- The fonts, fetched at once instead of once the stylesheet asks for them: Regular for the rain and the text. -->
+    <link rel="preload" href="/cyberdeck_terminal/assets/JetBrainsMono-Regular-CtxPQfgF.woff2" as="font" type="font/woff2" crossorigin />
+    <!-- Bold too: the brand and every heading use it, and a font still loading leaves text invisible (font-display: block). -->
+    <link rel="preload" href="/cyberdeck_terminal/assets/JetBrainsMono-Bold-DxpIpPQ0.woff2" as="font" type="font/woff2" crossorigin />
+    <!-- Black before the app's CSS arrives, so a new page never flashes white. -->
+    <style>html{background:#000}</style>
+    <script type="module" crossorigin src="/cyberdeck_terminal/assets/index-_eIv9PJJ.js"></script>
+    <link rel="modulepreload" crossorigin href="/cyberdeck_terminal/assets/catalog-CeLTMxcJ.js">
+    <link rel="modulepreload" crossorigin href="/cyberdeck_terminal/assets/host-iXhYr749.js">
+    <link rel="stylesheet" crossorigin href="/cyberdeck_terminal/assets/index-DSCTAqt_.css">
+    <link rel="modulepreload" crossorigin href="/cyberdeck_terminal/assets/start-C2jpuQav.js">
+  </head>
+  <body>
+    <noscript>
+      <p style="font-family: monospace; color: #2fb344; background: #000; padding: 24px">&gt; cyberdeck_terminal needs JavaScript to run.</p>
+    </noscript>
+    <!-- The wallpaper is plain HTML, so the first script can start it before the app loads
+         (src/wallpaper/host.ts; styles in app.css .wallpaper). -->
+    <div class="wallpaper" aria-hidden="true">
+      <div class="wallpaper-haze"></div>
+      <canvas class="wallpaper-canvas" id="wallpaper-canvas"></canvas>
+      <div class="wallpaper-floor"></div>
+    </div>
+    <div id="root"></div>
+  </body>
+</html>
