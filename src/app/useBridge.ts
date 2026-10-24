@@ -8,12 +8,16 @@
  * comes back, when the page is shown again (another tab was in front), and
  * when its window gets the focus back (it may have been open, unfocused,
  * in another window while bookmarks changed).
- * No bridge on the page → the store says `absent` straight away.
+ * No bridge on the page → the store says `absent` straight away. It also
+ * passes on your answers in the bridge's SWITCH TO OPEN TAB window
+ * (app/switchTab.ts).
  */
 import { useEffect } from 'react';
 
 import { bridgeInfo, bridgePossible, fetchBar, watchBridge } from '@/bridge/client';
 import { bookmarksStore } from '@/store/instance';
+
+import { onGranted } from './switchTab';
 
 /** Connects to the bridge while mounted. */
 export function useBridge(): void {
@@ -48,7 +52,8 @@ export function useBridge(): void {
       }
     };
     void refresh();
-    const stop = watchBridge(() => void refresh());
+    // Your answers in the bridge's SWITCH TO OPEN TAB window arrive here too.
+    const stop = watchBridge(() => void refresh(), onGranted);
     const onShow = () => {
       if (!document.hidden) void refresh();
     };

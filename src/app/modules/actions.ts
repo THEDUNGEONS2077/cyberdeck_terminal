@@ -14,6 +14,8 @@ import { editStore } from '@/store/edit';
 import { layoutStore } from '@/store/instance';
 import { uiStore } from '@/store/ui';
 
+import { openUrl } from '../switchTab';
+
 /** Opens a search for `query` with `settings` in a new tab; false when there's nothing to search for. */
 export function openSearch(settings: SearchSettings, query: string): boolean {
   const url = searchUrl(settings, query);
@@ -37,7 +39,7 @@ export function keyedTiles(): LaunchTile[] {
 export function openKeyedTile(n: number): boolean {
   const tile = keyedTiles()[n - 1];
   if (!tile) return false;
-  window.open(tile.url, '_blank', 'noopener,noreferrer');
+  openUrl(tile.url);
   uiStore.getState().announce(`OPENED ${tile.title.toUpperCase()}`);
   return true;
 }

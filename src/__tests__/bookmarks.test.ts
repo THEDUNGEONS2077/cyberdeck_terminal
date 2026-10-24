@@ -119,7 +119,7 @@ describe('layout schema 2', () => {
     const v1 = { schemaVersion: 1, wallpaper: 'matrix-rain', prefs: { backupReminderDays: 30 } };
     const { doc, migrated } = migrateLayout(v1);
     expect(migrated).toBe(true);
-    expect(doc).toEqual({ ...defaultLayout(), prefs: { backupReminderDays: 30, rainGlow: 'high', palette: 'phosphor' as const, wallpaperPalette: 'phosphor' as const, wallpaperZoom: {} } });
+    expect(doc).toEqual({ ...defaultLayout(), prefs: { backupReminderDays: 30, rainGlow: 'high', palette: 'phosphor' as const, wallpaperPalette: 'phosphor' as const, wallpaperZoom: {}, switchTabs: [] } });
   });
 
   it('drops a damaged imported tree instead of the whole layout, and tidies open folders', () => {
@@ -207,10 +207,13 @@ describe('the bridge extension', () => {
 
   it('the page ships the manifest’s version, and lists only the dashboard as a caller', () => {
     expect(manifest.version).toBe(BRIDGE_VERSION);
-    expect(BRIDGE_VERSION).toBe('1.2.0');
+    expect(BRIDGE_VERSION).toBe('1.3.0');
     expect(manifest.permissions).toEqual(['bookmarks', 'favicon']);
-    // Only the dashboard's tabs are visible to it (to switch to an open one on New Tab).
+    // Granted at install: only the dashboard's site (to switch to an open one on New Tab). No `tabs`.
     expect(manifest.host_permissions).toEqual(['https://thedungeons2077.github.io/cyberdeck_terminal/*']);
+    // Any other site only when you allow it, one at a time (SWITCH TO OPEN TAB, bridge/grant.html).
+    expect(manifest.optional_host_permissions).toEqual(['https://*/*', 'http://*/*']);
+    expect(manifest.optional_permissions).toBeUndefined();
     // Site icons: only the dashboard's origin may load them.
     expect(manifest.web_accessible_resources).toEqual([{ resources: ['_favicon/*'], matches: ['https://thedungeons2077.github.io/*', 'http://127.0.0.1/*'] }]);
     expect((manifest.externally_connectable as { matches: string[] }).matches).toEqual(['https://thedungeons2077.github.io/cyberdeck_terminal/*', 'http://127.0.0.1/*']);

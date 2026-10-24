@@ -53,9 +53,10 @@ if (booted.notice) uiStore.getState().showToast(booted.notice, { sticky: true })
 // Leaving the page: take a pending change snapshot now rather than lose it.
 window.addEventListener('pagehide', () => void store.getState().flushSnapshot());
 
-// A handle for the browser tests (e2e/walk.mjs): wait for storage, take a pending snapshot.
+// A handle for the browser tests (e2e/walk.mjs, e2e/bridge.mjs): wait for storage, take a pending snapshot, read the layout.
 (window as unknown as { __cyberdeck: object }).__cyberdeck = {
   settled: () => store.getState().settled(),
+  layout: () => store.getState().layout,
   flushSnapshot: () => store.getState().flushSnapshot(),
 };
 

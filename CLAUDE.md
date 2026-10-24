@@ -25,7 +25,7 @@ A terminal/cyberdeck start page: a **webpage** the user sets as Chrome's homepag
   - Never change the `key` in `bridge/manifest.json`. It fixes the extension id (`BRIDGE_ID` in `src/bridge/client.ts`), and a unit test checks the two match.
   - Bump `version` in the manifest and `BRIDGE_VERSION` together; SYSTEM then offers the update.
   - Keep the bridge read-only, limited to the bookmarks bar, and limited to the callers in `externally_connectable`.
-  - Its only host permission is the dashboard's address, used to find an open dashboard on New Tab. Don't widen it, and don't add `tabs`.
+  - Its only host permission granted at install is the dashboard's (used to find an open dashboard on New Tab; Chrome grants it as the whole site, `thedungeons2077.github.io`). Any other site is only an `optional_host_permissions` entry, granted per site by your click in the bridge's own window (SWITCH TO OPEN TAB, `bridge/grant.html`) and given back when no link needs it. Don't widen the granted one, and don't add `tabs`.
 - **Servers:** start `serve` directly (not `npx serve`), on 127.0.0.1 only. Stop it by PID, and check with `ss -ltnp`. The e2e script already does this.
 - **Deploying is public.** Ask the user before every `npm run deploy`, and before creating the GitHub repo.
 

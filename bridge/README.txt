@@ -31,9 +31,15 @@ WHAT IT CAN DO
     dashboard to (a webpage can't open chrome:// pages itself).
   - Point new tabs at the dashboard. If the dashboard is already open in
     the window, a new tab switches to it instead (and closes itself). For
-    that it can see the address of dashboard tabs, and of no other tab.
+    that it can see the addresses of tabs on the dashboard's site
+    (thedungeons2077.github.io: Chrome grants whole sites), and of no other.
+  - Switch to a site's open tab when you click its link on the dashboard,
+    for links you've turned that on for (SWITCH TO ITS OPEN TAB, in the
+    link's ... menu). For any site other than the dashboard's, it first asks
+    you in its own small window, then Chrome asks too; only then can it see
+    that site's tabs. Turning it off gives the site back.
   Nothing is sent anywhere else. The source is in this folder: background.js,
-  tree.js and newtab.js.
+  tree.js, newtab.js and grant.js.
 
 REMOVE
   chrome://extensions > CYBERDECK BRIDGE > Remove. New tabs go back to Chrome's.

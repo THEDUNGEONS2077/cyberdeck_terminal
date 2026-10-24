@@ -37,6 +37,7 @@ import { useBookmarks, useEdit, useLayout, useUi } from './hooks';
 import { usePresence } from './usePresence';
 import { useShownBar } from './useShownBar';
 import { defaultEngine, openSearch } from './modules/actions';
+import { openUrl } from './switchTab';
 import { zoomWallpaper } from './zoom';
 
 /** How long the finder takes to fade out (matches --fast in theme.css). */
@@ -129,7 +130,7 @@ function FinderPanel({ leaving }: { leaving: boolean }) {
     if (!row) return;
     close(row.kind === 'command' && row.command.id === 'edit' ? null : returnTo);
     if (row.kind === 'link') {
-      window.open(row.hit.entry.url, '_blank', 'noopener,noreferrer');
+      openUrl(row.hit.entry.url);
       uiStore.getState().announce(`OPENED ${row.hit.entry.title.toUpperCase()}`);
     } else {
       row.command.run();

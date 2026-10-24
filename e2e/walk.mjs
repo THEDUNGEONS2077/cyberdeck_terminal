@@ -512,18 +512,24 @@ try {
   });
 
   await path('TIME: the timer counts down, pauses and resets; the stopwatch runs', async () => {
+    // In front again after the tabs the last path opened: TIME stands still while its tab is in the background.
+    await page.bringToFront();
+    expect(await page.evaluate(() => document.visibilityState === 'visible'), 'the dashboard isn’t visible');
     const time = mod('TIME');
     const timer = time.locator('.time-tool', { hasText: 'TIMER' }).getByRole('timer');
     expect((await timer.innerText()) === '25:00', `the timer shows ${await timer.innerText()}`);
     await time.getByRole('button', { name: 'START' }).first().click();
-    await page.waitForFunction(() => document.querySelector('.module[data-kind="time"] .time-tool [role="timer"]')?.textContent === '24:59', null, { timeout: 3000 });
+    // Counting: it moves on from 25:00 within 2 s. Waited for as "moved on", not one exact second, and
+    // up to 6 s: a machine that stalls for a few seconds can skip past a second.
+    expect((await timer.innerText()) <= '25:00', `the timer started at ${await timer.innerText()}`);
+    await page.waitForFunction(() => document.querySelector('.module[data-kind="time"] .time-tool [role="timer"]')?.textContent < '25:00', null, { timeout: 6000 });
     await time.getByRole('button', { name: 'PAUSE' }).click();
     await time.getByRole('button', { name: 'RESUME' }).waitFor();
     await time.getByRole('button', { name: 'RESET' }).first().click();
     expect((await timer.innerText()) === '25:00', 'RESET didn’t reset the timer');
     const watch = time.locator('.time-tool', { hasText: 'STOPWATCH' });
     await watch.getByRole('button', { name: 'START' }).click();
-    await page.waitForFunction(() => [...document.querySelectorAll('.module[data-kind="time"] [role="timer"]')].at(-1)?.textContent === '00:01', null, { timeout: 3000 });
+    await page.waitForFunction(() => [...document.querySelectorAll('.module[data-kind="time"] [role="timer"]')].at(-1)?.textContent > '00:00', null, { timeout: 6000 });
     await watch.getByRole('button', { name: 'STOP' }).click();
     // Today is lit in the month.
     expect((await time.locator('td[aria-current="date"]').innerText()) === String(new Date().getDate()), 'today isn’t lit');

@@ -115,6 +115,11 @@ export interface LayoutPrefs {
    * zoom it opens at. Only zooms other than 100% are kept (normalizeZooms).
    */
   wallpaperZoom: Record<string, number>;
+  /**
+   * The places whose links switch to their open tab (lib/switching.ts;
+   * bridge 1.3+, 0.12.0): Chrome match patterns, sorted.
+   */
+  switchTabs: string[];
 }
 
 /** The bookmarks part of the layout. */
@@ -155,7 +160,7 @@ export function defaultBookmarks(): BookmarksLayout {
 
 /** Preferences a new layout starts with. */
 export function defaultPrefs(): LayoutPrefs {
-  return { backupReminderDays: 14, rainGlow: DEFAULT_RAIN_GLOW, palette: DEFAULT_PALETTE, wallpaperPalette: DEFAULT_PALETTE, wallpaperZoom: {} };
+  return { backupReminderDays: 14, rainGlow: DEFAULT_RAIN_GLOW, palette: DEFAULT_PALETTE, wallpaperPalette: DEFAULT_PALETTE, wallpaperZoom: {}, switchTabs: [] };
 }
 
 /** A new, empty layout. */

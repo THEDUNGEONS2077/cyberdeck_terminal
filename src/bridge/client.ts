@@ -20,7 +20,7 @@ import { type BookmarkNode, sanitizeTree } from '@/lib/bookmarks';
 export const BRIDGE_ID = 'mbjnlinjocmaalhodjhpkadlpifnelic';
 
 /** The bridge version this page ships as a download (bridge/manifest.json `version`). */
-export const BRIDGE_VERSION = '1.2.0';
+export const BRIDGE_VERSION = '1.3.0';
 
 /** The bridge download, next to the page (built by vite.config.ts). */
 export const BRIDGE_ZIP = 'cyberdeck-bridge.zip';
@@ -77,7 +77,8 @@ export interface BridgeInfo {
   version: string;
   /**
    * What it can do beyond the bookmarks bar: 'favicons' (site icons),
-   * 'open' (Chrome's New Tab page, Bookmark manager). Bridge 1.0.0 had none.
+   * 'open' (Chrome's New Tab page, Bookmark manager), 'switch' (SWITCH TO
+   * OPEN TAB, 1.3.0). Bridge 1.0.0 had none.
    */
   features: string[];
 }
@@ -100,6 +101,36 @@ export type ChromePage = 'ntp' | 'bookmarks';
  */
 export async function openChromePage(target: ChromePage): Promise<boolean> {
   const r = await ask({ type: 'open', target });
+  return !!r?.ok;
+}
+
+/** What the bridge said to SWITCH TO OPEN TAB for a site: allowed already, asking you in its window, or no answer. */
+export type AskResult = 'granted' | 'asking' | null;
+
+/**
+ * Asks the bridge to see `site`'s tabs (`https://host/*`, lib/switching.ts
+ * siteOf). Already allowed: 'granted'. Otherwise the bridge opens its own
+ * small window to ask you ('asking'); your answer arrives later through
+ * watchBridge's `onGranted` (it can take longer than a message waits).
+ */
+export async function askToSwitch(site: string): Promise<AskResult> {
+  const r = await ask({ type: 'ask', origin: site });
+  if (!r?.ok) return null;
+  return r.granted === true ? 'granted' : r.asking === true ? 'asking' : null;
+}
+
+/** Gives the bridge's permission for `site` back (when no link needs it any more). */
+export async function forgetSite(site: string): Promise<void> {
+  await ask({ type: 'forget', origin: site });
+}
+
+/**
+ * Asks the bridge to switch to an open tab under `pattern`, or to open
+ * `url` in a new tab next to this one when there's none. True if it did
+ * either (false: no bridge, or no answer, and the page opens it itself).
+ */
+export async function goToTab(url: string, pattern: string): Promise<boolean> {
+  const r = await ask({ type: 'go', url, pattern });
   return !!r?.ok;
 }
 
@@ -138,14 +169,15 @@ const PING_MS = 20_000;
 /**
  * Listens for bookmark changes: calls `onChange` when the bridge says
  * bookmarks changed, and after a lost connection comes back (anything may
- * have changed meanwhile). While the page can be seen it pings the bridge
+ * have changed meanwhile). `onGranted` hears your answer in the bridge's
+ * SWITCH TO OPEN TAB window (askToSwitch). While the page can be seen it pings the bridge
  * every PING_MS, so its worker stays awake and every change arrives at
  * once; hidden, the pings stop and the worker may sleep. If the port
  * closes anyway, reconnecting starts the worker again: retries back off
  * from 1 s to 10 s, and wait while the page is hidden. Returns a function
  * that stops listening.
  */
-export function watchBridge(onChange: () => void): () => void {
+export function watchBridge(onChange: () => void, onGranted: (site: string, granted: boolean) => void = () => {}): () => void {
   const rt = runtime();
   if (!rt) return () => {};
   let port: Port | null = null;
@@ -172,7 +204,9 @@ export function watchBridge(onChange: () => void): () => void {
     if (!port) return schedule();
     port.onMessage.addListener((m) => {
       delay = 1000; // it's alive
-      if ((m as { type?: string } | null)?.type === 'changed') onChange();
+      const msg = m as { type?: string; origin?: unknown; granted?: unknown } | null;
+      if (msg?.type === 'changed') onChange();
+      else if (msg?.type === 'granted' && typeof msg.origin === 'string') onGranted(msg.origin, msg.granted === true);
     });
     port.onDisconnect.addListener(() => {
       void rt.lastError; // handled

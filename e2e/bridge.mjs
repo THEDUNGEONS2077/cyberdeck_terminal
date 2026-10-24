@@ -46,6 +46,9 @@ await context.route(`${DASHBOARD}**`, (route) => {
   }
 });
 await context.route(`${SITE}**`, (route) => route.fulfill({ contentType: 'text/html', body: `<title>SITE</title><h1>${route.request().url()}</h1>` }));
+// quest_log_desktop, the dashboard's neighbour on the same site: a stub too (SWITCH TO OPEN TAB).
+const QUEST = 'https://thedungeons2077.github.io/quest_log_desktop/';
+await context.route(`${QUEST}**`, (route) => route.fulfill({ contentType: 'text/html', body: '<title>QUEST LOG</title><h1>quest_log</h1>' }));
 
 let failed = 0;
 const errors = [];
@@ -136,7 +139,7 @@ try {
 
   await path('SYSTEM shows the live source and the bridge version', async () => {
     await page.keyboard.press('s');
-    await page.locator('.setting', { hasText: 'SOURCE' }).getByText('LIVE · BRIDGE v1.2.0').waitFor();
+    await page.locator('.setting', { hasText: 'SOURCE' }).getByText('LIVE · BRIDGE v1.3.0').waitFor();
     await page.keyboard.press('Escape');
   });
 
@@ -192,6 +195,71 @@ try {
     expect((await glides()) === 0, 'items glided with Reduce Motion on');
     await page.getByRole('button', { name: 'DONE' }).click();
     await page.emulateMedia({ reducedMotion: 'no-preference' });
+  });
+
+  // --- SWITCH TO OPEN TAB (bridge 1.3) ---
+  /** The address of the tab in front, as the bridge sees it. */
+  const activeUrl = () => inBridge(async () => (await chrome.tabs.query({ active: true, lastFocusedWindow: true }))[0]?.url);
+  /** Picks an item in a link's ⋯ menu (edit mode on and off around it). */
+  const fromMenu = async (link, item) => {
+    await page.getByRole('button', { name: 'EDIT', exact: true }).click();
+    await page.getByRole('button', { name: `Arrange ${link}` }).click();
+    await page.getByRole('menuitem', { name: item }).click();
+    await page.getByRole('button', { name: 'DONE' }).click();
+  };
+
+  await path('SWITCH TO ITS OPEN TAB: quest_log’s link focuses its open tab instead of opening another', async () => {
+    await inBridge(async (quest) => chrome.bookmarks.create({ parentId: '1', title: 'Quest log', url: quest }), QUEST);
+    await page.getByRole('link', { name: /Quest log/ }).waitFor({ timeout: 5000 });
+    const quest = await context.newPage();
+    await quest.goto(`${QUEST}#today`);
+    await page.bringToFront();
+    // The bridge may see the dashboard's own site already: it's on at once, no window to answer.
+    await fromMenu('Quest log', 'SWITCH TO ITS OPEN TAB');
+    await page.locator('.toast', { hasText: 'NOW SWITCH TO THEIR OPEN TAB' }).waitFor();
+    const before = context.pages().length;
+    await page.getByRole('link', { name: /Quest log/ }).click();
+    for (let i = 0; i < 20 && (await activeUrl()) !== `${QUEST}#today`; i++) await page.waitForTimeout(100);
+    expect((await activeUrl()) === `${QUEST}#today`, `the tab in front is ${await activeUrl()}`);
+    expect(context.pages().length === before, 'a new tab opened as well');
+    // Its own address kept (#today): switching doesn't reload or move the app.
+    expect(quest.url() === `${QUEST}#today`, `quest_log is at ${quest.url()}`);
+    await quest.close();
+    await page.bringToFront();
+  });
+
+  await path('…and with no tab of it open, the link opens one (through the bridge, next to the dashboard)', async () => {
+    const [tab] = await Promise.all([context.waitForEvent('page'), page.getByRole('link', { name: /Quest log/ }).click()]);
+    await tab.waitForURL(QUEST);
+    await tab.close();
+    await page.bringToFront();
+  });
+
+  await path('STOP: the link opens a new tab again, open tab or not', async () => {
+    const quest = await context.newPage();
+    await quest.goto(QUEST);
+    await page.bringToFront();
+    await fromMenu('Quest log', 'SWITCHES TO ITS OPEN TAB · STOP');
+    const [tab] = await Promise.all([context.waitForEvent('page'), page.getByRole('link', { name: /Quest log/ }).click()]);
+    await tab.waitForURL(QUEST);
+    await tab.close();
+    await quest.close();
+    await page.bringToFront();
+    const kept = await page.evaluate(() => window.__cyberdeck.layout().prefs.switchTabs);
+    expect(kept.length === 0, `still switching: ${kept}`);
+  });
+
+  await path('another site must be allowed first: the bridge opens its window; CANCEL leaves the link as it was', async () => {
+    const [grant] = await Promise.all([context.waitForEvent('page'), fromMenu('Alpha', 'SWITCH TO ITS OPEN TAB')]);
+    await grant.waitForLoadState();
+    expect(grant.url() === `chrome-extension://${BRIDGE_ID}/grant.html?origin=${encodeURIComponent('https://site.cyberdeck.test/*')}`, `the window shows ${grant.url()}`);
+    await grant.getByText('site.cyberdeck.test', { exact: false }).waitFor();
+    await grant.screenshot({ path: join(shots, 'bridge-02-grant.png') });
+    await grant.getByRole('button', { name: 'CANCEL' }).click();
+    await page.locator('.toast', { hasText: 'NOT ALLOWED' }).waitFor({ timeout: 5000 });
+    expect((await page.evaluate(() => window.__cyberdeck.layout().prefs.switchTabs)).length === 0, 'turned on without your yes');
+    // The bridge still can't see that site.
+    expect(!(await inBridge(async () => chrome.permissions.contains({ origins: ['https://site.cyberdeck.test/*'] }))), 'the site was allowed');
   });
 
   await path('the next open draws the bar at once from the cache, before the bridge answers', async () => {

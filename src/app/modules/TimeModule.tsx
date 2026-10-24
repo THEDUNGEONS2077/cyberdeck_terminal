@@ -164,15 +164,23 @@ function Countdowns({ settings, today }: { settings: TimeSettings; today: Date }
   );
 }
 
-/** The timer's state: running toward `end`, or stopped with `left` ms to go (null: not started). */
-type TimerState = { end: number; left: null } | { end: null; left: number | null };
+/**
+ * The timer's state: running toward `end` (with `left` ms to go when it
+ * started), or stopped with `left` ms to go; both null: not started.
+ */
+interface TimerState {
+  end: number | null;
+  left: number | null;
+}
 
 /** The timer: START / PAUSE, RESET; says when it's done. */
 function Timer({ minutes, seen }: { minutes: number; seen: boolean }) {
   const [state, setState] = useState<TimerState>({ end: null, left: null });
   const now = useSecond(seen && state.end !== null);
   const length = minutes * 60_000;
-  const left = state.end !== null ? Math.max(0, state.end - now.getTime()) : (state.left ?? length);
+  const from = state.left ?? length;
+  // Never more than it started with: the clock read just before START would otherwise show 25:01 for a moment.
+  const left = state.end !== null ? Math.min(from, Math.max(0, state.end - now.getTime())) : from;
   const done = state.end !== null && left === 0;
 
   // One timeout to the end (not a loop): it says so even from a background tab.
@@ -182,7 +190,7 @@ function Timer({ minutes, seen }: { minutes: number; seen: boolean }) {
     return () => clearTimeout(t);
   }, [state.end]);
 
-  const start = () => setState({ end: Date.now() + (state.left ?? length), left: null });
+  const start = () => setState({ end: Date.now() + from, left: from });
   const pause = () => setState({ end: null, left: Math.max(0, (state.end ?? 0) - Date.now()) });
   return (
     <div className={cx('time-row time-tool', done && 'due')}>
@@ -198,7 +206,7 @@ function Timer({ minutes, seen }: { minutes: number; seen: boolean }) {
           </button>
         ) : (
           <button type="button" className="text-btn small-btn primary" disabled={done} onClick={start}>
-            {state.left !== null ? 'RESUME' : 'START'}
+            {state.left !== null && state.end === null ? 'RESUME' : 'START'}
           </button>
         )}
         <button type="button" className="text-btn small-btn" disabled={state.end === null && state.left === null} onClick={() => setState({ end: null, left: null })}>

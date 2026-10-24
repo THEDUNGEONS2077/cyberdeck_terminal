@@ -13,6 +13,9 @@
  *   HIDE                           into the HIDDEN tray
  *   PIN TO QUICK LAUNCH            a link becomes a QUICK LAUNCH tile
  *                                  (app/modules/actions.ts)
+ *   SWITCH TO ITS OPEN TAB         its place's links focus an open tab
+ *                                  instead of opening another (bridge 1.3+,
+ *                                  app/switchTab.ts); ✓ … STOP turns it off
  */
 import { type KeyboardEvent, useLayoutEffect, useRef } from 'react';
 
@@ -25,6 +28,7 @@ import { uiStore } from '@/store/ui';
 import { G } from '../glyphs';
 import { useLayout } from '../hooks';
 import { isPinned, pinToLaunch } from '../modules/actions';
+import { canSwitch, isSwitchOn, startSwitching, stopSwitching } from '../switchTab';
 
 /** What the menu is for: an item shown in `section`, under the ⋯ button `anchor`. */
 export interface MenuState {
@@ -107,6 +111,19 @@ export function ArrangeMenu({ menu, arranged, onClose, onNewArea }: { menu: Menu
       act: () => {
         pinToLaunch(url, title);
         onClose();
+      },
+    });
+  }
+  // SWITCH TO ITS OPEN TAB: with a bridge that can (1.3+), for a link a webpage can open.
+  if (url !== undefined && isOpenable(url) && canSwitch()) {
+    const on = isSwitchOn(url);
+    groups[3]!.push({
+      glyph: on ? '✓' : '↪',
+      label: on ? 'SWITCHES TO ITS OPEN TAB · STOP' : 'SWITCH TO ITS OPEN TAB',
+      act: () => {
+        onClose();
+        if (on) stopSwitching(url);
+        else void startSwitching(url);
       },
     });
   }

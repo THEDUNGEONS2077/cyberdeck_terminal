@@ -15,6 +15,7 @@ import { type Arrangement, type Area, type PanelPlace, type Panels, MAX_AREAS, c
 import { sanitizeTree } from './bookmarks';
 import { type BookmarksLayout, type GlowLevel, type LayoutDocument, GLOW_LEVELS, LAYOUT_SCHEMA_VERSION, MAX_OPEN_FOLDERS, defaultBookmarks, defaultPrefs, normalizeZooms } from './layout';
 import { normalizeModules } from './modules';
+import { normalizeSwitchTabs } from './switching';
 import { PALETTE_IDS, type PaletteId } from './palettes';
 
 /** The document was written by a newer version of the app than this one. */
@@ -111,6 +112,8 @@ export function normalizeLayout(doc: Record<string, unknown>): LayoutDocument {
   prefs.wallpaperPalette = PALETTE_IDS.includes(saved.wallpaperPalette as PaletteId) ? (saved.wallpaperPalette as PaletteId) : prefs.palette;
   // Each wallpaper's zoom (0.9.0, the same way: an older layout has every wallpaper at 100%).
   prefs.wallpaperZoom = normalizeZooms(saved.wallpaperZoom);
+  // The places that switch to their open tab (0.12.0, the same way: none in an older layout).
+  prefs.switchTabs = normalizeSwitchTabs(saved.switchTabs);
 
   return { schemaVersion: LAYOUT_SCHEMA_VERSION, wallpaper: doc.wallpaper, prefs, bookmarks: normalizeBookmarks(doc.bookmarks), panels: normalizePanels(doc.panels), modules: normalizeModules(doc.modules) };
 }

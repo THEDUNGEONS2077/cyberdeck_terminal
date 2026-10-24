@@ -18,6 +18,7 @@ import { uiStore } from '@/store/ui';
 
 import { SiteIcon } from '../deck/Items';
 import { useLayout } from '../hooks';
+import { followLink } from '../switchTab';
 import type { ModuleProps } from './catalog';
 
 /** How many keyed tiles come before module `id`'s (keys run on across QUICK LAUNCH modules). */
@@ -44,7 +45,7 @@ export function Panel({ module }: ModuleProps) {
         const key = offset + i + 1;
         return (
           <li key={t.url}>
-            <a className="launch-tile" href={t.url} target="_blank" rel="noopener noreferrer" title={t.url} draggable={false}>
+            <a className="launch-tile" href={t.url} target="_blank" rel="noopener noreferrer" title={t.url} draggable={false} onClick={(e) => followLink(e, t.url)}>
               <SiteIcon url={t.url} />
               <span className="launch-title">{t.title}</span>
               <span className="link-host">{hostOf(t.url)}</span>

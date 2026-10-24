@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.12.0 (build 19)
+- **SWITCH TO ITS OPEN TAB:** a link can now take you to the tab it already has open, instead of opening another. Turn it on per link, from its ⋯ in EDIT. It then covers every link under the same place: quest_log's link brings its open tab to the front, wherever you left it.
+  - **No tab of it open?** The link opens one, next to the dashboard, as before. A middle click, or Ctrl+click, still opens a new tab on purpose.
+  - **quest_log works at once:** it's on the dashboard's own site, which the bridge can already see. **Any other site** must be allowed first. The bridge opens a small window, and Chrome asks you when you click ALLOW (Chrome calls it "read and change"; the bridge only looks for the tab and switches to it). Nothing changes until you say yes.
+  - **To turn it off:** the link's ⋯ says **SWITCHES TO ITS OPEN TAB · STOP**. The bridge gives the site back once no link needs it. The places you've turned on are saved with your layout and its backups.
+  - It works from tiles, folders, QUICK LAUNCH, the finder and keys 1–9.
+- **Bridge 1.3.0** (SYSTEM offers the update): adds the switching. At install it still has only the dashboard's site and your bookmarks; any other site needs your yes.
+
 ## 0.11.0 (build 18)
 - **Modules:** panels you add to the dashboard yourself, beside NAV. In EDIT, **+ MODULE** adds one at a free spot down the right-hand side. Move it by its grip (drag, or the arrow keys), resize it by its right edge, and use its ⋯ for SETTINGS and REMOVE. Everything is undoable, saved with your layout and in its backups, and in a narrow window the modules stack under NAV.
   - **SEARCH:** type and press Enter to search the web in a new tab, with DuckDuckGo, Google, Bing, Kagi or your own engine (any address with `%s` where the words go). The page only opens the address; it sends nothing itself. The finder (`/`) now ends with "SEARCH … FOR" whatever you typed, so `/` + words + Enter searches when no bookmark matches.

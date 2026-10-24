@@ -41,6 +41,8 @@ export interface LayoutState {
   setWallpaperPalette(id: PaletteId): void;
   /** Sets wallpaper `id`'s zoom (snapped to a step; 100% removes it). */
   setWallpaperZoom(id: string, zoom: number): void;
+  /** Sets the places whose links switch to their open tab (lib/switching.ts). */
+  setSwitchTabs(list: string[]): void;
   /** Opens or collapses a bookmarks folder (by folderKey). */
   setFolderOpen(key: string, open: boolean): void;
   /** Keeps `bar` as the imported copy of the bookmarks bar (replacing any earlier copy). */
@@ -145,6 +147,11 @@ export function createLayoutStore(kv: KV, boot: Boot, onSaveError: SaveErrorHand
         const layout = get().layout;
         const zooms = withZoom(layout.prefs.wallpaperZoom, id, zoom);
         if (zoomOf(zooms, id) !== zoomOf(layout.prefs.wallpaperZoom, id)) commit({ ...layout, prefs: { ...layout.prefs, wallpaperZoom: zooms } });
+      },
+
+      setSwitchTabs(list) {
+        const layout = get().layout;
+        if (list.join() !== layout.prefs.switchTabs.join()) commit({ ...layout, prefs: { ...layout.prefs, switchTabs: list } });
       },
 
       setRainGlow(level) {

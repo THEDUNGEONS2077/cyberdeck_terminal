@@ -5,8 +5,9 @@
  * Layer: UI.
  *
  * Locked (the usual state): links open in a new tab (`noopener
- * noreferrer`, so sites aren't told where you came from); folders fold
- * open and shut. Links a webpage can't open (chrome://, bookmarklets) are
+ * noreferrer`, so sites aren't told where you came from), or switch to
+ * their open tab where you've turned that on (app/switchTab.ts); folders
+ * fold open and shut. Links a webpage can't open (chrome://, bookmarklets) are
  * listed, dimmed, inert. An item that has just arrived from Chrome is lit
  * for a moment (`fresh`, store/bookmarks.ts).
  *
@@ -25,6 +26,7 @@ import { countLinks, folderKey, hostOf, isOpenable } from '@/lib/bookmarks';
 import { layoutStore } from '@/store/instance';
 
 import { cx } from '../cx';
+import { followLink } from '../switchTab';
 import { G } from '../glyphs';
 import { useBookmarks, useLayout } from '../hooks';
 import { type SectionId, useDeck } from './context';
@@ -138,8 +140,8 @@ export const LinkItem = memo(function LinkItem({ item, section, className }: { i
       rel="noopener noreferrer"
       draggable={false}
       onPointerDown={onDrag}
-      // Editing: a link doesn't open (it's being arranged).
-      onClick={(e) => editing && e.preventDefault()}
+      // Editing: a link doesn't open (it's being arranged). Otherwise it may switch to its open tab (app/switchTab.ts).
+      onClick={(e) => (editing ? e.preventDefault() : followLink(e, url))}
     >
       <SiteIcon url={url} />
       <span className="link-title">{title}</span>

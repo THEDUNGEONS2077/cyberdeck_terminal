@@ -1,0 +1,41 @@
+<!doctype html>
+<!--
+  bridge/grant.html: the bridge's small window that asks to see a site's
+  tabs, for the dashboard's SWITCH TO OPEN TAB (grant.js does the asking).
+  Only an extension's own page can ask Chrome for a site, and only on a
+  click: hence this window, opened by background.js.
+  Its colours are PHOSPHOR's, written out: an extension page can't read the
+  dashboard's palette. Extension pages can't run inline scripts, hence the
+  separate file.
+-->
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>CYBERDECK BRIDGE · SWITCH TO OPEN TAB</title>
+    <style>
+      html { background: #000; color: #2fb344; color-scheme: dark; font: 13px/1.5 ui-monospace, 'JetBrains Mono', monospace; }
+      body { max-width: 440px; margin: 0; padding: 20px; }
+      /* Sizes set on each piece: a monospace font otherwise shrinks text Chrome sizes by default. */
+      p, code, button { font-size: 13px; }
+      h1 { margin: 0 0 12px; color: #b6ffb0; font-size: 14px; letter-spacing: 1px; }
+      h1::before { content: '> '; color: #39ff14; }
+      p { margin: 0 0 12px; }
+      code { color: #b6ffb0; font-family: inherit; word-break: break-all; }
+      .row { display: flex; gap: 8px; margin-top: 16px; }
+      button { height: 32px; padding: 0 14px; border: 1px solid #12301a; border-radius: 2px; background: #0b160d; color: #b6ffb0; font: inherit; letter-spacing: 1px; cursor: pointer; }
+      button.primary { border-color: #39ff14; color: #39ff14; }
+      button:hover, button:focus-visible { border-color: #39ff14; outline: none; box-shadow: 0 0 8px rgba(57, 255, 20, 0.35); }
+      .dim { color: #2b903f; font-size: 12px; }
+    </style>
+    <script src="grant.js" defer></script>
+  </head>
+  <body>
+    <h1>SWITCH TO OPEN TAB</h1>
+    <p>LET THE DASHBOARD SWITCH TO YOUR OPEN TAB OF <code id="site"></code> INSTEAD OF OPENING ANOTHER ONE?</p>
+    <p class="dim">FOR THAT, THE BRIDGE NEEDS TO SEE THE ADDRESSES OF THAT SITE'S TABS. CHROME ASKS YOU NEXT (IT SAYS "READ AND CHANGE": THE BRIDGE ONLY LOOKS FOR A TAB AND SWITCHES TO IT). STOP IT ANY TIME FROM THE LINK'S ⋯ MENU.</p>
+    <div class="row">
+      <button type="button" class="primary" id="allow">ALLOW</button>
+      <button type="button" id="cancel">CANCEL</button>
+    </div>
+  </body>
+</html>
