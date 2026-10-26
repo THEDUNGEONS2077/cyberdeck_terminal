@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.15.2 (build 25)
+- **Browser zoom: back to how it was before 0.15.1** (your call): the wallpapers behave as they did when you zoom the browser in and out.
+- **HORIZON:**
+  - **Thinner lines:** each edge is now 0.5 CSS px, with a softer glow.
+  - **Polygons follow the layout, as the other wallpapers' detail does:** a bigger layout (zoomed out, in the browser or with SYSTEM ▸ ZOOM) gets more, smaller triangles; a smaller one fewer, bigger ones. At 1080 CSS px tall it's as before.
+
 ## 0.15.1 (build 24)
 - **HORIZON, as you asked:**
   - **Layout:** the glow's white core now sits just above the screen's middle, and the hills fill the bottom half.

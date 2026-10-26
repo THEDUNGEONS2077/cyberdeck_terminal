@@ -106,7 +106,7 @@ Reference: `wallhaven-xl61ol.png` (the user's, 2026-10-26): a synthwave scene, a
 
 | Property | Reference | How it's matched |
 |---|---|---|
-| The land | Low-poly jagged triangles in perspective, only their edges drawn (teal), dark faces, filling the bottom half; the nearest edges blurred | A field of 64 × 97 jittered points with heights, cut into triangles; a pinhole camera 1 unit up, the horizon at the middle; edges from each triangle's corner weights (`fwidth`), the same width at any distance, wider and softer within a few units (the depth of field); `--cool` (SYNTH's teal) |
+| The land | Low-poly jagged triangles in perspective, only their edges drawn (teal, thin), dark faces, filling the bottom half; the nearest edges blurred | A field of jittered points with heights, cut into triangles whose size follows the layout (more, smaller ones zoomed out, as the other wallpapers' detail); a pinhole camera 1 unit up, the horizon at the middle; edges 0.5 CSS px from each triangle's corner weights (`fwidth`), the same width at any distance, wider and softer within a few units (the depth of field); `--cool` (SYNTH's teal) |
 | The glow | A hot pink glow on the horizon, a small white core just above the middle, a tall dome of haze | The accent, as a glow and a taller dome; a white-hot core with a little bloom |
 | The sky | Dark plum, darker at the corners | Dark mixes of the accent, top to bottom; a soft falloff to the corners |
 | The haze | The far land lost in pink haze | The land fades by distance into the very same haze the sky draws (one function in both shaders, bloom and corners included, so there's no seam) |

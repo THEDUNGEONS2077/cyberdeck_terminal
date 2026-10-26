@@ -9,8 +9,9 @@
  *   - the sky (shaders/sky.frag: the plum sky, the glow and its haze, the
  *     white core) never changes, so it's drawn once, when the size,
  *     palette or glow changes; the canvas keeps it (preserveDrawingBuffer);
- *   - each frame redraws only the bottom half: the land (land.ts: about
- *     12 000 triangles made once, placed by the camera's distance alone, one
+ *   - each frame redraws only the bottom half: the land (land.ts: made
+ *     once per layout size, about 12 000 triangles at 1080 CSS px tall, more
+ *     for a bigger layout; placed by the camera's distance alone, one
  *     number), its edges over dark faces, then the far wall of haze that
  *     fills the band up to the horizon (land.ts). The strips are drawn
  *     nearest first, so the depth test skips the hidden far ones before
@@ -23,15 +24,15 @@
 import type { GlowLevel } from '@/lib/layout';
 
 import { type Wallpaper, type WallpaperInstance, type WallpaperOptions, zoomedSize } from '../types';
-import { buildLand, horizonTones, type HorizonTones, landMesh, type Rng, STRIP_VERTICES, VERTEX, WALL_VERTICES } from './land';
-import { CAMERA, FOG, HORIZON_GLOW, LENS, LINE, MAX_DPR, MAX_FRAME_STEP, MIN_FRAME_MS, ROWS, SPEED, SUN } from './params';
+import { buildLand, cellFor, horizonTones, type HorizonTones, type Land, landMesh, type Rng, stripVertices, VERTEX, WALL_VERTICES } from './land';
+import { CAMERA, DEPTH, FOG, HORIZON_GLOW, LENS, LINE, MAX_DPR, MAX_FRAME_STEP, MIN_FRAME_MS, SPEED, SUN } from './params';
 import fullVert from './shaders/full.vert?raw';
 import landFrag from './shaders/land.frag?raw';
 import landVert from './shaders/land.vert?raw';
 import skyFrag from './shaders/sky.frag?raw';
 
 /** The far clip (units): just past the farthest strip. */
-const FAR = ROWS + 2;
+const FAR = DEPTH + 3;
 
 /** A compiled program, its uniforms looked up once each. */
 interface Program {
@@ -126,7 +127,8 @@ function createHorizon(canvas: HTMLCanvasElement | OffscreenCanvas, options: Wal
   let still = options.still;
   // The layout's size (CSS px, zoomed), px per CSS px, and the zoom.
   let size: { w: number; h: number; dpr: number; zoom: number } | null = null;
-  let mesh: Float32Array | null = null;
+  // The land for the layout's size (made again when its cell changes).
+  let land: Land | null = null;
   // The motion: how far the camera has come (units, wrapped at ROWS).
   let camZ = 0;
   // The sky must be drawn again (a new size, palette or glow; a new context).
@@ -137,13 +139,21 @@ function createHorizon(canvas: HTMLCanvasElement | OffscreenCanvas, options: Wal
   let frame = 0;
   let last = 0;
 
-  /** The land to the GPU (once: the land never changes). */
-  const sendLand = () => {
-    if (!gl || !gpu) return;
-    mesh ??= landMesh(buildLand(rng));
+  /** The land to the GPU: made for the layout's size (its cell), again only if the cell changed (or on a new context). */
+  const sendLand = (force = false) => {
+    if (!gl || !gpu || !size) return;
+    const cell = cellFor(size.h);
+    if (!force && land && land.cell === cell) return;
+    land = buildLand(rng, cell);
+    const mesh = landMesh(land);
     gl.bindBuffer(gl.ARRAY_BUFFER, gpu.mesh.buffer);
     gl.bufferData(gl.ARRAY_BUFFER, mesh, gl.STATIC_DRAW);
     gpu.mesh.count = mesh.length / VERTEX;
+    // Its strips repeat after rows × cell units: the camera's distance wraps there.
+    camZ %= land.rows * land.cell;
+    gl.useProgram(gpu.land.program);
+    gl.uniform1f(gpu.land.u('uRows'), land.rows);
+    gl.uniform1f(gpu.land.u('uCell'), land.cell);
   };
 
   /** The uniforms that hold until the size, palette or glow changes. */
@@ -179,7 +189,6 @@ function createHorizon(canvas: HTMLCanvasElement | OffscreenCanvas, options: Wal
     gl.uniform1f(l.u('uFocal'), focal);
     gl.uniform1f(l.u('uHorizon'), H * LENS.horizon);
     gl.uniform1f(l.u('uCamH'), CAMERA.height);
-    gl.uniform1f(l.u('uRows'), ROWS);
     gl.uniform1f(l.u('uNear'), CAMERA.near);
     gl.uniform1f(l.u('uFar'), FAR);
     gl.uniform3f(l.u('uLine'), ...tones.line);
@@ -197,7 +206,7 @@ function createHorizon(canvas: HTMLCanvasElement | OffscreenCanvas, options: Wal
   /** Draws the scene as it is now: the sky if it changed, then the land over the bottom half. */
   const draw = () => {
     if (!size) return;
-    if (gl && gpu && !lost) {
+    if (gl && gpu && !lost && land) {
       const W = canvas.width;
       const H = canvas.height;
       gl.viewport(0, 0, W, H);
@@ -221,11 +230,13 @@ function createHorizon(canvas: HTMLCanvasElement | OffscreenCanvas, options: Wal
       gl.uniform1f(gpu.land.u('uCamZ'), camZ);
       gl.bindVertexArray(gpu.mesh.vao);
       // Nearest strip first (the one the camera is over), on to the far end, then round from the first: front to back.
-      const near = Math.ceil(camZ - 1 + 1e-6) % ROWS;
-      gl.drawArrays(gl.TRIANGLES, near * STRIP_VERTICES, (ROWS - near) * STRIP_VERTICES);
-      if (near > 0) gl.drawArrays(gl.TRIANGLES, 0, near * STRIP_VERTICES);
+      const { rows } = land;
+      const per = stripVertices(land.cols);
+      const near = Math.max(0, Math.ceil(camZ / land.cell - 1 + 1e-6) % rows);
+      gl.drawArrays(gl.TRIANGLES, near * per, (rows - near) * per);
+      if (near > 0) gl.drawArrays(gl.TRIANGLES, 0, near * per);
       // The far wall of haze last: it fills only what no land covers, up to the horizon.
-      gl.drawArrays(gl.TRIANGLES, ROWS * STRIP_VERTICES, WALL_VERTICES);
+      gl.drawArrays(gl.TRIANGLES, rows * per, WALL_VERTICES);
       gl.bindVertexArray(null);
       gl.disable(gl.DEPTH_TEST);
       gl.disable(gl.SCISSOR_TEST);
@@ -249,8 +260,8 @@ function createHorizon(canvas: HTMLCanvasElement | OffscreenCanvas, options: Wal
     }
     const dt = last ? Math.min((now - last) / 1000, MAX_FRAME_STEP) : 0;
     last = now;
-    // Wrapped: the land repeats every ROWS units.
-    camZ = (camZ + dt * SPEED) % ROWS;
+    // Wrapped where the land repeats.
+    if (land) camZ = (camZ + dt * SPEED) % (land.rows * land.cell);
     draw();
     frame = requestAnimationFrame(tick);
   };
@@ -262,7 +273,8 @@ function createHorizon(canvas: HTMLCanvasElement | OffscreenCanvas, options: Wal
       canvas.width = Math.round(next.w * next.dpr);
       canvas.height = Math.round(next.h * next.dpr);
       size = { ...next, zoom: zoom > 0 && Number.isFinite(zoom) ? zoom : 1 };
-      if (gpu && !gpu.mesh.count) sendLand();
+      // The land for this layout's size (more, smaller cells for a bigger one).
+      sendLand();
       // A resized canvas is cleared: the sky is drawn again (setUniforms marks it).
       setUniforms();
       draw();
@@ -297,7 +309,7 @@ function createHorizon(canvas: HTMLCanvasElement | OffscreenCanvas, options: Wal
     destroy() {
       instance.stop();
       size = null;
-      mesh = null;
+      land = null;
     },
   };
 
@@ -309,7 +321,7 @@ function createHorizon(canvas: HTMLCanvasElement | OffscreenCanvas, options: Wal
   target.addEventListener('contextrestored', () => {
     lost = false;
     gpu = gl ? setUp(gl) : null;
-    sendLand();
+    sendLand(true);
     setUniforms();
     draw();
   });
