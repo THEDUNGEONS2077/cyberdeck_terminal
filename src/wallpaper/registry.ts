@@ -9,6 +9,7 @@
 import { knownWallpaperId } from './catalog';
 import { dataFlow } from './data-flow/engine';
 import { horizon } from './horizon/engine';
+import { sunset } from './sunset/engine';
 import { matrixRain } from './matrix-rain/engine';
 import { megacity } from './megacity/engine';
 import { neuralNet } from './neural-net/engine';
@@ -16,7 +17,7 @@ import { velocity } from './velocity/engine';
 import type { Wallpaper } from './types';
 
 /** All wallpaper engines. */
-export const WALLPAPERS: readonly Wallpaper[] = [matrixRain, neuralNet, velocity, dataFlow, megacity, horizon];
+export const WALLPAPERS: readonly Wallpaper[] = [matrixRain, neuralNet, velocity, dataFlow, megacity, horizon, sunset];
 
 /** The wallpaper with `id`; the default one if it's unknown (a layout from a newer build, say). */
 export function findWallpaper(id: string): Wallpaper {

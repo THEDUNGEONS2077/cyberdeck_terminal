@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.16.0 (build 26)
+- **SUNSET wallpaper,** from your reference: the outrun sunset.
+  - **The scene:**
+    - a big striped sun on the horizon, golden at the top and melting to hot pink, its gaps widening toward its base, with a magenta glow;
+    - a starry night sky, purple on the left and blue on the right;
+    - a gently rolling square grid that glows pink on the left and blue on the right, melting into pink haze at the horizon;
+    - fine CRT scanlines over it all.
+  - **What moves:** only the grid, gliding toward you.
+  - **Built to be as light as it gets:** the sky, sun and stars never change, so they're drawn once and kept. Each frame redraws only the ground: one short calculation per pixel, with no shapes, textures or depth. The grid lines are worked out per pixel, so they're razor-sharp at any size. Far off, where the lines crowd together, they blend into their own glow instead of shimmering.
+  - **Detail follows the layout,** as the other wallpapers' does: zoomed out, more and finer squares.
+- **OUTRUN palette:** a golden sun melting into hot pink, over blue, matched to the reference. Choose it under WALLPAPER COLOURS for SUNSET's own look.
+
 ## 0.15.2 (build 25)
 - **Browser zoom: back to how it was before 0.15.1** (your call): the wallpapers behave as they did when you zoom the browser in and out.
 - **HORIZON:**

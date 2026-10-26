@@ -37,7 +37,7 @@ export interface PaletteColors {
 }
 
 /** The palettes' ids. Stored in layouts: never change one once released. */
-export type PaletteId = 'phosphor' | 'amber' | 'ice' | 'neon' | 'blood' | 'azure' | 'synth';
+export type PaletteId = 'phosphor' | 'amber' | 'ice' | 'neon' | 'blood' | 'azure' | 'synth' | 'outrun';
 
 /** A palette: its id, its name in SYSTEM, its colours. */
 export interface Palette {
@@ -174,6 +174,25 @@ export const PALETTES: readonly Palette[] = [
       accentDeep: '#a01d55',
       textBright: '#ffd0e2',
       cool: '#2fb8b4',
+    },
+  },
+  {
+    // A golden sun melting into hot pink, over blue: SUNSET's reference (2026-10-26), the outrun sun.
+    id: 'outrun',
+    label: 'OUTRUN',
+    colors: {
+      bg: '#000000',
+      surface: '#0a0510',
+      surfaceRaised: '#140a1c',
+      line: '#2e1640',
+      lineLit: '#4a1a5c',
+      wash: '#26082e',
+      textDim: '#d65a9c',
+      text: '#f27cb4',
+      accent: '#ff3e7f',
+      accentDeep: '#a3204f',
+      textBright: '#ffd75e',
+      cool: '#3a8dff',
     },
   },
 ];

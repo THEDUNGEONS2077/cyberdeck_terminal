@@ -786,7 +786,7 @@ try {
     await page.keyboard.press('Escape');
   });
 
-  await path('APPEARANCE: the dashboard and the wallpaper each take their own palette; the neural net, VELOCITY, DATA FLOW, MEGACITY and HORIZON run in the worker; all survive a reload', async () => {
+  await path('APPEARANCE: the dashboard and the wallpaper each take their own palette; the neural net, VELOCITY, DATA FLOW, MEGACITY, HORIZON and SUNSET run in the worker; all survive a reload', async () => {
     const accent = () => page.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue('--accent').trim());
     const wallAccent = () => page.evaluate(() => getComputedStyle(document.querySelector('.wallpaper')).getPropertyValue('--accent').trim());
     const swatch = (group, name) => page.getByRole('radiogroup', { name: group }).locator('.swatch', { hasText: name });
@@ -869,6 +869,21 @@ try {
     expect(z1.w === 1920 && z1.h === 1080, `HORIZON's canvas is ${z1.w}×${z1.h}`);
     expect(z1.sig !== z2.sig, 'HORIZON doesn’t move');
     await shot('18b-horizon');
+    // SUNSET: the outrun sun over its grid; the sky drawn once, the grid gliding.
+    await page.keyboard.press('s');
+    await page.getByRole('radio', { name: 'SUNSET' }).check({ force: true });
+    await page.getByRole('radiogroup', { name: 'WALLPAPER COLOURS' }).getByRole('radio', { name: 'OUTRUN' }).check({ force: true });
+    await page.keyboard.press('Escape');
+    await page.waitForFunction(() => document.querySelector('.wallpaper')?.getAttribute('data-wallpaper') === 'sunset');
+    await page.locator('.wallpaper-canvas[data-ready]').waitFor({ state: 'attached', timeout: 10000 });
+    expect((await page.evaluate(() => window.__cyberdeckRain.mode())) === 'worker', 'SUNSET isn’t in the worker');
+    const u1 = await rain();
+    await page.waitForTimeout(800);
+    const u2 = await rain();
+    expect(u1.lit > 0.2, `SUNSET is only ${(u1.lit * 100).toFixed(1)}% lit`);
+    expect(u1.w === 1920 && u1.h === 1080, `SUNSET's canvas is ${u1.w}×${u1.h}`);
+    expect(u1.sig !== u2.sig, 'SUNSET doesn’t move');
+    await shot('18c-sunset');
     // Accessibility in another palette (contrast especially), with SYSTEM open.
     await page.addScriptTag({ path: join(root, 'node_modules/axe-core/axe.min.js') });
     await page.keyboard.press('s');

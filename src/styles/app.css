@@ -228,6 +228,14 @@ ul {
 .wallpaper[data-wallpaper='horizon'] .wallpaper-floor {
   display: none;
 }
+/* SUNSET: its night sky, purple to blue (the sun and grid draw over it, opaque, once the graphics card is ready). */
+.wallpaper[data-wallpaper='sunset'] {
+  background: linear-gradient(to right, color-mix(in srgb, var(--accent) 12%, var(--bg)), color-mix(in srgb, var(--cool) 28%, var(--bg)));
+}
+.wallpaper[data-wallpaper='sunset'] .wallpaper-haze,
+.wallpaper[data-wallpaper='sunset'] .wallpaper-floor {
+  display: none;
+}
 /* The reference's dark lower edge: the rain thins out to black at the bottom. */
 .wallpaper-floor {
   position: absolute;

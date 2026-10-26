@@ -113,6 +113,18 @@ Reference: `wallhaven-xl61ol.png` (the user's, 2026-10-26): a synthwave scene, a
 
 The motion is our own, and slow: the camera glides forward (0.45 units a second), so the hills roll toward you without end. Nothing else moves, so the sky is drawn once (0.15.1, for smoothness: "detail can be lowered"). ZOOM narrows the view and widens the lines. SYNTH (hot pink over teal) was added for it; every palette makes its own HORIZON.
 
+## Sunset's look
+Reference: `1541088888512.jpg` (the user's, 2026-10-26): the outrun sunset.
+
+| Property | Reference | How it's matched |
+|---|---|---|
+| The sun | Big, on the horizon a little above the middle, golden at the top melting through orange to pink, gaps from a third of the way down widening toward the base, a magenta glow | A disc (radius 17% of the height) from `--text-bright` (OUTRUN's gold) to the accent, gaps every 0.15 of its radius from 10% to 50% wide, anti-aliased; the horizon cuts its base; the accent's glow round it |
+| The sky | Night, purple on the left, blue on the right, darker up top, fine stars | The accent-and-cool mix to the cool colour across, darker up top; a star in 0.6% of 3 CSS px cells (an integer hash: no streaks), a rare bright one |
+| The grid | Squares in perspective, gently rolling, pink and orange on the left, teal on the right, into pink haze at the horizon | Per pixel: the spot on the ground each pixel sees, then px to the nearest line from `fwidth` (1 CSS px lines, a soft glow), the rows waving across; far off, where squares are a few px, the lines blend into their average light; the haze a soft drift of the accent |
+| The texture | CRT scanlines | A darker row every 3 CSS px |
+
+The motion is our own, and the only motion: the grid glides toward you (0.6 units a second). Built to be as light as possible: the sky is drawn once; each frame is one short shader over the bottom 39% of the screen. OUTRUN (gold, hot pink, blue) was added for it.
+
 ## The bookmarks deck
 - **Header bar:** titled **NAV**, in the desktop's centre-header look (scanlines, phosphor, a lit rule underneath).
   - A soft band of light sweeps across it once when NAV appears, and again each time the layout is locked (the brand panel's refresh band, turned sideways). It never loops.
