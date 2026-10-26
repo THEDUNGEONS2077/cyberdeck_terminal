@@ -46,9 +46,11 @@ void main() {
     float lw = uLine * uUnit;
     float line = 1.0 - smoothstep(lw - 0.5, lw + 0.5, d);
     float glow = exp(-d / (uGlowW * uUnit)) * 0.3;
-    // Far off the lines crowd together (a square under a few px): there they blend into their average light, which glows like haze, instead of shimmering.
-    float crowd = 1.0 - smoothstep(0.12, 0.45, max(fw.x, fw.y));
-    float average = min(0.38, lw * (fw.x + fw.y));
+    // Far off the lines crowd together (a square under a few px): there they fade into the dark ground, as into the night, instead of
+    // shimmering or piling up into a bright band (0.17.2, the user: the horizon read as a thick line of thin ones). A little of their
+    // average light is kept, so the grid thins out rather than stops.
+    float crowd = 1.0 - smoothstep(0.3, 1.0, max(fw.x, fw.y));
+    float average = min(0.14, lw * (fw.x + fw.y)) * (1.0 - smoothstep(1.0, 3.0, fw.y));
     vec3 lc = mix(uWarm, uCool, smoothstep(0.25, 0.85, p.x / uTarget.x));
     vec3 c = uGround + lc * mix(average, line + glow, crowd);
     // The pink haze at the horizon: soft, the grid showing through, thicker in slow drifts across.

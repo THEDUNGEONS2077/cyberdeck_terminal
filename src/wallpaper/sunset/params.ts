@@ -54,8 +54,8 @@ export const SPEED = 0.6;
 /** The grid's distance wraps after this many units: whole grid squares and whole waves, so it carries on seamlessly. */
 export const WRAP = 240;
 
-/** The pink haze over the far grid: how far below the horizon it reaches (share of the screen's height). */
-export const HAZE = 0.07;
+/** The pink haze over the far grid: how far below the horizon it reaches (share of the screen's height): a narrow seam (0.17.2: 0.07 read as a thick band). */
+export const HAZE = 0.025;
 
 /** The stars: one cell in so many CSS px, the share of cells with a star. */
 export const STARS = { cell: 3, chance: 0.006 } as const;

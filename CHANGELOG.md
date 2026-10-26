@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.17.2 (build 29)
+- **SUNSET's horizon is seamless now.** The far grid used to pile up into a thick, bright band of thin lines under the sun. Now the lines thin out and fade into the dark ground as they reach the distance, and the pink haze is a soft, narrow seam right at the horizon. The band is gone; what's left is a short, dim fade (about a third of the old band's height and much darker), with no lines crowding into it.
+
 ## 0.17.1 (build 28)
 - **The wallpapers ignore Chrome's zoom too** (with SYSTEM ▸ CHROME ZOOM on IGNORE, the default). Each wallpaper now looks exactly as it does at 100%, whatever zoom you've set for quest_log: the same size, detail and sharpness, filling the window. SYSTEM ▸ ZOOM still zooms a wallpaper as before.
 - **APPLY** brings back the old behaviour for both the dashboard and the wallpaper.
