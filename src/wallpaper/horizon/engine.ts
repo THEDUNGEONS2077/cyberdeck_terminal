@@ -120,7 +120,9 @@ function drawStill(ctx: OffscreenCanvasRenderingContext2D, w: number, h: number,
 function createHorizon(canvas: HTMLCanvasElement | OffscreenCanvas, options: WallpaperOptions, rng: Rng = Math.random): WallpaperInstance {
   const target = canvas as OffscreenCanvas;
   // preserveDrawingBuffer: the tests' probe reads the picture back between frames. A depth buffer: near hills hide far ones.
-  const gl = target.getContext('webgl2', { alpha: false, antialias: false, depth: true, preserveDrawingBuffer: true, powerPreference: 'low-power' });
+  // Antialias (the browser's multisampling, 0.17.4): a near hill's outline over the land behind is a triangle's own edge, which
+  // the shader's soft lines can't smooth; multisampling does, still shading each pixel once (only edge pixels take more samples).
+  const gl = target.getContext('webgl2', { alpha: false, antialias: true, depth: true, preserveDrawingBuffer: true, powerPreference: 'low-power' });
   let gpu = gl ? setUp(gl) : null;
   let glow: GlowLevel = options.glow;
   let tones = horizonTones(options.palette);

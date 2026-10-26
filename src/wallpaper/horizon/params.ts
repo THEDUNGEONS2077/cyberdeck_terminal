@@ -44,8 +44,8 @@ export const CELL = { min: 0.5, max: 1.2 } as const;
 /** Where each point may sit off its grid spot (shares of a cell): enough to read as random triangles, not a grid. */
 export const JITTER = { x: 0.38, z: 0.2 } as const;
 
-/** The land's height (in cells: units at cell 1; the camera is at 1 unit): most points low, now and then a sharp peak, as the reference's. */
-export const HEIGHT = { low: [0, 0.24], peakChance: 0.14, peak: [0.3, 0.62] } as const;
+/** The land's height (in cells: units at cell 1; the camera is at 1 unit): most points low, now and then a peak, as the reference's (gentler since 0.17.4, the user: smoother hills). */
+export const HEIGHT = { low: [0, 0.2], peakChance: 0.14, peak: [0.26, 0.48] } as const;
 
 /** The camera: its height (units), the near clip (units: a row passes out of sight behind it before it wraps). */
 export const CAMERA = { height: 1, near: 0.25 } as const;
@@ -62,18 +62,23 @@ export const FOG = { start: 3, end: 44 } as const;
 /** Where the haze's far wall stands (units): just inside the land's far end; it covers the strip between the land and the horizon. */
 export const WALL = DEPTH - 2;
 
-/** The edges: width and glow (CSS px; thin, as the user asked in 0.15.2), and how much softer and wider the nearest are (within `near` units), as the photo's depth of field. */
-export const LINE = { width: 0.5, glowWidth: 2.2, near: 4.5, soften: 3.2 } as const;
+/**
+ * The edges: the core's width and the glow's reach (CSS px; the core thin,
+ * as the user asked in 0.15.2; the glow wider and stronger in 0.17.4, the
+ * user: "glow more"), and how much softer and wider the nearest are (within
+ * `near` units), as the photo's depth of field.
+ */
+export const LINE = { width: 0.5, glowWidth: 3.6, near: 4.5, soften: 3.2 } as const;
 
 /** The glow on the horizon: its core (radius, share of height) just above the middle (`lift`), its glow and its tall haze dome (shares). */
 export const SUN = { x: 0.5, lift: 0.016, core: 0.011, glow: 0.22, dome: { rx: 0.26, ry: 0.62 } } as const;
 
 /** Per glow level: the edges' glow (0–1), and the horizon's glow (a multiplier). */
 export const HORIZON_GLOW: Record<GlowLevel, { edge: number; sun: number }> = {
-  low: { edge: 0.1, sun: 0.85 },
-  medium: { edge: 0.18, sun: 0.95 },
-  high: { edge: 0.26, sun: 1 },
-  max: { edge: 0.38, sun: 1.1 },
+  low: { edge: 0.2, sun: 0.85 },
+  medium: { edge: 0.32, sun: 0.95 },
+  high: { edge: 0.45, sun: 1 },
+  max: { edge: 0.62, sun: 1.1 },
 };
 
 /** The fastest it redraws (ms between frames): about 72 a second. */

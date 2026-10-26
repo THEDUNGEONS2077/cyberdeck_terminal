@@ -2,8 +2,8 @@
 // horizon land.frag: the land's triangles, drawn as their edges only: thin
 // teal lines with a soft glow over dark faces. How far a pixel is from the
 // nearest edge comes from its corner weights (vBary) and how fast they
-// change across the screen (fwidth), so every line is the same few px wide
-// whatever its distance. The nearest are softer and wider (the reference's
+// change across the screen (their gradient), so every line is the same few
+// px wide whatever its distance and angle. The nearest are softer and wider (the reference's
 // depth of field); the far land fades into the haze (the same as
 // sky.frag's), worked out only where there is haze.
 // One set of shaders: cyberdeck_terminal src/wallpaper/horizon/shaders/*, and later fluid_motion's own copy, byte for byte.
@@ -46,16 +46,20 @@ vec3 haze(vec2 p) {
 }
 
 void main() {
-    // Px to the nearest edge.
-    vec3 a = vBary / max(fwidth(vBary), vec3(1e-5));
+    // Px to the nearest edge, straight across it: the weights' change along the steepest way (fwidth over-reads slanted
+    // edges, drawing them thinner, in steps: jagged; 0.17.4, the user: smoother, glowing more).
+    vec3 bx = dFdx(vBary);
+    vec3 by = dFdy(vBary);
+    vec3 a = vBary / max(sqrt(bx * bx + by * by), vec3(1e-5));
     float d = min(min(a.x, a.y), a.z);
     // Near the camera: wider and softer, and a little dimmer (out of focus).
     float soft = 1.0 + uSoften * clamp((uSoftNear - vZ) / uSoftNear, 0.0, 1.0);
-    float w = uLineW * uDensity * soft;
-    float line = (1.0 - smoothstep(w - 0.6 * soft, w + 0.6 * soft, d)) * inversesqrt(soft);
-    // The glow: a short falloff past the line (a cheap curve, no exp).
-    float g = clamp(1.0 - d / (uGlowW * uDensity * soft), 0.0, 1.0);
-    vec3 c = uFace + uLine * (line + uGlowA * g * g);
+    // A soft core (a bell across the edge, never a hard pixel step) and a smooth glow round it: a close bloom and a long tail.
+    float core = (uLineW * uDensity + 0.45) * soft;
+    float line = exp(-0.5 * d * d / (core * core)) * inversesqrt(soft);
+    float halo = uGlowW * uDensity * soft;
+    float glow = 0.75 * exp(-0.5 * d * d / (halo * halo)) + 0.25 * exp(-d / (halo * 2.5));
+    vec3 c = uFace + uLine * (line + uGlowA * glow);
     // Into the haze with distance: the haze's colour only where there's haze to see.
     if (vFog > 0.004) c = mix(c, haze(vec2(gl_FragCoord.x, uTarget.y - gl_FragCoord.y)), vFog);
     fragColor = vec4(c, 1.0);

@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.17.4 (build 31)
+- **HORIZON:**
+  - **The hills glow more:** each edge has a soft core and a wider, stronger glow, at every GLOW level.
+  - **Smoother hills:**
+    - **Lines:** they're the same width at every angle, so slanted ones no longer step.
+    - **Outlines:** the outline of a near hill over the land behind is anti-aliased (the browser's multisampling).
+    - **Peaks:** the sharpest spikes are a little lower, while the land keeps its low-poly look.
+  - **Speed:** the multisampling costs extra GPU work. If HORIZON feels less smooth than before, say so and it can come off.
+
 ## 0.17.3 (build 30)
 - **SUNSET:**
   - **No line at the horizon:** at the horizon the ground now takes on the sky's own colour, glow and all, so the grid fades straight into the night with nothing in between. The pink haze band is gone.
