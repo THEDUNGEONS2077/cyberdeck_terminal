@@ -10,6 +10,8 @@
  *   --module-scale the modules' --m.
  * Chrome's zoom is worked out again whenever it may have changed (a zoom
  * resizes the page), so the UI keeps its size as you zoom for quest_log.
+ * The wallpaper cancels the same zoom on its own (wallpaper/host.ts reads
+ * cancelledZoomNow and listens with onBrowserZoom; 0.17.1).
  *
  * The sizes to start with are remembered in localStorage (a hint only, like
  * the palette's): the layout is read later, from IndexedDB, and without it
@@ -48,20 +50,20 @@ export function sizesHint(): Sizes {
 let current: Sizes = DEFAULTS;
 let browser = 1;
 let zoom = 1;
-/** Who's told when Chrome's zoom (and so the UI's) changes: SYSTEM's readout. */
+/** Who's told when Chrome's zoom, or whether it's cancelled, changes: SYSTEM's readout, the wallpaper. */
 const listeners = new Set<() => void>();
 let watching = false;
 
-/** Works the zooms out again and sets the variables; tells the listeners if Chrome's zoom changed. */
+/** Works the zooms out again and sets the variables; tells the listeners if Chrome's zoom, or whether it's cancelled, changed. */
 function update(): void {
-  const was = browser;
+  const was = [browser, cancelledZoomNow()];
   browser = browserZoom({ outerWidth: window.outerWidth, innerWidth: window.innerWidth, dpr: window.devicePixelRatio || 1 });
   zoom = uiZoom(current.uiScale, browser, current.cancelBrowserZoom);
   const root = document.documentElement.style;
   root.setProperty('--ui-zoom', String(zoom));
   root.setProperty('--text-scale', String(current.textScale));
   root.setProperty('--module-scale', String(current.moduleScale));
-  if (browser !== was) for (const listener of listeners) listener();
+  if (browser !== was[0] || cancelledZoomNow() !== was[1]) for (const listener of listeners) listener();
 }
 
 /** Puts `sizes` on the page and remembers them for the next start. */
@@ -90,7 +92,15 @@ export function browserZoomNow(): number {
   return browser;
 }
 
-/** Calls `listener` whenever Chrome's zoom changes; returns the unsubscribe (for useSyncExternalStore). */
+/**
+ * The Chrome zoom the page cancels: Chrome's zoom with CHROME ZOOM ▸ IGNORE,
+ * else 1. The wallpaper draws as at 100% by undoing it (wallpaper/host.ts).
+ */
+export function cancelledZoomNow(): number {
+  return current.cancelBrowserZoom ? browser : 1;
+}
+
+/** Calls `listener` whenever Chrome's zoom, or whether it's cancelled, changes; returns the unsubscribe (for useSyncExternalStore). */
 export function onBrowserZoom(listener: () => void): () => void {
   listeners.add(listener);
   return () => listeners.delete(listener);

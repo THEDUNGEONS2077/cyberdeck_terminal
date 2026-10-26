@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.17.1 (build 28)
+- **The wallpapers ignore Chrome's zoom too** (with SYSTEM ▸ CHROME ZOOM on IGNORE, the default). Each wallpaper now looks exactly as it does at 100%, whatever zoom you've set for quest_log: the same size, detail and sharpness, filling the window. SYSTEM ▸ ZOOM still zooms a wallpaper as before.
+- **APPLY** brings back the old behaviour for both the dashboard and the wallpaper.
+
 ## 0.17.0 (build 27)
 - **The dashboard's own size,** in SYSTEM ▸ APPEARANCE:
   - **UI SCALE,** 50% to 300%: the whole dashboard bigger or smaller, the wallpaper aside. It has one-press presets (75–200%), and **[** and **]** on the keyboard step it. The finder has UI SCALE BIGGER / SMALLER / 100% too.

@@ -24,7 +24,9 @@
  *   - sizes the canvas to the screen (or the window, where that's bigger),
  *     not to the window: resizing the window or going fullscreen doesn't
  *     touch it, the window just shows more or less of it. Only a new
- *     screen size, zoom or pixel ratio resizes it (debounced 150 ms);
+ *     screen size, zoom or pixel ratio resizes it (debounced 150 ms); with
+ *     Chrome's zoom cancelled (src/scale.ts), sized as at 100%, so a
+ *     wallpaper looks the same at any Chrome zoom;
  *   - marks the canvas `data-ready` once its first full frame is drawn
  *     (app.css fades it in);
  *   - stops the animation while the page is hidden (another tab in front);
@@ -47,6 +49,8 @@ import { DEFAULT_RAIN_GLOW, DEFAULT_WALLPAPER_ID, GLOW_LEVELS, type GlowLevel, n
 import { DEFAULT_PALETTE, findPalette, PALETTE_TOKENS, type PaletteColors, type PaletteId } from '@/lib/palettes';
 
 import { GUARD_BUDGET_MS, GUARD_SETTLE_MS, GUARD_WATCH_MS, type Sharpness, drawnDpr, guardVerdict, normalizeSharpness, wantsGuard } from '@/lib/sharpness';
+
+import { cancelledZoomNow, onBrowserZoom } from '@/scale';
 
 import { knownWallpaperId, safeDprOf } from './catalog';
 import { measurePixels } from './probe';
@@ -74,6 +78,8 @@ interface Size {
   w: number;
   h: number;
   dpr: number;
+  /** The Chrome zoom cancelled (src/scale.ts cancelledZoomNow; 1 when none): w, h and dpr are as at 100%, the canvas's CSS size is w ÷ this. */
+  undo: number;
 }
 
 /** What the browser tests can ask the running wallpaper (e2e/walk.mjs, motion.mjs, perf.mjs). */
@@ -251,22 +257,35 @@ function reduceMotion(): boolean {
   return motion.matches;
 }
 
-/** The canvas's size: the screen's, or the window's where that's bigger (zoomed out, a window across two screens). */
+/**
+ * The canvas's size: the screen's, or the window's where that's bigger
+ * (zoomed out, a window across two screens). With Chrome's zoom cancelled
+ * (SYSTEM ▸ CHROME ZOOM ▸ IGNORE, 0.17.1) it's worked out as at 100%: the
+ * window's CSS px times the zoom (Chrome's screen size doesn't follow its
+ * zoom), the pixel ratio divided by it, so every wallpaper looks the same at
+ * any Chrome zoom, and only SYSTEM ▸ ZOOM zooms it.
+ */
 function wantedSize(): Size {
-  return { w: Math.max(screen.width, window.innerWidth), h: Math.max(screen.height, window.innerHeight), dpr: window.devicePixelRatio || 1 };
+  const undo = cancelledZoomNow();
+  return {
+    w: Math.round(Math.max(screen.width, window.innerWidth * undo)),
+    h: Math.round(Math.max(screen.height, window.innerHeight * undo)),
+    dpr: (window.devicePixelRatio || 1) / undo,
+    undo,
+  };
 }
 
-/** Sets the canvas's CSS size (the wallpaper sizes its pixels to match). */
+/** Sets the canvas's CSS size, in the page's (zoomed) CSS px (the wallpaper sizes its pixels to match). */
 function sizeCanvas(canvas: HTMLCanvasElement, s: Size): void {
-  canvas.style.width = `${s.w}px`;
-  canvas.style.height = `${s.h}px`;
+  canvas.style.width = `${s.w / s.undo}px`;
+  canvas.style.height = `${s.h / s.undo}px`;
 }
 
 /** Resizes the canvas if the screen, zoom or pixel ratio changed its size (most window resizes don't). */
 function measure(): void {
   if (!current) return;
   const next = wantedSize();
-  if (size && next.w === size.w && next.h === size.h && next.dpr === size.dpr) return;
+  if (size && next.w === size.w && next.h === size.h && next.dpr === size.dpr && next.undo === size.undo) return;
   size = next;
   sizeCanvas(current.canvas, next);
   current.instance.resize(next.w, next.h, dprFor(current.id, next.dpr), zoomFor(current.id));
@@ -475,6 +494,11 @@ let resizeTimer: ReturnType<typeof setTimeout> | undefined;
 window.addEventListener('resize', () => {
   clearTimeout(resizeTimer);
   resizeTimer = setTimeout(measure, RESIZE_DEBOUNCE_MS);
+});
+// Chrome's zoom cancelled or not (SYSTEM ▸ CHROME ZOOM), or a new zoom worked out: resize at once.
+onBrowserZoom(() => {
+  clearTimeout(resizeTimer);
+  measure();
 });
 // Fullscreen fits the screen-sized canvas already; check anyway (a window across two screens).
 document.addEventListener('fullscreenchange', () => {

@@ -10,7 +10,9 @@
  * other, and a page can't set or refuse Chrome's zoom. So the dashboard
  * works out the zoom Chrome is at and draws its UI at UI SCALE ÷ that zoom:
  * whatever zoom the browser is at, the dashboard looks the size you chose.
- * The wallpaper isn't scaled by any of this (it sizes itself: wallpaper/host.ts).
+ * UI SCALE doesn't size the wallpaper (it sizes itself: wallpaper/host.ts),
+ * but cancelling Chrome's zoom applies to it too (0.17.1, the user: the
+ * wallpapers should ignore Chrome's zoom as well): it draws as at 100%.
  */
 import { MODULE_SCALE } from './modules';
 

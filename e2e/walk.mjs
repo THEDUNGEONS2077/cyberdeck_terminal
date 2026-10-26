@@ -1075,6 +1075,37 @@ try {
     await page.keyboard.press('Escape');
   });
 
+  await path('Chrome at 175% (simulated): the UI and the wallpaper both draw as at 100%; CHROME ZOOM ▸ APPLY lets the zoom work again', async () => {
+    // As Chrome at 175% on a 1920 × 1080 screen at 100%: the page 1097 CSS px wide at a 1.75 pixel ratio,
+    // the window 1920 wide, and the screen in screen px (Chrome's doesn't follow its zoom).
+    const zoomed = await browser.newContext({ viewport: { width: 1097, height: 617 }, deviceScaleFactor: 1.75, screen: { width: 1920, height: 1080 }, serviceWorkers: 'block' });
+    try {
+      await zoomed.addInitScript(() => Object.defineProperty(window, 'outerWidth', { get: () => 1920 }));
+      const p = await zoomed.newPage();
+      await p.goto(URL);
+      await p.locator('.wallpaper-canvas[data-ready]').waitFor({ state: 'attached', timeout: 8000 });
+      const look = () =>
+        p.evaluate(async () => {
+          const r = document.querySelector('.wallpaper-canvas').getBoundingClientRect();
+          return { px: await window.__cyberdeckRain.pixels(), css: [r.width, r.height], root: getComputedStyle(document.getElementById('root')).zoom };
+        });
+      const a = await look();
+      // The canvas: 1920 × 1080 px, as on that screen at 100%, laid over exactly the window (1920 ÷ 1.75 CSS px).
+      expect(a.px.w === 1920 && a.px.h === 1080, `at 175%, the wallpaper draws ${a.px.w} × ${a.px.h} px`);
+      expect(Math.abs(a.css[0] - 1920 / 1.75) < 1 && Math.abs(a.css[1] - 1080 / 1.75) < 1, `at 175%, the canvas is ${a.css} CSS px`);
+      expect(Math.abs(Number(a.root) - 1 / 1.75) < 0.001, `at 175%, #root's zoom is ${a.root}`);
+      // APPLY: Chrome's zoom works on the UI and the wallpaper again (the wallpaper as before 0.17.1).
+      await p.keyboard.press('s');
+      await p.getByRole('radiogroup', { name: /CHROME ZOOM/ }).getByText('APPLY', { exact: true }).click();
+      await p.waitForFunction(async () => (await window.__cyberdeckRain.pixels()).w === 3360, null, { timeout: 5000 });
+      expect((await look()).root === '1', 'APPLY left the UI zoomed');
+      await p.getByRole('radiogroup', { name: /CHROME ZOOM/ }).getByText('IGNORE', { exact: true }).click();
+      await p.waitForFunction(async () => (await window.__cyberdeckRain.pixels()).w === 1920, null, { timeout: 5000 });
+    } finally {
+      await zoomed.close();
+    }
+  });
+
   await path('a sharper screen (2.5×) draws at its own ratio; the guard steps back to 2× when frames are slow, and TRY AGAIN undoes that', async () => {
     const sharp = await browser.newContext({ viewport: { width: 1280, height: 720 }, deviceScaleFactor: 2.5, serviceWorkers: 'block' });
     try {
