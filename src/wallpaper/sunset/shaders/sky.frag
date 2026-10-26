@@ -4,6 +4,8 @@
 // darker up top), fine stars, the striped sun with its glow, and the
 // scanlines over it all.
 precision highp float;
+// Integers at full width too: the stars' hash multiplies 32-bit numbers (a phone's fragment shaders default to medium precision ints).
+precision highp int;
 
 uniform vec2 uTarget;   // the target (px)
 uniform float uUnit;    // px per CSS px of the reference layout
