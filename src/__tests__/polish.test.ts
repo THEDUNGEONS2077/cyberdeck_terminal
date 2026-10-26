@@ -44,6 +44,7 @@ describe('sharpness', () => {
       ['velocity', 1.5],
       ['data-flow', 2],
       ['megacity', 2],
+      ['horizon', 2],
     ]);
     expect(safeDprOf('unknown')).toBe(2);
   });

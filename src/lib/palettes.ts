@@ -37,7 +37,7 @@ export interface PaletteColors {
 }
 
 /** The palettes' ids. Stored in layouts: never change one once released. */
-export type PaletteId = 'phosphor' | 'amber' | 'ice' | 'neon' | 'blood' | 'azure';
+export type PaletteId = 'phosphor' | 'amber' | 'ice' | 'neon' | 'blood' | 'azure' | 'synth';
 
 /** A palette: its id, its name in SYSTEM, its colours. */
 export interface Palette {
@@ -155,6 +155,25 @@ export const PALETTES: readonly Palette[] = [
       accentDeep: '#1a5fb0',
       textBright: '#cfe4ff',
       cool: '#0b3c99',
+    },
+  },
+  {
+    // Hot pink over teal: HORIZON's reference (2026-10-26), a synthwave sun over a wireframe land.
+    id: 'synth',
+    label: 'SYNTH',
+    colors: {
+      bg: '#000000',
+      surface: '#0c0408',
+      surfaceRaised: '#160710',
+      line: '#3a1027',
+      lineLit: '#5c0a33',
+      wash: '#2a0016',
+      textDim: '#d0568c',
+      text: '#ee6fa6',
+      accent: '#ff3d8b',
+      accentDeep: '#a01d55',
+      textBright: '#ffd0e2',
+      cool: '#2fb8b4',
     },
   },
 ];

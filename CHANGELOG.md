@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.15.0 (build 23)
+- **HORIZON wallpaper,** from your reference: a synthwave scene.
+  - **The scene:** a low-poly land drawn only as teal wireframe edges, running to a hot pink glow on the horizon with a white-hot core. Its haze lights a dark plum sky, and four tilted slabs lean in toward the glow, the near pair speckled with pink light at their tops. The nearest edges are soft, as in the photo, and the far land melts into the haze.
+  - **What moves:** you glide forward over the land, so the hills roll toward you without end. The glow breathes slowly and the slabs' specks twinkle.
+  - **How it's drawn:** by the graphics card in the wallpaper's worker, like MEGACITY: the sky per pixel, then the land as about 32 000 triangles made once. Each frame sends only how far you've come.
+- **SYNTH palette:** hot pink over teal, matched to the reference. Choose it under SYSTEM ▸ APPEARANCE ▸ WALLPAPER COLOURS for HORIZON's own look; every palette makes its own HORIZON.
+- **For the phone:** HORIZON comes to fluid_motion once you're happy with it here, with the same land and shaders.
+
 ## 0.14.0 (build 22)
 The polish and speed pass (C4).
 - **Full sharpness on sharp screens.** On a screen scaled to 200% or more, the wallpapers now draw at its own pixel ratio, up to 3×; before, they stopped at 2× (VELOCITY 1.5×). A guard watches each wallpaper's first seconds on screen: if a frame takes more than 8 ms to draw, it steps back to the old cap and remembers that. SYSTEM ▸ APPEARANCE ▸ **SHARPNESS** shows what it draws at, with **TRY AGAIN** when it stepped back. At 100–150% scaling nothing changes.

@@ -101,6 +101,19 @@ Reference: `IMG-20261023-WA0020_1792792421032.jpg` (the user's, 2026-10-24): a v
 
 The motion is our own, and slow: a few windows go on or off every second, each at its own moment; a sign now and then stutters like a failing tube; beacons blink on the roofs; drones cross trailing short tails; patches of haze drift. ZOOM grows the towers and windows; the ledge keeps its place.
 
+## Horizon's look
+Reference: `wallhaven-xl61ol.png` (the user's, 2026-10-26): a synthwave scene, a wireframe land running to a pink glow.
+
+| Property | Reference | How it's matched |
+|---|---|---|
+| The land | Low-poly jagged triangles in perspective, only their edges drawn (teal), dark faces; the horizon a little below the middle; the nearest edges blurred | A field of 128 × 129 jittered points with heights, cut into triangles; a pinhole camera 1 unit up, the horizon 53% down; edges from each triangle's corner weights (`fwidth`), the same width at any distance, wider and softer within a few units (the depth of field); `--cool` (SYNTH's teal) |
+| The glow | A hot pink glow on the horizon, a small white core sunk into it, a tall dome of haze | The accent, as a glow and a taller dome; a white-hot core with a little bloom; it breathes (7% over 9 s) |
+| The sky | Dark plum, darker at the corners | Dark mixes of the accent, top to bottom; a soft falloff to the corners |
+| The slabs | Four tilted slabs either side of the glow, leaning in at the top, the far pair larger and dimmer; pink specks, most at the near pair's tops | Four slabs per pixel in the sky shader, in the haze (the far ones more); specks from a hash per cell, denser toward the top, twinkling; their lower ends dissolve into the haze |
+| The haze | The far land lost in pink haze | The land fades by distance into the very same haze the sky draws |
+
+The motion is our own, and slow: the camera glides forward (0.45 units a second), so the hills roll toward you without end (the land repeats every 128 units, out of sight in the haze); the glow breathes; the specks twinkle. ZOOM narrows the view and widens the lines. SYNTH (hot pink over teal) was added for it; every palette makes its own HORIZON.
+
 ## The bookmarks deck
 - **Header bar:** titled **NAV**, in the desktop's centre-header look (scanlines, phosphor, a lit rule underneath).
   - A soft band of light sweeps across it once when NAV appears, and again each time the layout is locked (the brand panel's refresh band, turned sideways). It never loops.

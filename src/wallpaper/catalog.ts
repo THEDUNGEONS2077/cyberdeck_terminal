@@ -31,6 +31,7 @@ export const WALLPAPER_LIST: readonly WallpaperInfo[] = [
   { id: 'velocity', label: 'VELOCITY', safeDpr: 1.5 },
   { id: 'data-flow', label: 'DATA FLOW', safeDpr: 2 },
   { id: 'megacity', label: 'MEGACITY', safeDpr: 2 },
+  { id: 'horizon', label: 'HORIZON', safeDpr: 2 },
 ];
 
 /** Wallpaper `id`'s safe pixel cap (2 for an unknown one). */

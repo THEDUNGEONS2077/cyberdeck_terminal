@@ -218,6 +218,16 @@ ul {
 .wallpaper[data-wallpaper='megacity'] .wallpaper-floor {
   display: none;
 }
+/* HORIZON: a dark plum sky with the glow low in the middle (the land draws over it, opaque, once the graphics card is ready). */
+.wallpaper[data-wallpaper='horizon'] {
+  background:
+    radial-gradient(40% 50% at 50% 53%, color-mix(in srgb, var(--accent) 45%, transparent), transparent),
+    linear-gradient(to bottom, color-mix(in srgb, var(--accent) 5%, var(--bg)), color-mix(in srgb, var(--accent) 16%, var(--bg)));
+}
+.wallpaper[data-wallpaper='horizon'] .wallpaper-haze,
+.wallpaper[data-wallpaper='horizon'] .wallpaper-floor {
+  display: none;
+}
 /* The reference's dark lower edge: the rain thins out to black at the bottom. */
 .wallpaper-floor {
   position: absolute;
