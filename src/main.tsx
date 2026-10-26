@@ -3,17 +3,20 @@
  *
  * Layer: entry point (first stage). It holds only the styles, the colour
  * palette (palette.ts) and the wallpaper (wallpaper/host.ts), so it's
- * small and runs as soon as it arrives: the rain starts filling while the rest of the app (React,
+ * small and runs as soon as it arrives (and the sizes, scale.ts, so the UI
+ * never draws at the wrong size first): the rain starts filling while the rest of the app (React,
  * storage, the dashboard: start.tsx) is still loading, in parallel.
  */
 import './styles/theme.css';
 import './styles/app.css';
 
 import { applyPalette, paletteHint } from './palette';
+import { applySizes, sizesHint } from './scale';
 import { showWallpaper, wallpaperHint } from './wallpaper/host';
 
 // The colours first (the wallpaper reads them), then the wallpaper.
 applyPalette(paletteHint());
+applySizes(sizesHint());
 showWallpaper(wallpaperHint());
 
 // The app: storage, then the dashboard (its own chunk, fetched in parallel).

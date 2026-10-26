@@ -42,6 +42,7 @@ import { addBrand, addKind } from './deck/EditBar';
 import { defaultEngine, focusSearch, openSearch, timerCommand } from './modules/actions';
 import { CATALOG } from './modules/catalog';
 import { openUrl } from './switchTab';
+import { scaleUi } from './uiScale';
 import { zoomWallpaper } from './zoom';
 
 /** How long the finder takes to fade out (matches --fast in theme.css). */
@@ -116,6 +117,10 @@ function FinderPanel({ leaving }: { leaving: boolean }) {
     { id: 'zoom-in', glyph: '+', label: 'ZOOM THE WALLPAPER IN', key: '+', run: () => zoomWallpaper('in') },
     { id: 'zoom-out', glyph: '−', label: 'ZOOM THE WALLPAPER OUT', key: '−', run: () => zoomWallpaper('out') },
     { id: 'zoom-reset', glyph: '0', label: 'WALLPAPER ZOOM 100%', key: '0', run: () => zoomWallpaper('reset') },
+    // UI SCALE (0.17.0): the dashboard's own size.
+    { id: 'ui-up', glyph: '⊕', label: 'UI SCALE BIGGER', key: ']', run: () => scaleUi('up') },
+    { id: 'ui-down', glyph: '⊖', label: 'UI SCALE SMALLER', key: '[', run: () => scaleUi('down') },
+    { id: 'ui-reset', glyph: '⊙', label: 'UI SCALE 100%', run: () => scaleUi('reset') },
     // The modules (0.14.0): what's on the dashboard, then what can be added.
     ...(has('search') ? [{ id: 'focus-search', glyph: CATALOG.search.glyph, label: 'FOCUS SEARCH', run: () => void focusSearch() }] : []),
     ...(has('time')

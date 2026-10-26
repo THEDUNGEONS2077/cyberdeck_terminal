@@ -24,6 +24,7 @@ import { type RefObject, useEffect, useLayoutEffect, useRef } from 'react';
 
 import { editStore } from '@/store/edit';
 import { bookmarksStore, layoutStore } from '@/store/instance';
+import { uiZoomNow } from '@/scale';
 
 import { useLayout } from '../hooks';
 
@@ -45,10 +46,11 @@ function keyOf(el: HTMLElement): string {
   return el.dataset.itemKey ? `i:${el.dataset.itemKey}` : `a:${el.dataset.areaId}`;
 }
 
-/** Where an element is now, as seen (a glide in progress included), in the scroll box's content coordinates. */
+/** Where an element is now, as seen (a glide in progress included), in the scroll box's content coordinates (the UI's own px: screen px ÷ UI SCALE's zoom). */
 function place(el: HTMLElement, root: HTMLElement, base: DOMRect): Point {
   const r = el.getBoundingClientRect();
-  return { x: r.left - base.left, y: r.top - base.top + root.scrollTop };
+  const z = uiZoomNow();
+  return { x: (r.left - base.left) / z, y: (r.top - base.top) / z + root.scrollTop };
 }
 
 /** Is Reduce Motion on (the OS setting, unless the page overrides it)? */

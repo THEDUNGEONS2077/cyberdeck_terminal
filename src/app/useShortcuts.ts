@@ -12,6 +12,7 @@
  *   /  the finder: find a bookmark, or run a command (Finder.tsx)
  *   + −  zoom the wallpaper in / out a step, 0 back to 100% (zoom.ts; in
  *        fullscreen too: it's the wallpaper alone there)
+ *   [ ]  the dashboard a step smaller / bigger (UI SCALE: uiScale.ts)
  *   1–9  open the QUICK LAUNCH tile with that key (modules/actions.ts; not
  *        while editing, when tiles don't open, nor in immersive mode)
  */
@@ -22,6 +23,7 @@ import { uiStore } from '@/store/ui';
 
 import { toggleFullscreen } from './fullscreen';
 import { openKeyedTile } from './modules/actions';
+import { scaleUi } from './uiScale';
 import { zoomWallpaper } from './zoom';
 
 /** Is the key event aimed at somewhere you type? */
@@ -39,12 +41,13 @@ export function modified(e: Pick<KeyboardEvent, 'ctrlKey' | 'altKey' | 'metaKey'
 export type LaunchShortcut = `launch-${1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9}`;
 
 /** What a shortcut does. */
-export type Shortcut = 'fullscreen' | 'system' | 'find' | 'zoom-in' | 'zoom-out' | 'zoom-reset' | LaunchShortcut;
+export type Shortcut = 'fullscreen' | 'system' | 'find' | 'zoom-in' | 'zoom-out' | 'zoom-reset' | 'ui-up' | 'ui-down' | LaunchShortcut;
 
 /**
  * The action for a key press, or null when the page should leave it alone.
  * Zoom takes + or = (= is + without Shift on many keyboards), − or _, and
- * 0; with Ctrl they stay the browser's own page zoom.
+ * 0; with Ctrl they stay the browser's own page zoom. [ and ] make the
+ * dashboard itself smaller and bigger (UI SCALE, 0.17.0).
  */
 export function shortcutFor(e: Pick<KeyboardEvent, 'key' | 'target' | 'ctrlKey' | 'altKey' | 'metaKey' | 'repeat'>): Shortcut | null {
   if (e.repeat || typing(e) || modified(e)) return null;
@@ -63,6 +66,10 @@ export function shortcutFor(e: Pick<KeyboardEvent, 'key' | 'target' | 'ctrlKey' 
       return 'zoom-out';
     case '0':
       return 'zoom-reset';
+    case '[':
+      return 'ui-down';
+    case ']':
+      return 'ui-up';
     default:
       // 1–9: the QUICK LAUNCH keys (0 stays the zoom's reset).
       return /^[1-9]$/.test(e.key) ? (`launch-${e.key}` as LaunchShortcut) : null;
@@ -88,8 +95,11 @@ export function useShortcuts(blocked: boolean): void {
       else if (action === 'zoom-in') zoomWallpaper('in');
       else if (action === 'zoom-out') zoomWallpaper('out');
       else if (action === 'zoom-reset') zoomWallpaper('reset');
-      // SYSTEM and the finder only open outside immersive mode: there the UI is hidden.
+      // UI SCALE only outside immersive mode: there the UI is hidden.
       else if (uiStore.getState().immersive) return;
+      else if (action === 'ui-up') scaleUi('up');
+      else if (action === 'ui-down') scaleUi('down');
+      // SYSTEM and the finder likewise.
       else if (action === 'find') uiStore.getState().setFinderOpen(true);
       else uiStore.getState().setPanelOpen(true);
     };

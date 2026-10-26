@@ -119,7 +119,7 @@ describe('layout schema 2', () => {
     const v1 = { schemaVersion: 1, wallpaper: 'matrix-rain', prefs: { backupReminderDays: 30 } };
     const { doc, migrated } = migrateLayout(v1);
     expect(migrated).toBe(true);
-    expect(doc).toEqual({ ...defaultLayout(), prefs: { backupReminderDays: 30, rainGlow: 'high', palette: 'phosphor' as const, wallpaperPalette: 'phosphor' as const, wallpaperZoom: {}, switchTabs: [] } });
+    expect(doc).toEqual({ ...defaultLayout(), prefs: { backupReminderDays: 30, rainGlow: 'high', palette: 'phosphor' as const, wallpaperPalette: 'phosphor' as const, wallpaperZoom: {}, switchTabs: [], uiScale: 1, textScale: 1, moduleScale: 0.7, cancelBrowserZoom: true } });
   });
 
   it('drops a damaged imported tree instead of the whole layout, and tidies open folders', () => {

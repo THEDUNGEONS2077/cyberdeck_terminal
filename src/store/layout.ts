@@ -14,7 +14,7 @@ import { createStore, type StoreApi } from 'zustand/vanilla';
 
 import type { Arrangement, Panels } from '@/lib/arrange';
 import type { BookmarkNode } from '@/lib/bookmarks';
-import { type GlowLevel, type LayoutDocument, withZoom, zoomOf } from '@/lib/layout';
+import { type GlowLevel, type LayoutDocument, type LayoutPrefs, withZoom, zoomOf } from '@/lib/layout';
 import type { ModuleInstance } from '@/lib/modules';
 import type { PaletteId } from '@/lib/palettes';
 import { type BackupMeta, SNOOZE_MS } from '@/lib/reminder';
@@ -43,6 +43,8 @@ export interface LayoutState {
   setWallpaperZoom(id: string, zoom: number): void;
   /** Sets the places whose links switch to their open tab (lib/switching.ts). */
   setSwitchTabs(list: string[]): void;
+  /** Sets any of the sizes (UI SCALE, TEXT SIZE, MODULE SIZE, cancelling the browser's zoom; lib/scale.ts), already snapped to their steps. */
+  setSizes(sizes: Partial<Pick<LayoutPrefs, 'uiScale' | 'textScale' | 'moduleScale' | 'cancelBrowserZoom'>>): void;
   /** Opens or collapses a bookmarks folder (by folderKey). */
   setFolderOpen(key: string, open: boolean): void;
   /** Keeps `bar` as the imported copy of the bookmarks bar (replacing any earlier copy). */
@@ -152,6 +154,13 @@ export function createLayoutStore(kv: KV, boot: Boot, onSaveError: SaveErrorHand
       setSwitchTabs(list) {
         const layout = get().layout;
         if (list.join() !== layout.prefs.switchTabs.join()) commit({ ...layout, prefs: { ...layout.prefs, switchTabs: list } });
+      },
+
+      setSizes(sizes) {
+        const layout = get().layout;
+        const prefs = { ...layout.prefs, ...sizes };
+        // Only a real change is committed (a step pressed at either end changes nothing).
+        if ((Object.keys(sizes) as (keyof typeof sizes)[]).some((k) => prefs[k] !== layout.prefs[k])) commit({ ...layout, prefs });
       },
 
       setRainGlow(level) {

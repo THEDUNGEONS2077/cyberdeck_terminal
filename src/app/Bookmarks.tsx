@@ -41,6 +41,7 @@ import { formatStamp } from '@/lib/backup';
 import type { BookmarkNode } from '@/lib/bookmarks';
 import { editStore } from '@/store/edit';
 import { uiStore } from '@/store/ui';
+import { uiZoomNow } from '@/scale';
 
 import { useStore } from 'zustand';
 
@@ -206,12 +207,14 @@ function DragOverlay() {
   const view = useStore(dragViewStore, (s) => s.view);
   if (!view) return null;
   const at = (x: number, y: number) => `translate3d(${Math.round(x)}px, ${Math.round(y)}px, 0)`;
+  const z = uiZoomNow();
   return createPortal(
     <>
       {view.line && (
         <div className={view.line.zone ? 'drop-zone' : 'drop-line'} style={{ transform: at(view.line.left, view.line.top), width: view.line.width, height: view.line.height }} aria-hidden />
       )}
-      <div className="drag-label" style={{ transform: at(view.x + 14, view.y + 10) }} aria-hidden>
+      {/* The label is drawn at UI SCALE's zoom like the rest of the UI (it's outside #root), so its place is in its own px. */}
+      <div className="drag-label" style={{ zoom: z, transform: at((view.x + 14) / z, (view.y + 10) / z) }} aria-hidden>
         {view.label}
       </div>
     </>,

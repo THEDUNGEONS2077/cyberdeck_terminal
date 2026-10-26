@@ -22,6 +22,7 @@ import { DEFAULT_PALETTE, type PaletteId } from './palettes';
 import { type Arrangement, type Panels, defaultPanels, emptyArrangement } from './arrange';
 import { type BookmarkNode, countLinks } from './bookmarks';
 import type { ModuleInstance } from './modules';
+import { DEFAULT_MODULE_SCALE, DEFAULT_TEXT_SCALE, DEFAULT_UI_SCALE, percentLabel } from './scale';
 
 /** The current schema version of the layout document. */
 export const LAYOUT_SCHEMA_VERSION = 4;
@@ -120,6 +121,14 @@ export interface LayoutPrefs {
    * bridge 1.3+, 0.12.0): Chrome match patterns, sorted.
    */
   switchTabs: string[];
+  /** UI SCALE: the whole dashboard's size, the wallpaper aside (lib/scale.ts UI_SCALE_STEPS; 0.17.0). */
+  uiScale: number;
+  /** TEXT SIZE: the text's size on top of UI SCALE (TEXT_SCALE_STEPS). */
+  textScale: number;
+  /** MODULE SIZE: the modules' size against the rest (MODULE_SCALE_STEPS). */
+  moduleScale: number;
+  /** Draw the dashboard at UI SCALE whatever Chrome's zoom (shared with quest_log_desktop) is: true; or let the zoom apply on top. */
+  cancelBrowserZoom: boolean;
 }
 
 /** The bookmarks part of the layout. */
@@ -160,7 +169,7 @@ export function defaultBookmarks(): BookmarksLayout {
 
 /** Preferences a new layout starts with. */
 export function defaultPrefs(): LayoutPrefs {
-  return { backupReminderDays: 14, rainGlow: DEFAULT_RAIN_GLOW, palette: DEFAULT_PALETTE, wallpaperPalette: DEFAULT_PALETTE, wallpaperZoom: {}, switchTabs: [] };
+  return { backupReminderDays: 14, rainGlow: DEFAULT_RAIN_GLOW, palette: DEFAULT_PALETTE, wallpaperPalette: DEFAULT_PALETTE, wallpaperZoom: {}, switchTabs: [], uiScale: DEFAULT_UI_SCALE, textScale: DEFAULT_TEXT_SCALE, moduleScale: DEFAULT_MODULE_SCALE, cancelBrowserZoom: true };
 }
 
 /** A new, empty layout. */
@@ -245,6 +254,10 @@ export function summarizeLayout(doc: LayoutDocument): string {
   if (doc.prefs.palette !== DEFAULT_PALETTE) parts.push(`COLOURS ${doc.prefs.palette.toUpperCase()}`);
   if (doc.prefs.wallpaperPalette !== DEFAULT_PALETTE) parts.push(`WALLPAPER COLOURS ${doc.prefs.wallpaperPalette.toUpperCase()}`);
   if (doc.prefs.rainGlow !== DEFAULT_RAIN_GLOW) parts.push(`GLOW ${doc.prefs.rainGlow.toUpperCase()}`);
+  // The sizes, likewise only when chosen.
+  if (doc.prefs.uiScale !== DEFAULT_UI_SCALE) parts.push(`UI ${percentLabel(doc.prefs.uiScale)}`);
+  if (doc.prefs.textScale !== DEFAULT_TEXT_SCALE) parts.push(`TEXT ${percentLabel(doc.prefs.textScale)}`);
+  if (doc.prefs.moduleScale !== DEFAULT_MODULE_SCALE) parts.push(`MODULES ${percentLabel(doc.prefs.moduleScale)}`);
   parts.push(doc.prefs.backupReminderDays ? `REMIND ${doc.prefs.backupReminderDays}D` : 'REMIND OFF');
   return parts.join(' · ');
 }

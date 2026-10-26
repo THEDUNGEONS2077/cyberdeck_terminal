@@ -11,19 +11,21 @@
  *   BACKUP     export a file, import one (preview, then REPLACE), the
  *              reminder interval, and when the last export was;
  *   RESTORE    the automatic snapshots, newest first; RESTORE asks to confirm;
- *   APPEARANCE (first) the dashboard's colours, the wallpaper, the
+ *   APPEARANCE (first) the dashboard's colours, its sizes (UI SCALE, TEXT
+ *              SIZE, MODULE SIZE, CHROME ZOOM), the wallpaper, the
  *              wallpaper's colours, the glow, the zoom, and its SHARPNESS
  *              (what it draws at; TRY AGAIN after the guard stepped back);
  *   KEYS       the shortcuts;
  *   and at the foot, COPY DIAGNOSTICS (app/diagnostics.ts).
  */
-import { type ChangeEvent, type CSSProperties, useId, useRef, useState } from 'react';
+import { type ChangeEvent, type CSSProperties, useId, useRef, useState, useSyncExternalStore } from 'react';
 
 import { BRIDGE_VERSION } from '@/bridge/client';
 import { BackupError, type ParsedBackup, formatStamp } from '@/lib/backup';
 import { countLinks } from '@/lib/bookmarks';
 import { DEFAULT_ZOOM, GLOW_LEVELS, REMINDER_DAY_CHOICES, ZOOM_STEPS, stepZoom, summarizeLayout, zoomLabel, zoomOf } from '@/lib/layout';
 import { type PaletteId, PALETTES } from '@/lib/palettes';
+import { DEFAULT_MODULE_SCALE, DEFAULT_TEXT_SCALE, DEFAULT_UI_SCALE, MODULE_SCALE_STEPS, TEXT_SCALE_STEPS, UI_SCALE_STEPS, percentLabel, stepOf } from '@/lib/scale';
 import { exportAge } from '@/lib/reminder';
 import { reasonLabel, type SnapshotInfo } from '@/lib/snapshots';
 import { compareVersions } from '@/lib/versions';
@@ -31,6 +33,7 @@ import { layoutStore } from '@/store/instance';
 import { uiStore } from '@/store/ui';
 import { WALLPAPER_LIST } from '@/wallpaper/catalog';
 import { retrySharpness, sharpnessInfo } from '@/wallpaper/host';
+import { browserZoomNow, onBrowserZoom } from '@/scale';
 
 import { APP_INFO, downloadBackup, readBackupFile } from './backupFile';
 import { copyDiagnostics } from './diagnostics';
@@ -316,6 +319,7 @@ function AppearanceSection() {
     <section className="settings-group" aria-label="Appearance">
       <h3 className="section-title">APPEARANCE</h3>
       <PaletteChoice label="DASHBOARD COLOURS" name="palette" value={palette} onChange={(id) => layoutStore().getState().setPalette(id)} />
+      <SizeSettings />
       <span className="setting-label" id={wallpaperId}>
         WALLPAPER
       </span>
@@ -343,23 +347,133 @@ function AppearanceSection() {
       {/* The shown wallpaper's zoom, a step at a time (+ − 0 on the keyboard do the same). */}
       <div className="setting">
         <span id={zoomId}>ZOOM · {shownLabel}</span>
-        <div className="stepper" role="group" aria-labelledby={zoomId}>
-          <button type="button" className="text-btn" aria-label="Zoom the wallpaper out" disabled={zoom <= ZOOM_STEPS[0]!} onClick={() => setZoom(stepZoom(zoom, -1))}>
-            −
-          </button>
-          <output className="stepper-value" aria-live="polite">
-            {zoomLabel(zoom)}
-          </output>
-          <button type="button" className="text-btn" aria-label="Zoom the wallpaper in" disabled={zoom >= ZOOM_STEPS[ZOOM_STEPS.length - 1]!} onClick={() => setZoom(stepZoom(zoom, 1))}>
-            +
-          </button>
-          <button type="button" className="text-btn" aria-label="Reset the zoom to 100%" disabled={zoom === DEFAULT_ZOOM} onClick={() => setZoom(DEFAULT_ZOOM)}>
-            RESET
-          </button>
-        </div>
+        <Stepper
+          labelledBy={zoomId}
+          value={zoom}
+          steps={ZOOM_STEPS}
+          fallback={DEFAULT_ZOOM}
+          less="Zoom the wallpaper out"
+          more="Zoom the wallpaper in"
+          reset="Reset the zoom to 100%"
+          onChange={setZoom}
+          step={stepZoom}
+          label={zoomLabel}
+        />
       </div>
       <Sharpness current={current} />
     </section>
+  );
+}
+
+/**
+ * A value stepped with buttons: − value + RESET. `step` moves a step from
+ * a value (`direction` 1 up, -1 down); − and + are off at either end, RESET
+ * at `fallback`.
+ */
+function Stepper(props: {
+  labelledBy: string;
+  value: number;
+  steps: readonly number[];
+  fallback: number;
+  less: string;
+  more: string;
+  reset: string;
+  onChange: (next: number) => void;
+  step?: (value: number, direction: 1 | -1) => number;
+  label?: (value: number) => string;
+}) {
+  const { value, steps, fallback, onChange } = props;
+  const step = props.step ?? ((v: number, d: 1 | -1) => stepOf(steps, v, d, fallback));
+  const label = props.label ?? percentLabel;
+  return (
+    <div className="stepper" role="group" aria-labelledby={props.labelledBy}>
+      <button type="button" className="text-btn" aria-label={props.less} disabled={value <= steps[0]!} onClick={() => onChange(step(value, -1))}>
+        −
+      </button>
+      <output className="stepper-value" aria-live="polite">
+        {label(value)}
+      </output>
+      <button type="button" className="text-btn" aria-label={props.more} disabled={value >= steps[steps.length - 1]!} onClick={() => onChange(step(value, 1))}>
+        +
+      </button>
+      <button type="button" className="text-btn" aria-label={props.reset} disabled={value === fallback} onClick={() => onChange(fallback)}>
+        RESET
+      </button>
+    </div>
+  );
+}
+
+/** UI SCALE's one-press sizes (any step is a − or + away). */
+const UI_PRESETS: readonly number[] = [0.75, 1, 1.25, 1.5, 1.75, 2];
+
+/**
+ * The dashboard's sizes (0.17.0, lib/scale.ts): UI SCALE (all of it, with
+ * one-press presets), TEXT SIZE (the text alone), MODULE SIZE (the modules
+ * against the rest), and CHROME ZOOM: Chrome keeps one zoom for this site
+ * and quest_log_desktop, so IGNORE keeps the dashboard at UI SCALE whatever
+ * that zoom is (the readout says what it's worked out to be). The wallpaper
+ * keeps its own size.
+ */
+function SizeSettings() {
+  const ui = useLayout((s) => s.layout.prefs.uiScale);
+  const text = useLayout((s) => s.layout.prefs.textScale);
+  const modules = useLayout((s) => s.layout.prefs.moduleScale);
+  const cancel = useLayout((s) => s.layout.prefs.cancelBrowserZoom);
+  const browser = useSyncExternalStore(onBrowserZoom, browserZoomNow);
+  const uiId = useId();
+  const textId = useId();
+  const modulesId = useId();
+  const chromeId = useId();
+  const set = layoutStore().getState().setSizes;
+  return (
+    <>
+      <div className="setting">
+        <span id={uiId}>UI SCALE</span>
+        <Stepper labelledBy={uiId} value={ui} steps={UI_SCALE_STEPS} fallback={DEFAULT_UI_SCALE} less="Make the dashboard smaller" more="Make the dashboard bigger" reset="Reset the UI scale to 100%" onChange={(v) => set({ uiScale: v })} />
+      </div>
+      <div className="setting">
+        <span className="small dim">PRESETS · [ ] ON THE KEYBOARD</span>
+        <div className="segmented" role="radiogroup" aria-label="UI scale presets">
+          {UI_PRESETS.map((v) => (
+            <label key={v}>
+              <input className="sr-only" type="radio" name="ui-scale" value={v} checked={ui === v} onChange={() => set({ uiScale: v })} />
+              <span>{percentLabel(v)}</span>
+            </label>
+          ))}
+        </div>
+      </div>
+      <div className="setting">
+        <span id={textId}>TEXT SIZE</span>
+        <Stepper labelledBy={textId} value={text} steps={TEXT_SCALE_STEPS} fallback={DEFAULT_TEXT_SCALE} less="Make the text smaller" more="Make the text bigger" reset="Reset the text size to 100%" onChange={(v) => set({ textScale: v })} />
+      </div>
+      <div className="setting">
+        <span id={modulesId}>MODULE SIZE</span>
+        <Stepper
+          labelledBy={modulesId}
+          value={modules}
+          steps={MODULE_SCALE_STEPS}
+          fallback={DEFAULT_MODULE_SCALE}
+          less="Make the modules smaller"
+          more="Make the modules bigger"
+          reset={`Reset the module size to ${percentLabel(DEFAULT_MODULE_SCALE)}`}
+          onChange={(v) => set({ moduleScale: v })}
+        />
+      </div>
+      <div className="setting">
+        <span id={chromeId}>CHROME ZOOM · AT {percentLabel(browser)}</span>
+        <div className="segmented" role="radiogroup" aria-labelledby={chromeId}>
+          <label title="The dashboard stays at UI SCALE whatever Chrome's zoom (shared with quest_log) is">
+            <input className="sr-only" type="radio" name="chrome-zoom" value="ignore" checked={cancel} onChange={() => set({ cancelBrowserZoom: true })} />
+            <span>IGNORE</span>
+          </label>
+          <label title="Chrome's zoom applies on top of UI SCALE">
+            <input className="sr-only" type="radio" name="chrome-zoom" value="apply" checked={!cancel} onChange={() => set({ cancelBrowserZoom: false })} />
+            <span>APPLY</span>
+          </label>
+        </div>
+      </div>
+      <p className="small dim">CHROME KEEPS ONE ZOOM FOR THIS SITE AND QUEST_LOG. WITH IGNORE, ZOOM CHROME FOR QUEST_LOG AS YOU LIKE: THIS DASHBOARD STAYS AT UI SCALE.</p>
+    </>
   );
 }
 

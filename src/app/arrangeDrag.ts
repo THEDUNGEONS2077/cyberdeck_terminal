@@ -22,10 +22,11 @@ import { useCallback, useEffect, useRef } from 'react';
 import { createStore } from 'zustand/vanilla';
 
 import { NAV_WIDTH, type PanelPlace, type WidthLimits, clampPlace, hideItem, keyKind, moveArea, moveItem, snapBox } from '@/lib/arrange';
-import { MODULE_SCALE, MODULE_WIDTH, isModuleId } from '@/lib/modules';
+import { MODULE_WIDTH, isModuleId } from '@/lib/modules';
 import { editStore, withPlace } from '@/store/edit';
 import { layoutStore } from '@/store/instance';
 import { uiStore } from '@/store/ui';
+import { uiZoomNow } from '@/scale';
 
 /** How far the pointer must move before a press becomes a drag (px). */
 export const DRAG_THRESHOLD = 5;
@@ -131,9 +132,13 @@ export function placeFromRect(r: DOMRect, width: WidthLimits | null, scale = 1):
   return clampPlace({ x: r.left / window.innerWidth, y: r.top / window.innerHeight, w: width ? r.width / scale : undefined }, width ?? NAV_WIDTH);
 }
 
-/** How big panel `id` is drawn: a module at MODULE_SCALE, NAV and the brand panel as they are. */
+/**
+ * How big panel `id` is drawn on screen against its own sizes: UI SCALE's
+ * zoom (src/scale.ts), times MODULE SIZE for a module. A screen box's width
+ * divided by this is the width kept.
+ */
 export function scaleOf(id: string): number {
-  return isModuleId(id) ? MODULE_SCALE : 1;
+  return uiZoomNow() * (isModuleId(id) ? layoutStore().getState().layout.prefs.moduleScale : 1);
 }
 
 /** The other panels on screen now (NAV, the brand panel, the placed modules), but `el`: what a dropped panel can snap to. */

@@ -19,6 +19,18 @@ body,
   height: 100%;
   margin: 0;
 }
+/* UI SCALE (0.17.0): everything but the wallpaper is drawn at --ui-zoom (src/scale.ts:
+   UI SCALE, over Chrome's zoom when that's cancelled). A real zoom, not a transform: the
+   layout is redone at the new size, so text stays crisp. Inside a zoomed box Chrome zooms
+   vw and vh too, so the UI's rules use --view-w and --view-h instead (the window, in the
+   UI's own px): zoomed back, they're the window exactly. */
+:root {
+  --view-w: calc(100vw / var(--ui-zoom, 1));
+  --view-h: calc(100vh / var(--ui-zoom, 1));
+}
+#root {
+  zoom: var(--ui-zoom, 1);
+}
 body {
   background: var(--bg);
   color: var(--text);
@@ -285,7 +297,7 @@ ul {
      A compact panel (user request, 2026-10-23: 30% smaller, the name half the size). */
   width: max-content;
   min-width: 182px;
-  max-width: calc(100vw - var(--s-xl) * 2);
+  max-width: calc(var(--view-w) - var(--s-xl) * 2);
 }
 /* (.masthead's own padding, gap and brackets come later in this file: these win by being more specific.) */
 .masthead.hud-brand {
@@ -756,8 +768,8 @@ kbd {
   display: flex;
   flex-direction: column;
   gap: var(--s-md);
-  width: min(440px, calc(100vw - 32px));
-  max-height: calc(100vh - 48px);
+  width: min(440px, calc(var(--view-w) - 32px));
+  max-height: calc(var(--view-h) - 48px);
   padding: var(--s-lg);
   border: var(--hairline) solid var(--accent-35);
   border-radius: var(--radius);
@@ -766,7 +778,7 @@ kbd {
   animation: rise var(--base) var(--ease);
 }
 .dialog.wide {
-  width: min(640px, calc(100vw - 32px));
+  width: min(640px, calc(var(--view-w) - 32px));
 }
 .dialog-head {
   display: flex;
@@ -835,7 +847,7 @@ kbd {
   left: 0;
   right: 0;
   width: max-content;
-  max-width: calc(100vw - 32px);
+  max-width: calc(var(--view-w) - 32px);
   margin: 0 auto;
   bottom: calc(var(--s-xl) + var(--control) + var(--s-lg));
   z-index: 40;
@@ -908,7 +920,7 @@ kbd {
   bottom: calc(var(--s-xl) + var(--control) + var(--s-lg));
   left: 0;
   right: 0;
-  width: min(1120px, calc(100vw - var(--s-xl) * 2));
+  width: min(1120px, calc(var(--view-w) - var(--s-xl) * 2));
   margin: 0 auto;
   overflow-y: auto;
   /* Room for focus rings and glows at the edges. */
@@ -1685,15 +1697,15 @@ a.text-btn {
 /* Placed panels (lib/arrange.ts PanelPlace via app/panels.tsx): left/top from shares of the
    window, kept on screen. No transforms, so the text stays crisp. */
 .deck-area[data-placed] {
-  left: clamp(8px, calc(var(--px) * 100vw), calc(100vw - var(--pw, 640px) - 8px));
+  left: clamp(8px, calc(var(--px) * var(--view-w)), calc(var(--view-w) - var(--pw, 640px) - 8px));
   right: auto;
-  top: clamp(8px, calc(var(--py) * 100vh), calc(100vh - 200px));
-  width: min(var(--pw, 1120px), calc(100vw - 16px));
+  top: clamp(8px, calc(var(--py) * var(--view-h)), calc(var(--view-h) - 200px));
+  width: min(var(--pw, 1120px), calc(var(--view-w) - 16px));
   margin: 0;
 }
 .hud-brand[data-placed] {
-  left: clamp(8px, calc(var(--px) * 100vw), calc(100vw - 280px));
-  top: clamp(8px, calc(var(--py) * 100vh), calc(100vh - 100px));
+  left: clamp(8px, calc(var(--px) * var(--view-w)), calc(var(--view-w) - 280px));
+  top: clamp(8px, calc(var(--py) * var(--view-h)), calc(var(--view-h) - 100px));
 }
 .hud-brand.editing {
   border-style: dashed;
@@ -1740,7 +1752,7 @@ a.text-btn {
   display: flex;
   align-items: flex-start;
   justify-content: center;
-  padding: 16vh var(--s-lg) 0;
+  padding: calc(var(--view-h) * 0.16) var(--s-lg) 0;
   background: var(--backdrop);
   animation: fade-in var(--fast) var(--ease);
 }
@@ -1751,7 +1763,7 @@ a.text-btn {
   display: flex;
   flex-direction: column;
   width: min(640px, 100%);
-  max-height: 70vh;
+  max-height: calc(var(--view-h) * 0.7);
   border: var(--hairline) solid var(--accent-35);
   border-radius: var(--radius);
   background: var(--surface-raised);
@@ -1871,7 +1883,7 @@ a.text-btn {
 .menu {
   position: fixed;
   min-width: 240px;
-  max-height: calc(100vh - 16px);
+  max-height: calc(var(--view-h) - 16px);
   overflow-y: auto;
   padding: var(--s-xs) 0;
   border: var(--hairline) solid var(--line);
@@ -1932,13 +1944,14 @@ a.text-btn {
 /* A module: a framed panel where you put it (lib/modules.ts place, as CSS variables
    from app/panels.tsx placeStyle), kept on screen with clamp(); no transforms, so its
    text stays crisp. Solid surfaces: text never sits on the wallpaper.
-   Drawn at 70% of its own sizes (lib/modules.ts MODULE_SCALE; user request,
-   2026-10-24): the type, spacing and control tokens are set again here, scaled, and
+   Drawn at 70% of its own sizes unless MODULE SIZE says otherwise (lib/modules.ts
+   MODULE_SCALE; user request, 2026-10-24; --module-scale from src/scale.ts since
+   0.17.0): the type, spacing and control tokens are set again here, scaled, and
    the stored width (--pw, in its own sizes) is drawn as --mw. The brand panel and
    NAV keep theirs. Scaled with tokens, not `zoom` or a transform, so text stays on
    whole pixels and the grips measure what's drawn. */
 .module {
-  --m: 0.7;
+  --m: var(--module-scale, 0.7);
   --fs-title: calc(22px * var(--text-scale) * var(--m));
   --fs-display: calc(18px * var(--text-scale) * var(--m));
   --fs-body: calc(14px * var(--text-scale) * var(--m));
@@ -1957,13 +1970,13 @@ a.text-btn {
   --control: calc(32px * var(--m));
   --mw: calc(var(--pw, 320px) * var(--m));
   position: absolute;
-  left: clamp(8px, calc(var(--px) * 100vw), calc(100vw - var(--mw) - 8px));
-  top: clamp(8px, calc(var(--py) * 100vh), calc(100vh - 80px));
+  left: clamp(8px, calc(var(--px) * var(--view-w)), calc(var(--view-w) - var(--mw) - 8px));
+  top: clamp(8px, calc(var(--py) * var(--view-h)), calc(var(--view-h) - 80px));
   display: flex;
   flex-direction: column;
   gap: var(--s-sm);
-  width: min(var(--mw), calc(100vw - 16px));
-  max-height: calc(100vh - 16px);
+  width: min(var(--mw), calc(var(--view-w) - 16px));
+  max-height: calc(var(--view-h) - 16px);
   padding: var(--s-sm);
   border: var(--hairline) solid var(--line);
   border-radius: var(--radius);
@@ -2333,9 +2346,9 @@ a.text-btn {
     margin: 0 auto;
     top: calc(var(--s-lg) + 104px);
     bottom: calc(var(--s-lg) + var(--control) + var(--s-md));
-    width: calc(100vw - var(--s-lg) * 2);
+    width: calc(var(--view-w) - var(--s-lg) * 2);
   }
   .toast {
-    width: calc(100vw - 32px);
+    width: calc(var(--view-w) - 32px);
   }
 }

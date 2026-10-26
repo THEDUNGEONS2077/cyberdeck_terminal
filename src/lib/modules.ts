@@ -37,9 +37,10 @@ export type ModuleInstance = Module<'search', SearchSettings> | Module<'launch',
 export type ModuleOf<K extends ModuleKind> = Extract<ModuleInstance, { kind: K }>;
 
 /**
- * How big a module is drawn: 70% of its own sizes (user request,
- * 2026-10-24: 30% smaller; the brand panel keeps its size). A module's
- * stored width is in its own sizes, so the screen shows `w × MODULE_SCALE`
+ * How big a module is drawn until MODULE SIZE is chosen: 70% of its own
+ * sizes (user request, 2026-10-24: 30% smaller; the brand panel keeps its
+ * size; prefs.moduleScale since 0.17.0, lib/scale.ts). A module's stored
+ * width is in its own sizes, so the screen shows `w × the module size`
  * (app.css .module, app/arrangeDrag.ts scaleOf).
  */
 export const MODULE_SCALE = 0.7;

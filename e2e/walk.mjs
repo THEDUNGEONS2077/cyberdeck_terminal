@@ -596,6 +596,7 @@ try {
       await page.keyboard.type(words);
       await page.getByRole('option', { name: new RegExp(`^.?\\s*${words}`, 'i') }).first().waitFor();
       await page.keyboard.press('Enter');
+      await page.getByRole('dialog', { name: 'Find' }).waitFor({ state: 'detached' });
     };
     await run('focus search');
     await page.waitForFunction(() => document.activeElement?.closest('.module[data-kind="search"]'));
@@ -950,6 +951,93 @@ try {
     await settled();
     expect((await page.evaluate(() => localStorage.getItem('cyberdeck_terminal:zoom'))) === '{}', 'RESET left a zoom behind');
     await page.keyboard.press('Escape');
+  });
+
+  await path('UI SCALE: the dashboard (not the wallpaper) drawn bigger, SYSTEM in the window, a drag follows the pointer; TEXT and MODULE SIZE; kept after a reload; [ ] step it', async () => {
+    const rootZoom = () => page.evaluate(() => getComputedStyle(document.getElementById('root')).zoom);
+    const near = (a, b, by = 3) => Math.abs(a - b) <= by;
+    const time = page.locator('.module[data-kind="time"]');
+    const nav = page.locator('.deck-area');
+    const [t0, n0, canvas0] = [await time.boundingBox(), await nav.boundingBox(), await rain()];
+    await page.keyboard.press('s');
+    // Headless Chromium is at 100%: the readout says so.
+    await page.getByText('CHROME ZOOM · AT 100%').waitFor();
+    // The preset's visible label (the radio itself is visually hidden).
+    await page.getByRole('radiogroup', { name: 'UI scale presets' }).getByText('150%', { exact: true }).click();
+    await page.getByRole('group', { name: 'UI SCALE' }).getByText('150%').waitFor();
+    expect((await rootZoom()) === '1.5', `#root's zoom is ${await rootZoom()}`);
+    const d = await page.getByRole('dialog').boundingBox();
+    expect(d.x >= 0 && d.x + d.width <= 1920 && d.y >= 0 && d.y + d.height <= 1080, `SYSTEM at 150% is ${JSON.stringify(d)}`);
+    await shot('21a-ui-scale-system');
+    await page.keyboard.press('Escape');
+    await page.waitForTimeout(250);
+    const [t1, n1, canvas1] = [await time.boundingBox(), await nav.boundingBox(), await rain()];
+    expect(near(n1.width, n0.width * 1.5) && near(t1.width, t0.width * 1.5), `at 150%, NAV is ${n1.width} wide (was ${n0.width}), TIME ${t1.width} (was ${t0.width})`);
+    expect(t1.x >= 0 && t1.x + t1.width <= 1921, `TIME is off screen: ${JSON.stringify(t1)}`);
+    expect(canvas1.w === canvas0.w && canvas1.h === canvas0.h, 'UI SCALE changed the wallpaper’s canvas');
+    await shot('21b-ui-scale-150');
+    // A drag at 150%: the panel follows the pointer exactly (screen px in, the UI's own px kept).
+    // Edit mode from the finder: grown, QUICK LAUNCH covers NAV's EDIT (panels keep their places, not their gaps).
+    const finderCommand = async (text, label) => {
+      await page.keyboard.press('/');
+      await page.getByRole('dialog', { name: 'Find' }).waitFor();
+      await page.keyboard.type(text);
+      await page.getByRole('option', { name: label }).waitFor();
+      await page.keyboard.press('Enter');
+      await page.getByRole('dialog', { name: 'Find' }).waitFor({ state: 'detached' });
+    };
+    await finderCommand('edit the layout', /EDIT THE LAYOUT/);
+    await page.getByRole('toolbar', { name: 'Edit layout' }).waitFor();
+    const grip = await page.getByRole('button', { name: /^Move the TIME module/ }).boundingBox();
+    const dx = t1.x > 960 ? -200 : 200;
+    await page.mouse.move(grip.x + 8, grip.y + 8);
+    await page.mouse.down();
+    await page.mouse.move(grip.x + 8 + dx, grip.y + 48, { steps: 6 });
+    await page.mouse.up();
+    await page.waitForTimeout(150);
+    const t2 = await time.boundingBox();
+    expect(near(t2.x - t1.x, dx, 4) && near(t2.y - t1.y, 40, 4) && near(t2.width, t1.width), `at 150%, TIME moved by ${t2.x - t1.x}, ${t2.y - t1.y} for ${dx}, 40 (width ${t2.width}, was ${t1.width})`);
+    // UNDO from the keyboard (QUICK LAUNCH covers the bar's right end at 150% too).
+    await page.getByRole('toolbar', { name: 'Edit layout' }).getByRole('button', { name: 'UNDO' }).focus();
+    await page.keyboard.press('Enter');
+    await page.waitForFunction((x) => Math.abs(document.querySelector('.module[data-kind="time"]').getBoundingClientRect().x - x) < 2, t1.x);
+    await finderCommand('lock the layout', /LOCK THE LAYOUT/);
+    await page.getByRole('toolbar', { name: 'Edit layout' }).waitFor({ state: 'detached' });
+    // TEXT SIZE and MODULE SIZE.
+    await page.keyboard.press('s');
+    const textUp = page.getByRole('group', { name: 'TEXT SIZE' }).getByRole('button', { name: 'Make the text bigger' });
+    await textUp.click();
+    await textUp.click();
+    await page.getByRole('group', { name: 'TEXT SIZE' }).getByText('120%').waitFor();
+    const modulesUp = page.getByRole('group', { name: 'MODULE SIZE' }).getByRole('button', { name: 'Make the modules bigger' });
+    for (let i = 0; i < 3; i++) await modulesUp.click();
+    await page.getByRole('group', { name: 'MODULE SIZE' }).getByText('100%').waitFor();
+    const vars = await page.evaluate(() => [document.documentElement.style.getPropertyValue('--text-scale'), document.documentElement.style.getPropertyValue('--module-scale')]);
+    expect(vars[0] === '1.2' && vars[1] === '1', `the size variables are ${vars}`);
+    await page.keyboard.press('Escape');
+    await page.waitForTimeout(250);
+    const t3 = await time.boundingBox();
+    expect(near(t3.width, (t1.width / 0.7) * 1, 4) || t3.width >= 1900, `at MODULE SIZE 100%, TIME is ${t3.width} wide (was ${t1.width} at 70%)`);
+    // Kept after a reload, drawn at it from the start (the hint).
+    await page.reload();
+    expect((await rootZoom()) === '1.5', `after a reload #root's zoom is ${await rootZoom()}`);
+    await page.locator('.brand').waitFor();
+    // [ and ] step it, and say so.
+    await page.keyboard.press(']');
+    await page.locator('.toast', { hasText: 'UI SCALE 175%' }).waitFor();
+    await page.keyboard.press('[');
+    await page.keyboard.press('[');
+    await page.waitForFunction(() => getComputedStyle(document.getElementById('root')).zoom === '1.25');
+    // Back to the usual sizes for the paths after this one.
+    await page.keyboard.press('s');
+    await page.getByRole('button', { name: 'Reset the UI scale to 100%' }).click();
+    await page.getByRole('button', { name: 'Reset the text size to 100%' }).click();
+    await page.getByRole('button', { name: 'Reset the module size to 70%' }).click();
+    await page.waitForFunction(() => getComputedStyle(document.getElementById('root')).zoom === '1');
+    await settled();
+    await page.keyboard.press('Escape');
+    const t4 = await time.boundingBox();
+    expect(near(t4.width, t0.width) && near(t4.x, t0.x), `reset, TIME is ${JSON.stringify(t4)}, was ${JSON.stringify(t0)}`);
   });
 
   await path('no accessibility violations (axe: WCAG 2.2 A/AA and best practice), with and without SYSTEM', async () => {

@@ -24,6 +24,7 @@ import { isOpenable } from '@/lib/bookmarks';
 import { editStore } from '@/store/edit';
 
 import { uiStore } from '@/store/ui';
+import { uiZoomNow } from '@/scale';
 
 import { G } from '../glyphs';
 import { useLayout } from '../hooks';
@@ -144,10 +145,11 @@ export function ArrangeMenu({ menu, arranged, onClose, onNewArea }: { menu: Menu
     }
   };
 
-  // Placed under the ⋯ button, kept inside the window.
+  // Placed under the ⋯ button, kept inside the window: in the UI's own px (screen px ÷ UI SCALE's zoom).
   const r = menu.anchor.getBoundingClientRect();
-  const top = Math.min(r.bottom + 4, window.innerHeight - (count * 30 + rows.length * 9 + 48));
-  const left = Math.min(r.left, window.innerWidth - 268);
+  const z = uiZoomNow();
+  const top = Math.min(r.bottom / z + 4, window.innerHeight / z - (count * 30 + rows.length * 9 + 48));
+  const left = Math.min(r.left / z, window.innerWidth / z - 268);
   return (
     <div className="menu-layer" onMouseDown={onClose}>
       <div ref={box} className="menu" role="menu" aria-label={`Arrange ${title}`} style={{ top, left }} onMouseDown={(e) => e.stopPropagation()} onKeyDown={onKeyDown}>

@@ -76,9 +76,9 @@
   --fade-rule-lit: linear-gradient(90deg, var(--accent-35), transparent);
 
   /* Type: one family; sizes a step denser than the phone (a desktop reads closer).
-     Every size and line height is times --text-scale: the Text size setting
-     (V1 pass 2026-10-17; App.tsx sets it on <html>). Only text grows: the
-     panes and spacing keep their sizes (Ctrl + in the browser zooms it all). */
+     Every size and line height is times --text-scale: SYSTEM ▸ TEXT SIZE
+     (0.17.0; src/scale.ts sets it on <html>). Only text grows: the panes and
+     spacing keep their sizes (UI SCALE, app.css #root, sizes it all). */
   --text-scale: 1;
   --font: 'JetBrains Mono', ui-monospace, monospace;
   --fs-title: calc(22px * var(--text-scale));

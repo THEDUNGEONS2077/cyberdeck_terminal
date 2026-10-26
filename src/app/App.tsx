@@ -14,6 +14,7 @@ import { backupDue, exportAge } from '@/lib/reminder';
 import { layoutStore } from '@/store/instance';
 import { uiStore } from '@/store/ui';
 import { applyPalette } from '@/palette';
+import { applySizes } from '@/scale';
 import { setWallpaperColors, setWallpaperGlow, setWallpaperZooms, showWallpaper } from '@/wallpaper/host';
 
 import { useFullscreenSync, useIdleCursor } from './fullscreen';
@@ -68,6 +69,10 @@ export function App() {
   const palette = useLayout((s) => s.layout.prefs.palette);
   const wallpaperPalette = useLayout((s) => s.layout.prefs.wallpaperPalette);
   const zooms = useLayout((s) => s.layout.prefs.wallpaperZoom);
+  const uiScale = useLayout((s) => s.layout.prefs.uiScale);
+  const textScale = useLayout((s) => s.layout.prefs.textScale);
+  const moduleScale = useLayout((s) => s.layout.prefs.moduleScale);
+  const cancelBrowserZoom = useLayout((s) => s.layout.prefs.cancelBrowserZoom);
   const immersive = useUi((s) => s.immersive);
   const panelOpen = useUi((s) => s.panelOpen);
   const finderOpen = useUi((s) => s.finderOpen);
@@ -82,6 +87,8 @@ export function App() {
   // The two palettes, each on its own: the dashboard's on the page, the wallpaper's on the wallpaper.
   useEffect(() => void applyPalette(palette), [palette]);
   useEffect(() => setWallpaperColors(wallpaperPalette), [wallpaperPalette]);
+  // The sizes (src/scale.ts): UI SCALE, TEXT SIZE, MODULE SIZE, and Chrome's zoom cancelled or not.
+  useEffect(() => applySizes({ uiScale, textScale, moduleScale, cancelBrowserZoom }), [uiScale, textScale, moduleScale, cancelBrowserZoom]);
 
   // Startup timing (read by e2e/perf.mjs): the dashboard is on screen.
   useEffect(() => void performance.mark('app:ui'), []);

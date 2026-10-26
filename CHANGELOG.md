@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.17.0 (build 27)
+- **The dashboard's own size,** in SYSTEM ▸ APPEARANCE:
+  - **UI SCALE,** 50% to 300%: the whole dashboard bigger or smaller, the wallpaper aside. It has one-press presets (75–200%), and **[** and **]** on the keyboard step it. The finder has UI SCALE BIGGER / SMALLER / 100% too.
+  - **TEXT SIZE,** 80% to 150%: only the text, on top of UI SCALE.
+  - **MODULE SIZE,** 50% to 100%: the modules against NAV and the panels (70%, as before, until you choose).
+  - Everything is redrawn at the new size, not stretched, so text stays sharp. The sizes are kept with your layout (in backups too).
+- **Zoom kept apart from quest_log:**
+  - **Why they were tied:** Chrome keeps one zoom per website, and quest_log_desktop lives on the same one, so zooming either zoomed both. No page can change that.
+  - **The fix:** the dashboard now works out Chrome's zoom and cancels it. Zoom Chrome for quest_log as you like, and this dashboard stays at its UI SCALE.
+  - **The setting:** CHROME ZOOM shows the zoom it worked out. Choose APPLY to let Chrome's zoom work on top again.
+  - **After updating:** if you'd zoomed Chrome to make the dashboard bigger (175%, say), set UI SCALE to that once.
+- **COPY DIAGNOSTICS** includes the sizes and Chrome's zoom as worked out.
+
 ## 0.16.0 (build 26)
 - **SUNSET wallpaper,** from your reference: the outrun sunset.
   - **The scene:**

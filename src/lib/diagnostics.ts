@@ -18,6 +18,12 @@ export interface DiagnosticsInput {
   screen: { w: number; h: number; dpr: number; windowW: number; windowH: number };
   /** The graphics card, as WebGL names it ('' if unknown). */
   gpu: string;
+  /**
+   * The sizes (lib/scale.ts): UI SCALE, TEXT SIZE, MODULE SIZE, Chrome's zoom
+   * as worked out and whether it's cancelled, the window's outer width (the
+   * figure it's worked out from, with the window's), and the zoom the UI is drawn at.
+   */
+  sizes?: { ui: number; text: number; modules: number; browserZoom: number; cancelled: boolean; outerW: number; drawnAt: number };
   wallpaper: {
     id: string;
     label: string;
@@ -68,8 +74,15 @@ export function diagnosticsText(d: DiagnosticsInput, at: Date): string {
     d.browser,
     `screen ${d.screen.w} × ${d.screen.h} CSS px at ${d.screen.dpr}× (${Math.round(d.screen.w * d.screen.dpr)} × ${Math.round(d.screen.h * d.screen.dpr)} px) · window ${d.screen.windowW} × ${d.screen.windowH}`,
     `GPU ${d.gpu || 'unknown'}`,
-    '--- WALLPAPER ---',
   ];
+  const z = d.sizes;
+  if (z) {
+    const pct = (n: number) => `${Math.round(n * 100)}%`;
+    lines.push(
+      `sizes: UI ${pct(z.ui)} · text ${pct(z.text)} · modules ${pct(z.modules)} · Chrome at ${pct(z.browserZoom)} (${z.cancelled ? 'cancelled' : 'on top'}; outer width ${z.outerW}) · UI drawn at ${z.drawnAt.toFixed(3)}×`,
+    );
+  }
+  lines.push('--- WALLPAPER ---');
   const w = d.wallpaper;
   if (!w) lines.push('none running');
   else {

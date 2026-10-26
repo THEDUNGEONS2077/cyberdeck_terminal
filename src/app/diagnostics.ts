@@ -11,6 +11,7 @@ import { countLinks } from '@/lib/bookmarks';
 import { type DiagnosticsInput, diagnosticsText } from '@/lib/diagnostics';
 import { bookmarksStore, layoutStore } from '@/store/instance';
 import { uiStore } from '@/store/ui';
+import { browserZoomNow, uiZoomNow } from '@/scale';
 import { WALLPAPER_LIST } from '@/wallpaper/catalog';
 import { wallpaperReport } from '@/wallpaper/host';
 
@@ -57,6 +58,15 @@ async function gather(): Promise<DiagnosticsInput> {
     browser: browserName(),
     screen: { w: screen.width, h: screen.height, dpr: window.devicePixelRatio || 1, windowW: window.innerWidth, windowH: window.innerHeight },
     gpu: gpuName(),
+    sizes: {
+      ui: layout.prefs.uiScale,
+      text: layout.prefs.textScale,
+      modules: layout.prefs.moduleScale,
+      browserZoom: browserZoomNow(),
+      cancelled: layout.prefs.cancelBrowserZoom,
+      outerW: window.outerWidth,
+      drawnAt: uiZoomNow(),
+    },
     wallpaper: w && {
       id: w.id,
       label: WALLPAPER_LIST.find((x) => x.id === w.id)?.label ?? w.id,

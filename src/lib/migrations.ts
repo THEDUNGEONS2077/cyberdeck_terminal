@@ -15,6 +15,7 @@ import { type Arrangement, type Area, type PanelPlace, type Panels, MAX_AREAS, c
 import { sanitizeTree } from './bookmarks';
 import { type BookmarksLayout, type GlowLevel, type LayoutDocument, GLOW_LEVELS, LAYOUT_SCHEMA_VERSION, MAX_OPEN_FOLDERS, defaultBookmarks, defaultPrefs, normalizeZooms } from './layout';
 import { normalizeModules } from './modules';
+import { DEFAULT_MODULE_SCALE, DEFAULT_TEXT_SCALE, DEFAULT_UI_SCALE, MODULE_SCALE_STEPS, TEXT_SCALE_STEPS, UI_SCALE_STEPS, nearestStep } from './scale';
 import { normalizeSwitchTabs } from './switching';
 import { PALETTE_IDS, type PaletteId } from './palettes';
 
@@ -115,6 +116,11 @@ export function normalizeLayout(doc: Record<string, unknown>): LayoutDocument {
   prefs.wallpaperZoom = normalizeZooms(saved.wallpaperZoom);
   // The places that switch to their open tab (0.12.0, the same way: none in an older layout).
   prefs.switchTabs = normalizeSwitchTabs(saved.switchTabs);
+  // The sizes (0.17.0, the same way: an older layout has the usual sizes), each snapped to its steps.
+  prefs.uiScale = nearestStep(UI_SCALE_STEPS, saved.uiScale, DEFAULT_UI_SCALE);
+  prefs.textScale = nearestStep(TEXT_SCALE_STEPS, saved.textScale, DEFAULT_TEXT_SCALE);
+  prefs.moduleScale = nearestStep(MODULE_SCALE_STEPS, saved.moduleScale, DEFAULT_MODULE_SCALE);
+  if (typeof saved.cancelBrowserZoom === 'boolean') prefs.cancelBrowserZoom = saved.cancelBrowserZoom;
 
   return { schemaVersion: LAYOUT_SCHEMA_VERSION, wallpaper: doc.wallpaper, prefs, bookmarks: normalizeBookmarks(doc.bookmarks), panels: normalizePanels(doc.panels), modules: normalizeModules(doc.modules) };
 }

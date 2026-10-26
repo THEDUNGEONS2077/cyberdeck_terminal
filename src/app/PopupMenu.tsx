@@ -9,6 +9,8 @@
  */
 import { type KeyboardEvent, useLayoutEffect, useRef } from 'react';
 
+import { uiZoomNow } from '@/scale';
+
 /** One item of the menu. */
 export interface PopupItem {
   glyph: string;
@@ -46,10 +48,11 @@ export function PopupMenu({ heading, label, groups, anchor, onClose }: { heading
 
   const rows = groups.filter((g) => g.length);
   const count = rows.reduce((n, g) => n + g.length, 0);
-  // Placed under the button, kept inside the window.
+  // Placed under the button, kept inside the window: in the UI's own px (screen px ÷ UI SCALE's zoom).
   const r = anchor.getBoundingClientRect();
-  const top = Math.max(8, Math.min(r.bottom + 4, window.innerHeight - (count * 30 + rows.length * 9 + 48)));
-  const left = Math.max(8, Math.min(r.left, window.innerWidth - 268));
+  const z = uiZoomNow();
+  const top = Math.max(8, Math.min(r.bottom / z + 4, window.innerHeight / z - (count * 30 + rows.length * 9 + 48)));
+  const left = Math.max(8, Math.min(r.left / z, window.innerWidth / z - 268));
   return (
     <div className="menu-layer" onMouseDown={onClose}>
       <div ref={box} className="menu" role="menu" aria-label={label} style={{ top, left }} onMouseDown={(e) => e.stopPropagation()} onKeyDown={onKeyDown}>
