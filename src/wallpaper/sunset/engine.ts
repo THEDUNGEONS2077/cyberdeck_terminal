@@ -20,7 +20,7 @@
  * it waits and starts again.
  */
 import { type Wallpaper, type WallpaperInstance, type WallpaperOptions, type WallpaperPalette, zoomedSize } from '../types';
-import { CAMERA, GRID, HAZE, HORIZON, MAX_DPR, MAX_FRAME_STEP, MIN_FRAME_MS, SCANLINES, SPEED, STARS, STRIPES, SUN, WAVE, WRAP } from './params';
+import { CAMERA, GRID, HORIZON, MELT, MAX_DPR, MAX_FRAME_STEP, MIN_FRAME_MS, SCANLINES, SPEED, STARS, STRIPES, SUN, WAVE, WRAP } from './params';
 import fullVert from './shaders/full.vert?raw';
 import groundFrag from './shaders/ground.frag?raw';
 import skyFrag from './shaders/sky.frag?raw';
@@ -53,7 +53,6 @@ export interface SunsetTones {
   ground: Rgb;
   warm: Rgb;
   cool: Rgb;
-  haze: Rgb;
 }
 
 /**
@@ -78,7 +77,6 @@ export function sunsetTones(p: WallpaperPalette): SunsetTones {
     ground: mix(bg, mix(accent, cool, 0.6), 0.1),
     warm: mix(accent, bright, 0.3),
     cool: mix(cool, WHITE, 0.25),
-    haze: mix(mix(accent, cool, 0.2), WHITE, 0.12),
   };
 }
 
@@ -184,7 +182,7 @@ function createSunset(canvas: HTMLCanvasElement | OffscreenCanvas, options: Wall
     const H = canvas.height;
     // px per CSS px of the zoomed layout: the fine detail (lines, stars, scanlines) and the grid's squares are in CSS px, so they follow the layout as the other wallpapers' detail does.
     const unit = size.dpr;
-    // The composition (the sun, its glow, the haze) is in shares of the screen, grown by the zoom.
+    // The composition (the sun, its glow, the melt into the sky) is in shares of the screen, grown by the zoom.
     const big = H * size.zoom;
     const horizon = H * HORIZON;
     const sun: [number, number] = [W * SUN.x, H * SUN.y];
@@ -196,17 +194,21 @@ function createSunset(canvas: HTMLCanvasElement | OffscreenCanvas, options: Wall
       gl.uniform1f(p.u('uScanEvery'), SCANLINES.every);
       gl.uniform1f(p.u('uScanDepth'), SCANLINES.depth);
     }
+    // The sky's colours, the sun and its glow: the ground needs them too, to melt into the sky at the horizon.
+    for (const p of [gpu.sky, gpu.ground]) {
+      gl.useProgram(p.program);
+      gl.uniform2f(p.u('uSun'), ...sun);
+      gl.uniform1f(p.u('uSunR'), SUN.r * big);
+      gl.uniform1f(p.u('uGlowR'), SUN.glow * big);
+      gl.uniform3f(p.u('uSkyLeft'), ...tones.skyLeft);
+      gl.uniform3f(p.u('uSkyRight'), ...tones.skyRight);
+      gl.uniform3f(p.u('uGlow'), ...tones.glow);
+    }
     const s = gpu.sky;
     gl.useProgram(s.program);
-    gl.uniform2f(s.u('uSun'), ...sun);
-    gl.uniform1f(s.u('uSunR'), SUN.r * big);
-    gl.uniform1f(s.u('uGlowR'), SUN.glow * big);
-    gl.uniform3f(s.u('uSkyLeft'), ...tones.skyLeft);
-    gl.uniform3f(s.u('uSkyRight'), ...tones.skyRight);
     gl.uniform3f(s.u('uSkyTop'), ...tones.skyTop);
     gl.uniform3f(s.u('uSunTop'), ...tones.sunTop);
     gl.uniform3f(s.u('uSunBase'), ...tones.sunBase);
-    gl.uniform3f(s.u('uGlow'), ...tones.glow);
     gl.uniform3f(s.u('uStar'), ...tones.star);
     gl.uniform3f(s.u('uStripe'), STRIPES.from, STRIPES.period, STRIPES.gap[0]);
     gl.uniform1f(s.u('uGapGrow'), STRIPES.gap[1] - STRIPES.gap[0]);
@@ -222,11 +224,10 @@ function createSunset(canvas: HTMLCanvasElement | OffscreenCanvas, options: Wall
     const k = (Math.PI * 2) / WRAP;
     gl.uniform3f(g.u('uWave'), WAVE.amount, k * WAVE.across, k * WAVE.along);
     gl.uniform1f(g.u('uDrift'), k * 5);
-    gl.uniform1f(g.u('uHazeH'), HAZE * big);
+    gl.uniform1f(g.u('uMeltH'), MELT * big);
     gl.uniform3f(g.u('uGround'), ...tones.ground);
     gl.uniform3f(g.u('uWarm'), ...tones.warm);
     gl.uniform3f(g.u('uCool'), ...tones.cool);
-    gl.uniform3f(g.u('uHaze'), ...tones.haze);
     skyDirty = true;
   };
 

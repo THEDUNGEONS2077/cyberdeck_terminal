@@ -11,8 +11,8 @@
  *   - a night sky, purple on the left, blue on the right, darker at the
  *     top, scattered with fine stars;
  *   - a square grid on the ground in perspective, gently waving, its lines
- *     pink and orange on the left, teal on the right, fading into a pink
- *     haze at the horizon;
+ *     pink and orange on the left, teal on the right, fading out into the
+ *     sky at the horizon (no line between them: 0.17.3);
  *   - fine CRT scanlines over everything.
  * Its motion is our own, and the only motion: the grid glides toward you.
  *
@@ -20,7 +20,7 @@
  * performance and sharpness"): the sky never changes, so it's drawn once;
  * each frame redraws only the ground, one short per-pixel shader, no
  * geometry. Lines are worked out per pixel, so they're sharp at any size.
- * The composition (the sun, its glow, the haze, the horizon) is in shares
+ * The composition (the sun, its glow, the melt into the sky, the horizon) is in shares
  * of the screen; the detail (the grid's squares, its lines, the stars, the
  * scanlines) in CSS px of the zoomed layout, so it follows the layout as
  * the other wallpapers' detail does: zoomed out, more and finer squares.
@@ -54,8 +54,12 @@ export const SPEED = 0.6;
 /** The grid's distance wraps after this many units: whole grid squares and whole waves, so it carries on seamlessly. */
 export const WRAP = 240;
 
-/** The pink haze over the far grid: how far below the horizon it reaches (share of the screen's height): a narrow seam (0.17.2: 0.07 read as a thick band). */
-export const HAZE = 0.025;
+/**
+ * How far below the horizon the ground melts into the sky (share of the
+ * screen's height): at the horizon it's the sky's own colour, so there's no
+ * line between them (0.17.3; a pink haze there read as a band, 0.17.2).
+ */
+export const MELT = 0.05;
 
 /** The stars: one cell in so many CSS px, the share of cells with a star. */
 export const STARS = { cell: 3, chance: 0.006 } as const;

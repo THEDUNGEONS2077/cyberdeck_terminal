@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.17.3 (build 30)
+- **SUNSET:**
+  - **No line at the horizon:** at the horizon the ground now takes on the sky's own colour, glow and all, so the grid fades straight into the night with nothing in between. The pink haze band is gone.
+  - **Smooth, glowing grid lines:** each line now has a soft core and a smooth glow, the same width at every angle. Slanted lines no longer step.
+
 ## 0.17.2 (build 29)
 - **SUNSET's horizon is seamless now.** The far grid used to pile up into a thick, bright band of thin lines under the sun. Now the lines thin out and fade into the dark ground as they reach the distance, and the pink haze is a soft, narrow seam right at the horizon. The band is gone; what's left is a short, dim fade (about a third of the old band's height and much darker), with no lines crowding into it.
 
