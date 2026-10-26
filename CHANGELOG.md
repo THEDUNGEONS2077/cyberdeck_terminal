@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.17.6 (build 33)
+- **MATRIX RAIN is one smooth gradient now,** greenest at the top and black at the bottom, with no line across the screen.
+  - **Why there was a line:** the dark floor covered only the bottom 16%, so the point where it started showed as a straight edge between the middle and bottom of the screen. The green haze's gradient also had corners (at about half and 95% of the way down) that showed as fainter lines.
+  - **Now:** both run the full height of the screen along smooth curves. The haze fades from greenest at the top to nothing at the bottom, and the darkening starts gently near the top and deepens to black at the bottom edge.
+- **SUNSET's stars** are set up to come out the same on phone graphics chips (no change you'll see here).
+
 ## 0.17.5 (build 32)
 - **HORIZON is smooth again.** The anti-aliasing added in 0.17.4 made it laggy, so it's off. The stronger glow, the even, smooth lines and the gentler hills all stay. Only a near hill's outline over the land behind is a little stepped again, as it was before.
 
