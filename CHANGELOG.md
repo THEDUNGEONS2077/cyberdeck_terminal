@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.17.5 (build 32)
+- **HORIZON is smooth again.** The anti-aliasing added in 0.17.4 made it laggy, so it's off. The stronger glow, the even, smooth lines and the gentler hills all stay. Only a near hill's outline over the land behind is a little stepped again, as it was before.
+
 ## 0.17.4 (build 31)
 - **HORIZON:**
   - **The hills glow more:** each edge has a soft core and a wider, stronger glow, at every GLOW level.
