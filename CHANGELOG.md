@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.15.1 (build 24)
+- **HORIZON, as you asked:**
+  - **Layout:** the glow's white core now sits just above the screen's middle, and the hills fill the bottom half.
+  - **No slabs:** the leaning slabs are gone.
+  - **Speed:** about 3.4× less work a frame (measured the same way before and after).
+    - The sky never changes now, so it's drawn once and kept, and each frame redraws only the hills.
+    - The land is a third of what it was: only as far as the haze lets you see.
+    - It's drawn nearest first, so hidden hills cost nothing.
+    - The haze's maths runs only where the land fades into it.
+- **The wallpaper at any browser zoom.** At 175% the wallpaper was laid out for a screen 1.75× too big, so you saw its top left only: HORIZON's glow sat off to the right and its hills fell off the bottom. The canvas now follows the browser's zoom, so every wallpaper looks as it does at 100%.
+
 ## 0.15.0 (build 23)
 - **HORIZON wallpaper,** from your reference: a synthwave scene.
   - **The scene:** a low-poly land drawn only as teal wireframe edges, running to a hot pink glow on the horizon with a white-hot core. Its haze lights a dark plum sky, and four tilted slabs lean in toward the glow, the near pair speckled with pink light at their tops. The nearest edges are soft, as in the photo, and the far land melts into the haze.

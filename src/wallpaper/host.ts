@@ -21,10 +21,11 @@
  *   - creates the chosen wallpaper (registry.ts), and swaps it on a fresh
  *     canvas when the choice changes (a canvas handed to a worker, or one
  *     that drew 2D, can't be handed to another wallpaper);
- *   - sizes the canvas to the screen (or the window, where that's bigger),
- *     not to the window: resizing the window or going fullscreen doesn't
- *     touch it, the window just shows more or less of it. Only a new
- *     screen size, zoom or pixel ratio resizes it (debounced 150 ms);
+ *   - sizes the canvas to the screen at the page's zoom (or the window,
+ *     where that's bigger), not to the window: resizing the window or going
+ *     fullscreen doesn't touch it, the window just shows more or less of
+ *     it. Only a new screen size, browser zoom or pixel ratio resizes it
+ *     (debounced 150 ms). Browser zoom counts since 0.16.0 (lib/screen.ts);
  *   - marks the canvas `data-ready` once its first full frame is drawn
  *     (app.css fades it in);
  *   - stops the animation while the page is hidden (another tab in front);
@@ -45,6 +46,7 @@
 import fontUrl from '@/assets/fonts/JetBrainsMono-Regular.woff2?url';
 import { DEFAULT_RAIN_GLOW, DEFAULT_WALLPAPER_ID, GLOW_LEVELS, type GlowLevel, normalizeZooms, zoomOf } from '@/lib/layout';
 import { DEFAULT_PALETTE, findPalette, PALETTE_TOKENS, type PaletteColors, type PaletteId } from '@/lib/palettes';
+import { canvasSize } from '@/lib/screen';
 
 import { GUARD_BUDGET_MS, GUARD_SETTLE_MS, GUARD_WATCH_MS, type Sharpness, drawnDpr, guardVerdict, normalizeSharpness, wantsGuard } from '@/lib/sharpness';
 
@@ -251,9 +253,13 @@ function reduceMotion(): boolean {
   return motion.matches;
 }
 
-/** The canvas's size: the screen's, or the window's where that's bigger (zoomed out, a window across two screens). */
+/**
+ * The canvas's size: the screen's at the page's zoom, or the window's where
+ * that's bigger (zoomed out, a window across two screens): lib/screen.ts.
+ */
 function wantedSize(): Size {
-  return { w: Math.max(screen.width, window.innerWidth), h: Math.max(screen.height, window.innerHeight), dpr: window.devicePixelRatio || 1 };
+  const { w, h } = canvasSize({ screenW: screen.width, screenH: screen.height, innerW: window.innerWidth, innerH: window.innerHeight, outerW: window.outerWidth });
+  return { w, h, dpr: window.devicePixelRatio || 1 };
 }
 
 /** Sets the canvas's CSS size (the wallpaper sizes its pixels to match). */

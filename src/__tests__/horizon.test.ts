@@ -9,8 +9,8 @@
 import { describe, expect, it } from 'vitest';
 
 import { findPalette } from '@/lib/palettes';
-import { at, buildLand, horizonTones, landMesh, VERTEX } from '@/wallpaper/horizon/land';
-import { COLS, HALF_WIDTH, HEIGHT, JITTER, ROWS } from '@/wallpaper/horizon/params';
+import { at, buildLand, horizonTones, landMesh, STRIP_VERTICES, VERTEX, WALL_VERTICES } from '@/wallpaper/horizon/land';
+import { CAMERA, COLS, HALF_WIDTH, HEIGHT, JITTER, ROWS, WALL } from '@/wallpaper/horizon/params';
 
 /** A seeded 0–1 random source (Park–Miller), as the other wallpapers' tests use. */
 const seeded = (seed: number) => () => ((seed = (seed * 16807) % 2147483647) - 1) / 2147483646;
@@ -43,9 +43,9 @@ describe('horizon', () => {
   it('cuts the land into triangles joining each row to the next, the last to the first', () => {
     const land = buildLand(seeded(5));
     const mesh = landMesh(land);
-    expect(mesh.length).toBe(ROWS * (COLS - 1) * 2 * 3 * VERTEX);
+    expect(mesh.length).toBe((ROWS * STRIP_VERTICES + WALL_VERTICES) * VERTEX);
     // Every triangle has corners 0, 1, 2, and spans its strip's two rows.
-    for (let t = 0; t < mesh.length / (3 * VERTEX); t += 997) {
+    for (let t = 0; t < (ROWS * STRIP_VERTICES) / 3; t += 997) {
       const v = (k: number, f: number) => mesh[(t * 3 + k) * VERTEX + f]!;
       expect([v(0, 5), v(1, 5), v(2, 5)]).toEqual([0, 1, 2]);
       expect(new Set([v(0, 2), v(1, 2), v(2, 2)]).size).toBe(1);
@@ -59,6 +59,16 @@ describe('horizon', () => {
       const xs = Array.from({ length: COLS }, (_, c) => land.x[at(0, c)]);
       expect(xs).toContain(mesh[o]);
     }
+  });
+
+  it('ends in a wall of haze at the far end, up to the camera’s height (the horizon), with no edges', () => {
+    const mesh = landMesh(buildLand(seeded(2)));
+    for (let k = 0; k < WALL_VERTICES; k++) {
+      const o = (ROWS * STRIP_VERTICES + k) * VERTEX;
+      expect([mesh[o + 2], mesh[o + 4], mesh[o + 5]]).toEqual([-1, WALL, 3]);
+      expect(mesh[o + 1]! <= CAMERA.height).toBe(true);
+    }
+    expect(WALL).toBeLessThan(ROWS);
   });
 
   it('takes its colours from the palette: SYNTH’s pink glow and teal edges', () => {

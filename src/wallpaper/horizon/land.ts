@@ -12,10 +12,13 @@
  * forward: a strip that passes behind the camera comes round again at the
  * far end, deep in the haze, so the land never ends and never pops. The
  * land itself is never changed after it's made, so nothing about it is
- * sent per frame.
+ * sent per frame. After the strips, a wall of haze stands at the far end
+ * (two triangles, WALL units away): it covers the thin band between the
+ * farthest land and the horizon, so every pixel below the horizon is drawn
+ * each frame and the sky above it can be drawn just once (engine.ts).
  */
 import type { WallpaperPalette } from '../types';
-import { COLS, HALF_WIDTH, HEIGHT, JITTER, ROWS } from './params';
+import { CAMERA, COLS, HALF_WIDTH, HEIGHT, JITTER, ROWS, WALL } from './params';
 
 /** A random number source returning 0 ≤ n < 1 (seeded in tests). */
 export type Rng = () => number;
@@ -63,6 +66,10 @@ export function buildLand(rng: Rng): Land {
 /** Floats per vertex of the mesh: x, height (units); strip, row in it (0 or 1), depth offset, corner (0, 1, 2). */
 export const VERTEX = 6;
 
+/** Vertices per strip, and in the far wall. */
+export const STRIP_VERTICES = (COLS - 1) * 6;
+export const WALL_VERTICES = 6;
+
 /**
  * The land as triangles, three vertices each, not shared: each vertex
  * carries its corner (0, 1, 2), from which the shader knows how far a pixel
@@ -71,7 +78,7 @@ export const VERTEX = 6;
  * the first: the land repeats seamlessly).
  */
 export function landMesh(land: Land): Float32Array {
-  const out = new Float32Array(ROWS * (COLS - 1) * 2 * 3 * VERTEX);
+  const out = new Float32Array((ROWS * STRIP_VERTICES + WALL_VERTICES) * VERTEX);
   let o = 0;
   /** Writes the vertex for point (row, col), as row `inStrip` (0 near, 1 far) of strip `strip`, at triangle corner `corner`. */
   const put = (strip: number, inStrip: 0 | 1, col: number, corner: number) => {
@@ -103,6 +110,16 @@ export function landMesh(land: Land): Float32Array {
       }
     }
   }
+  // The far wall: strip −1 (the shader takes its depth as given), corner 3 (no edges), from below the ground to the camera's height (the horizon), wider than any screen sees at that depth.
+  const w = WALL * 3;
+  for (const [x, y] of [[-w, -1], [w, -1], [w, CAMERA.height], [-w, -1], [w, CAMERA.height], [-w, CAMERA.height]] as const) {
+    out[o++] = x;
+    out[o++] = y;
+    out[o++] = -1;
+    out[o++] = 0;
+    out[o++] = WALL;
+    out[o++] = 3;
+  }
   return out;
 }
 
@@ -130,15 +147,13 @@ export interface HorizonTones {
   /** The glow's colour (added), and its white-hot core. */
   glow: Rgb;
   core: Rgb;
-  /** The land's edges, its faces, and the slabs' faces and specks. */
+  /** The land's edges and its faces. */
   line: Rgb;
   face: Rgb;
-  slab: Rgb;
-  spark: Rgb;
 }
 
 /**
- * The tones from a palette: the glow and the slabs' specks from its accent,
+ * The tones from a palette: the glow from its accent,
  * the land's edges from its cool colour (SYNTH, made for this, gives the
  * reference's pink and teal), the sky a dark plum of the accent.
  */
@@ -153,7 +168,5 @@ export function horizonTones(p: WallpaperPalette): HorizonTones {
     core: mixRgb(accent, WHITE, 0.85),
     line: mixRgb(cool, bg, 0.3),
     face: mixRgb(bg, cool, 0.05),
-    slab: mixRgb(bg, accent, 0.22),
-    spark: mixRgb(accent, WHITE, 0.35),
   };
 }
