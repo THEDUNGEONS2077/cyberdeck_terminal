@@ -1,26 +1,47 @@
 /**
  * src/lib/modules.ts: the dashboard's modules: panels you add, place and
- * size yourself, beside NAV and the brand panel (SEARCH, QUICK LAUNCH, TIME).
+ * size yourself, beside NAV and the brand panel (SEARCH, QUICK LAUNCH, TIME,
+ * CLOCK).
  *
  * Layer: pure lib. The modules live in the layout document (schema 4), so
  * they're saved, snapshotted, backed up and restored with everything else.
  * Each kind's settings have their own rules (lib/search.ts, lib/launch.ts,
- * lib/time.ts); here are the list's: adding one at a free spot, moving,
+ * lib/time.ts, lib/clock.ts); here are the list's: adding one at a free spot, moving,
  * resizing, removing, and checking a list read from storage or a file
  * (unknown kinds and malformed entries are dropped one by one, never the
  * whole layout).
  *
+ * Every module can also have its own sizes (0.18.0, schema 5): UI SCALE,
+ * TEXT SIZE and MODULE SIZE of its own, each replacing the dashboard's for
+ * that module alone (`ModuleSizes`, `moduleScaleOf`, `moduleTextOf`).
+ *
  * The page knows how each kind looks from app/modules/catalog.ts.
  */
 import { type PanelPlace, type WidthLimits, clampPlace } from './arrange';
+import { type ClockSettings, defaultClock, normalizeClock } from './clock';
 import { type LaunchSettings, defaultLaunch, normalizeLaunch } from './launch';
 import { type SearchSettings, defaultSearch, normalizeSearch } from './search';
 import { type TimeSettings, defaultTime, normalizeTime } from './time';
+import { MODULE_SCALE_STEPS, TEXT_SCALE_STEPS, UI_SCALE_STEPS, nearestStep } from './scale';
 
 /** The kinds of module. */
-export type ModuleKind = 'search' | 'launch' | 'time';
+export type ModuleKind = 'search' | 'launch' | 'time' | 'clock';
 /** Every kind, in the order the + MODULE menu lists them. */
-export const MODULE_KINDS: readonly ModuleKind[] = ['search', 'launch', 'time'];
+export const MODULE_KINDS: readonly ModuleKind[] = ['search', 'launch', 'time', 'clock'];
+
+/**
+ * A module's own sizes (0.18.0). Each one that's set replaces the dashboard's
+ * for this module alone; one that's missing follows the dashboard (SYSTEM ▸
+ * APPEARANCE). Values are steps of lib/scale.ts.
+ */
+export interface ModuleSizes {
+  /** UI SCALE: the module's own size, instead of the dashboard's UI SCALE. */
+  uiScale?: number;
+  /** TEXT SIZE: its text, instead of the dashboard's TEXT SIZE. */
+  textScale?: number;
+  /** MODULE SIZE: how big it's drawn, instead of the dashboard's MODULE SIZE. */
+  moduleScale?: number;
+}
 
 /** A module of one kind: its id, where it sits (always placed: it has no usual spot), and its settings. */
 interface Module<K extends ModuleKind, S> {
@@ -28,29 +49,25 @@ interface Module<K extends ModuleKind, S> {
   kind: K;
   place: PanelPlace;
   settings: S;
+  /** Its own sizes; missing (the usual case) follows the dashboard's. */
+  sizes?: ModuleSizes;
 }
 
 /** A module on the dashboard. */
-export type ModuleInstance = Module<'search', SearchSettings> | Module<'launch', LaunchSettings> | Module<'time', TimeSettings>;
+export type ModuleInstance = Module<'search', SearchSettings> | Module<'launch', LaunchSettings> | Module<'time', TimeSettings> | Module<'clock', ClockSettings>;
 
 /** The module of kind `K`. */
 export type ModuleOf<K extends ModuleKind> = Extract<ModuleInstance, { kind: K }>;
 
-/**
- * How big a module is drawn until MODULE SIZE is chosen: 70% of its own
- * sizes (user request, 2026-10-24: 30% smaller; the brand panel keeps its
- * size; prefs.moduleScale since 0.17.0, lib/scale.ts). A module's stored
- * width is in its own sizes, so the screen shows `w × the module size`
- * (app.css .module, app/arrangeDrag.ts scaleOf).
- */
-export const MODULE_SCALE = 0.7;
+/** How big a module is drawn until MODULE SIZE is chosen (defined in lib/scale.ts, kept here for the modules' code). */
+export { MODULE_SCALE } from './scale';
 
 /** Most modules on one dashboard. */
 export const MAX_MODULES = 12;
 /** How narrow and how wide a module can be (px). */
 export const MODULE_WIDTH: WidthLimits = { min: 240, max: 1200 };
 /** Each kind's width when it's added (px): narrow enough to sit beside NAV on a 1920 px screen (NAV is at most 1120 wide, centred). */
-export const MODULE_DEFAULT_W: Record<ModuleKind, number> = { search: 380, launch: 380, time: 320 };
+export const MODULE_DEFAULT_W: Record<ModuleKind, number> = { search: 380, launch: 380, time: 320, clock: 420 };
 
 /**
  * The spots a new module tries, in turn: down the right-hand side (top
@@ -86,6 +103,8 @@ export function newModule(kind: ModuleKind, id: string, modules: readonly Module
       return { id, kind, place, settings: defaultLaunch() };
     case 'time':
       return { id, kind, place, settings: defaultTime() };
+    case 'clock':
+      return { id, kind, place, settings: defaultClock() };
   }
 }
 
@@ -109,6 +128,53 @@ export function placeModule(modules: readonly ModuleInstance[], id: string, plac
 export function setSettings<K extends ModuleKind>(modules: readonly ModuleInstance[], id: string, kind: K, settings: ModuleOf<K>['settings']): ModuleInstance[] {
   // The kind is checked, so the settings fit: the cast only tells TypeScript what was checked.
   return modules.map((m) => (m.id === id && m.kind === kind ? ({ ...m, settings } as ModuleOf<K>) : m));
+}
+
+/** Gives module `id` its own sizes; an empty set (every size following the dashboard) is stored as none. */
+export function setSizes(modules: readonly ModuleInstance[], id: string, sizes: ModuleSizes): ModuleInstance[] {
+  const kept = normalizeSizes(sizes);
+  return modules.map((m) => {
+    if (m.id !== id) return m;
+    const next = { ...m, sizes: kept };
+    if (!kept) delete next.sizes;
+    return next;
+  });
+}
+
+/** The dashboard's sizes a module's own replace (SYSTEM ▸ APPEARANCE; the layout's prefs). */
+export interface DashboardSizes {
+  uiScale: number;
+  textScale: number;
+  moduleScale: number;
+}
+
+/**
+ * How big module content is drawn, against the UI's own px (app.css --m).
+ * The UI is already drawn at the dashboard's UI SCALE (#root's zoom), so a
+ * module with a UI SCALE of its own is drawn at its own ÷ the dashboard's:
+ * it then looks the size it chose whatever the dashboard's is.
+ */
+export function moduleScaleOf(sizes: ModuleSizes | undefined, dashboard: DashboardSizes): number {
+  const ui = sizes?.uiScale !== undefined ? sizes.uiScale / dashboard.uiScale : 1;
+  return (sizes?.moduleScale ?? dashboard.moduleScale) * ui;
+}
+
+/** A module's TEXT SIZE: its own, else the dashboard's. */
+export function moduleTextOf(sizes: ModuleSizes | undefined, dashboard: DashboardSizes): number {
+  return sizes?.textScale ?? dashboard.textScale;
+}
+
+/** A module's sizes read from storage or a file: each snapped to its steps; unknown or malformed ones dropped. Undefined when none are left. */
+export function normalizeSizes(v: unknown): ModuleSizes | undefined {
+  if (!isRecord(v)) return undefined;
+  const out: ModuleSizes = {};
+  // A number snaps to its nearest step; anything else means "follow the dashboard".
+  const snap = (steps: readonly number[], x: unknown) => (typeof x === 'number' && Number.isFinite(x) ? nearestStep(steps, x, steps[0]!) : undefined);
+  const ui = snap(UI_SCALE_STEPS, v.uiScale), text = snap(TEXT_SCALE_STEPS, v.textScale), module = snap(MODULE_SCALE_STEPS, v.moduleScale);
+  if (ui !== undefined) out.uiScale = ui;
+  if (text !== undefined) out.textScale = text;
+  if (module !== undefined) out.moduleScale = module;
+  return Object.keys(out).length ? out : undefined;
 }
 
 /** The modules of `kind`, in order. */
@@ -142,9 +208,13 @@ export function normalizeModules(v: unknown): ModuleInstance[] {
     if (!isRecord(m) || typeof m.id !== 'string' || !isModuleId(m.id) || out.some((x) => x.id === m.id)) continue;
     const { id } = m;
     const place = (kind: ModuleKind) => normalizeModulePlace(m.place, kind, out);
-    if (m.kind === 'search') out.push({ id, kind: 'search', place: place('search'), settings: normalizeSearch(m.settings) });
-    else if (m.kind === 'launch') out.push({ id, kind: 'launch', place: place('launch'), settings: normalizeLaunch(m.settings) });
-    else if (m.kind === 'time') out.push({ id, kind: 'time', place: place('time'), settings: normalizeTime(m.settings) });
+    // Its own sizes, only when it has any (most modules follow the dashboard).
+    const sizes = normalizeSizes(m.sizes);
+    const own = sizes ? { sizes } : {};
+    if (m.kind === 'search') out.push({ id, kind: 'search', place: place('search'), settings: normalizeSearch(m.settings), ...own });
+    else if (m.kind === 'launch') out.push({ id, kind: 'launch', place: place('launch'), settings: normalizeLaunch(m.settings), ...own });
+    else if (m.kind === 'time') out.push({ id, kind: 'time', place: place('time'), settings: normalizeTime(m.settings), ...own });
+    else if (m.kind === 'clock') out.push({ id, kind: 'clock', place: place('clock'), settings: normalizeClock(m.settings), ...own });
   }
   return out;
 }

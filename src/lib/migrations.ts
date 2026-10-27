@@ -35,11 +35,14 @@ function isRecord(v: unknown): v is Record<string, unknown> {
  *   1 → 2: bookmarks arrive (nothing imported, every folder collapsed).
  *   2 → 3: an empty arrangement (Chrome's order, no areas), panels in place.
  *   3 → 4: no modules yet.
+ *   4 → 5: nothing to change: every module follows the dashboard's sizes
+ *          (a missing `sizes`), and no layout has a CLOCK yet.
  */
 const STEPS: Record<number, (doc: Record<string, unknown>) => Record<string, unknown>> = {
   1: (doc) => ({ ...doc, bookmarks: { imported: null, importedAt: null, open: [] } }),
   2: (doc) => ({ ...doc, bookmarks: { ...(isRecord(doc.bookmarks) ? doc.bookmarks : {}), arrangement: emptyArrangement() }, panels: defaultPanels() }),
   3: (doc) => ({ ...doc, modules: [] }),
+  4: (doc) => ({ ...doc }),
 };
 
 /** Strings only, each once, at most `max`. */

@@ -18,14 +18,21 @@
  * modules stack under NAV in its scrolling area (app/Bookmarks.tsx), and
  * places are ignored, as NAV's own is.
  *
+ * Its own sizes (0.18.0): SETTINGS has UI SCALE, TEXT SIZE and MODULE SIZE
+ * for this module alone. Each one chosen replaces the dashboard's (SYSTEM ▸
+ * APPEARANCE) for it; RESET goes back to following the dashboard. They're
+ * applied as CSS variables on the module's frame (--m, --text-scale), as the
+ * dashboard's are, so text stays crisp.
+ *
  * Edit mode: the grip moves a module (drag, or the arrow keys), the right
  * edge resizes it, and ⋯ has SETTINGS and REMOVE. The module's own panel
  * is inert while editing (nothing opens mid-arrangement, as links don't).
  * Every change goes through editStore.apply, so UNDO and REVERT cover it.
  */
-import { memo, useMemo, useRef, useState, useSyncExternalStore } from 'react';
+import { type CSSProperties, memo, useId, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 
-import { type ModuleInstance, removeModule } from '@/lib/modules';
+import { type DashboardSizes, type ModuleInstance, type ModuleSizes, moduleScaleOf, moduleTextOf, removeModule, setSizes } from '@/lib/modules';
+import { MODULE_SCALE_STEPS, TEXT_SCALE_STEPS, UI_SCALE_STEPS, percentLabel } from '@/lib/scale';
 import { editStore } from '@/store/edit';
 import { uiStore } from '@/store/ui';
 
@@ -36,6 +43,7 @@ import { useEdit, useLayout, useUi } from '../hooks';
 import { MoveGrip, ResizeGrip, placeStyle } from '../panels';
 import { PopupMenu } from '../PopupMenu';
 import { Prompted } from '../Prompted';
+import { Stepper } from '../Stepper';
 import { usePresence } from '../usePresence';
 import { CATALOG } from './catalog';
 
@@ -84,6 +92,23 @@ export function StackedModules() {
   );
 }
 
+/** The dashboard's sizes (SYSTEM ▸ APPEARANCE), which a module follows unless it has its own. */
+function useDashboardSizes(): DashboardSizes {
+  const uiScale = useLayout((s) => s.layout.prefs.uiScale);
+  const textScale = useLayout((s) => s.layout.prefs.textScale);
+  const moduleScale = useLayout((s) => s.layout.prefs.moduleScale);
+  return useMemo(() => ({ uiScale, textScale, moduleScale }), [uiScale, textScale, moduleScale]);
+}
+
+/**
+ * A module's own sizes as CSS variables on its frame (none when it follows
+ * the dashboard: app.css's .module then reads the dashboard's).
+ */
+function sizeStyle(sizes: ModuleSizes | undefined, dashboard: DashboardSizes): CSSProperties {
+  if (!sizes) return {};
+  return { '--m': moduleScaleOf(sizes, dashboard), '--text-scale': moduleTextOf(sizes, dashboard) } as CSSProperties;
+}
+
 /** Removes module `id` (undoable), says so, and puts the keyboard on + MODULE. */
 function remove(module: ModuleInstance): void {
   editStore.getState().apply((s) => ({ ...s, modules: removeModule(s.modules, module.id) }));
@@ -94,6 +119,7 @@ function remove(module: ModuleInstance): void {
 /** One module: its frame (header, grips, ⋯ menu) around its kind's panel. */
 const ModulePanel = memo(function ModulePanel({ module, stacked }: { module: ModuleInstance; stacked: boolean }) {
   const editing = useEdit((s) => s.editing);
+  const dashboard = useDashboardSizes();
   const box = useRef<HTMLElement>(null);
   const noScroll = useRef<HTMLElement>(null);
   const { start } = useArrangeDrag(noScroll);
@@ -116,7 +142,7 @@ const ModulePanel = memo(function ModulePanel({ module, stacked }: { module: Mod
       data-module={module.id}
       data-kind={module.kind}
       data-placed={stacked ? undefined : ''}
-      style={stacked ? undefined : placeStyle(module.place)}
+      style={{ ...(stacked ? {} : placeStyle(module.place)), ...sizeStyle(module.sizes, dashboard) }}
       aria-label={info.label}
     >
       {head && (
@@ -169,9 +195,51 @@ export function ModuleSettingsDialog() {
   return (
     <Dialog title={`${info.label} · SETTINGS`} onClose={close} leaving={leaving}>
       <div className="panel-body">
+        <ModuleSizeSettings module={shown} />
         <info.Settings module={shown} />
         <p className="small dim">CHANGES SAVE AS YOU MAKE THEM · UNDO IN THE EDIT BAR TAKES THEM BACK.</p>
       </div>
     </Dialog>
+  );
+}
+
+/** One of a module's own sizes: its value, or the dashboard's (marked so) while it follows it. */
+function OwnSize(props: { label: string; own: number | undefined; dashboard: number; steps: readonly number[]; set: (value: number | undefined) => void }) {
+  const id = useId();
+  const value = props.own ?? props.dashboard;
+  const name = props.label.toLowerCase();
+  return (
+    <div className="setting">
+      <span id={id}>{props.label}</span>
+      <Stepper
+        labelledBy={id}
+        value={value}
+        steps={props.steps}
+        fallback={props.dashboard}
+        less={`Make this module's ${name} smaller`}
+        more={`Make this module's ${name} bigger`}
+        reset={`Follow the dashboard's ${name}`}
+        resetText="DASHBOARD"
+        label={(v) => (props.own === undefined ? `${percentLabel(v)} · DASHBOARD` : percentLabel(v))}
+        // Back at the dashboard's value (RESET, or stepped onto it) means following it again.
+        onChange={(v) => props.set(v === props.dashboard ? undefined : v)}
+      />
+    </div>
+  );
+}
+
+/** SIZE: this module's own UI SCALE, TEXT SIZE and MODULE SIZE (0.18.0). Each change is one undoable step. */
+function ModuleSizeSettings({ module }: { module: ModuleInstance }) {
+  const dashboard = useDashboardSizes();
+  const own = module.sizes ?? {};
+  const save = (next: ModuleSizes) => editStore.getState().apply((s) => ({ ...s, modules: setSizes(s.modules, module.id, next) }));
+  const set = (key: keyof ModuleSizes) => (value: number | undefined) => save({ ...own, [key]: value });
+  return (
+    <div className="settings-group">
+      <span className="setting-label">THIS MODULE'S SIZE · DASHBOARD = SYSTEM ▸ APPEARANCE</span>
+      <OwnSize label="UI SCALE" own={own.uiScale} dashboard={dashboard.uiScale} steps={UI_SCALE_STEPS} set={set('uiScale')} />
+      <OwnSize label="TEXT SIZE" own={own.textScale} dashboard={dashboard.textScale} steps={TEXT_SCALE_STEPS} set={set('textScale')} />
+      <OwnSize label="MODULE SIZE" own={own.moduleScale} dashboard={dashboard.moduleScale} steps={MODULE_SCALE_STEPS} set={set('moduleScale')} />
+    </div>
   );
 }

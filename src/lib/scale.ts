@@ -14,7 +14,6 @@
  * but cancelling Chrome's zoom applies to it too (0.17.1, the user: the
  * wallpapers should ignore Chrome's zoom as well): it draws as at 100%.
  */
-import { MODULE_SCALE } from './modules';
 
 /** UI SCALE's steps (shares of the usual size): small enough for a big screen far away, big enough for a laptop across the room. */
 export const UI_SCALE_STEPS: readonly number[] = [0.5, 0.6, 0.67, 0.75, 0.8, 0.9, 1, 1.1, 1.25, 1.5, 1.75, 2, 2.25, 2.5, 3];
@@ -22,6 +21,16 @@ export const UI_SCALE_STEPS: readonly number[] = [0.5, 0.6, 0.67, 0.75, 0.8, 0.9
 export const TEXT_SCALE_STEPS: readonly number[] = [0.8, 0.9, 1, 1.1, 1.2, 1.35, 1.5];
 /** MODULE SIZE's steps: how big the modules are drawn against NAV and the panels (70% unless chosen: 0.13.0). */
 export const MODULE_SCALE_STEPS: readonly number[] = [0.5, 0.6, 0.7, 0.8, 0.9, 1];
+
+/**
+ * How big a module is drawn until MODULE SIZE is chosen: 70% of its own
+ * sizes (user request, 2026-10-24: 30% smaller; the brand panel keeps its
+ * size; prefs.moduleScale since 0.17.0, lib/scale.ts). A module's stored
+ * width is in its own sizes, so the screen shows `w × the module size`
+ * (app.css .module, app/arrangeDrag.ts scaleOf). Defined here, not in
+ * lib/modules.ts, so the two files don't import each other.
+ */
+export const MODULE_SCALE = 0.7;
 
 /** The sizes until chosen. */
 export const DEFAULT_UI_SCALE = 1;

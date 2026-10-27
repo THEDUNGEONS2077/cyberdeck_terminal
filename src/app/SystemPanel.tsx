@@ -25,7 +25,7 @@ import { BackupError, type ParsedBackup, formatStamp } from '@/lib/backup';
 import { countLinks } from '@/lib/bookmarks';
 import { DEFAULT_ZOOM, GLOW_LEVELS, REMINDER_DAY_CHOICES, ZOOM_STEPS, stepZoom, summarizeLayout, zoomLabel, zoomOf } from '@/lib/layout';
 import { type PaletteId, PALETTES } from '@/lib/palettes';
-import { DEFAULT_MODULE_SCALE, DEFAULT_TEXT_SCALE, DEFAULT_UI_SCALE, MODULE_SCALE_STEPS, TEXT_SCALE_STEPS, UI_SCALE_STEPS, percentLabel, stepOf } from '@/lib/scale';
+import { DEFAULT_MODULE_SCALE, DEFAULT_TEXT_SCALE, DEFAULT_UI_SCALE, MODULE_SCALE_STEPS, TEXT_SCALE_STEPS, UI_SCALE_STEPS, percentLabel } from '@/lib/scale';
 import { exportAge } from '@/lib/reminder';
 import { reasonLabel, type SnapshotInfo } from '@/lib/snapshots';
 import { compareVersions } from '@/lib/versions';
@@ -41,6 +41,7 @@ import { Dialog } from './Dialog';
 import { useBookmarks, useLayout } from './hooks';
 import { CopyAddress, DownloadBridgeButton, ImportBookmarksButton } from './ImportBookmarks';
 import { Prompted } from './Prompted';
+import { Stepper } from './Stepper';
 
 /** The SYSTEM panel; `leaving` while it fades out. */
 export function SystemPanel({ leaving }: { leaving: boolean }) {
@@ -362,44 +363,6 @@ function AppearanceSection() {
       </div>
       <Sharpness current={current} />
     </section>
-  );
-}
-
-/**
- * A value stepped with buttons: − value + RESET. `step` moves a step from
- * a value (`direction` 1 up, -1 down); − and + are off at either end, RESET
- * at `fallback`.
- */
-function Stepper(props: {
-  labelledBy: string;
-  value: number;
-  steps: readonly number[];
-  fallback: number;
-  less: string;
-  more: string;
-  reset: string;
-  onChange: (next: number) => void;
-  step?: (value: number, direction: 1 | -1) => number;
-  label?: (value: number) => string;
-}) {
-  const { value, steps, fallback, onChange } = props;
-  const step = props.step ?? ((v: number, d: 1 | -1) => stepOf(steps, v, d, fallback));
-  const label = props.label ?? percentLabel;
-  return (
-    <div className="stepper" role="group" aria-labelledby={props.labelledBy}>
-      <button type="button" className="text-btn" aria-label={props.less} disabled={value <= steps[0]!} onClick={() => onChange(step(value, -1))}>
-        −
-      </button>
-      <output className="stepper-value" aria-live="polite">
-        {label(value)}
-      </output>
-      <button type="button" className="text-btn" aria-label={props.more} disabled={value >= steps[steps.length - 1]!} onClick={() => onChange(step(value, 1))}>
-        +
-      </button>
-      <button type="button" className="text-btn" aria-label={props.reset} disabled={value === fallback} onClick={() => onChange(fallback)}>
-        RESET
-      </button>
-    </div>
   );
 }
 

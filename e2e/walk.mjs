@@ -364,7 +364,7 @@ try {
     await settled();
   });
 
-  // --- Modules (app/modules/): SEARCH, QUICK LAUNCH, TIME ---
+  // --- Modules (app/modules/): SEARCH, QUICK LAUNCH, TIME, CLOCK ---
   /** A module's panel, by its kind's name. */
   const mod = (name) => page.getByRole('region', { name, exact: true });
   /** Opens a module's ⋯ ▸ SETTINGS (edit mode). */
@@ -475,6 +475,56 @@ try {
     // Esc closed SETTINGS only: still editing.
     await editBar().waitFor();
     await mod('TIME').getByText('12 DAYS').waitFor();
+  });
+
+  await path('CLOCK: a big clock that grows with its width, with its own sizes apart from the dashboard’s', async () => {
+    await editBar().getByRole('button', { name: '+ MODULE' }).click();
+    await page.getByRole('menu', { name: 'Add a module' }).waitFor();
+    await page.getByRole('menuitem', { name: 'CLOCK' }).click();
+    const clock = mod('CLOCK');
+    await clock.waitFor();
+    const digits = clock.locator('.clock-digits');
+    expect(/^\d\d:\d\d:\d\d$/.test(await digits.innerText()), `CLOCK reads ${await digits.innerText()}`);
+    const fontSize = () => digits.evaluate((el) => parseFloat(getComputedStyle(el).fontSize));
+    const f0 = await fontSize();
+    // Widening the module enlarges the digits (they're sized from its width).
+    await page.getByRole('button', { name: /^Resize the CLOCK module/ }).focus();
+    await page.keyboard.press('Shift+ArrowRight');
+    await page.waitForTimeout(100);
+    const f1 = await fontSize();
+    expect(f1 > f0 * 1.05, `the digits didn’t grow with the module (${f0} → ${f1})`);
+
+    // Its own TEXT SIZE and MODULE SIZE: only this module changes; SEARCH keeps the dashboard's.
+    const textScaleOf = (name) => mod(name).evaluate((el) => getComputedStyle(el).getPropertyValue('--text-scale').trim());
+    const searchText = await textScaleOf('SEARCH');
+    const w0 = (await clock.boundingBox()).width;
+    await settingsOf('CLOCK');
+    const dialog = page.getByRole('dialog', { name: 'CLOCK · SETTINGS' });
+    await dialog.getByText('100% · DASHBOARD').first().waitFor();
+    await dialog.getByRole('button', { name: "Make this module's text size bigger" }).click();
+    await dialog.getByRole('button', { name: "Make this module's text size bigger" }).click();
+    await dialog.getByRole('button', { name: "Make this module's module size bigger" }).click();
+    await page.waitForTimeout(100);
+    expect((await textScaleOf('CLOCK')) === '1.2', `CLOCK's own text size is ${await textScaleOf('CLOCK')}`);
+    expect((await textScaleOf('SEARCH')) === searchText, 'SEARCH’s text size changed with CLOCK’s');
+    expect((await clock.boundingBox()).width > w0 * 1.1, 'CLOCK’s own module size didn’t widen it');
+    await shot('20-clock-own-sizes');
+    await audit('CLOCK’s settings');
+    // Its own UI SCALE, then back to the dashboard's for all three.
+    await dialog.getByRole('button', { name: "Make this module's ui scale bigger" }).click();
+    for (const name of ['ui scale', 'text size', 'module size']) await dialog.getByRole('button', { name: `Follow the dashboard's ${name}` }).click();
+    await page.waitForTimeout(100);
+    expect(await mod('CLOCK').evaluate((el) => !el.style.getPropertyValue('--m') && !el.style.getPropertyValue('--text-scale')), 'CLOCK kept its own sizes after DASHBOARD');
+    // 12-hour, without seconds.
+    await dialog.getByRole('radio', { name: '12-HOUR' }).check({ force: true });
+    await dialog.getByRole('radio', { name: 'HIDE' }).first().check({ force: true });
+    await page.keyboard.press('Escape');
+    await page.getByRole('dialog').waitFor({ state: 'detached' });
+    expect(/^\d{1,2}:\d\d(AM|PM)$/.test((await digits.innerText()).replace(/\s/g, '')), `12-hour CLOCK reads ${await digits.innerText()}`);
+    // Out of the way again for the rest of the walk.
+    await page.getByRole('button', { name: 'CLOCK module options' }).click();
+    await page.getByRole('menuitem', { name: 'REMOVE' }).click();
+    await clock.waitFor({ state: 'detached' });
   });
 
   await path('a bookmark’s ⋯ ▸ PIN TO QUICK LAUNCH makes it a tile', async () => {
@@ -702,7 +752,7 @@ try {
     backupPath = join(shots, 'backup.json');
     await download.saveAs(backupPath);
     const file = JSON.parse(readFileSync(backupPath, 'utf8'));
-    expect(file.format === 'cyberdeck_terminal-backup' && file.layout?.schemaVersion === 4, 'not a backup file');
+    expect(file.format === 'cyberdeck_terminal-backup' && file.layout?.schemaVersion === 5, 'not a backup file');
     expect(file.layout.modules?.length === 3, 'the backup has no modules');
     expect(file.layout.prefs.backupReminderDays === 14 && file.layout.prefs.rainGlow === 'high', 'unexpected layout in backup');
     await page.locator('.toast', { hasText: 'BACKUP EXPORTED' }).waitFor();

@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.18.0 (build 34)
+- **New CLOCK module** (+ MODULE ▸ CLOCK): a big clock with the date under it.
+  - **Size:** it fills the module's width, so dragging its right edge makes the clock bigger or smaller.
+  - **SETTINGS:** 24- or 12-hour time, seconds shown or hidden, and the date shown or hidden.
+  - **Battery:** like TIME, it ticks only while you can see the page (once a minute with seconds hidden).
+- **Every module has its own sizes now.**
+  - **The three sizes:** each module's ⋯ ▸ SETTINGS has its own **UI SCALE**, **TEXT SIZE** and **MODULE SIZE**.
+  - **Default:** each one starts as **· DASHBOARD**, following SYSTEM ▸ APPEARANCE.
+  - **Changing one:** pressing − or + gives that module its own value, and the dashboard's setting no longer affects that size for it.
+  - **Going back:** **DASHBOARD** makes it follow the dashboard again.
+  - **Applies to:** SEARCH, QUICK LAUNCH, TIME and CLOCK. Changes are undoable and are saved in snapshots and backups.
+- **Layout schema 5.** Saved layouts and backups from before open as they were, with every module following the dashboard.
+
 ## 0.17.6 (build 33)
 - **MATRIX RAIN is one smooth gradient now,** greenest at the top and black at the bottom, with no line across the screen.
   - **Why there was a line:** the dark floor covered only the bottom 16%, so the point where it started showed as a straight edge between the middle and bottom of the screen. The green haze's gradient also had corners (at about half and 95% of the way down) that showed as fainter lines.

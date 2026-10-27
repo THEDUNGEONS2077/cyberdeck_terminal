@@ -22,7 +22,7 @@ import { useCallback, useEffect, useRef } from 'react';
 import { createStore } from 'zustand/vanilla';
 
 import { NAV_WIDTH, type PanelPlace, type WidthLimits, clampPlace, hideItem, keyKind, moveArea, moveItem, snapBox } from '@/lib/arrange';
-import { MODULE_WIDTH, isModuleId } from '@/lib/modules';
+import { MODULE_WIDTH, isModuleId, moduleScaleOf } from '@/lib/modules';
 import { editStore, withPlace } from '@/store/edit';
 import { layoutStore } from '@/store/instance';
 import { uiStore } from '@/store/ui';
@@ -138,7 +138,10 @@ export function placeFromRect(r: DOMRect, width: WidthLimits | null, scale = 1):
  * divided by this is the width kept.
  */
 export function scaleOf(id: string): number {
-  return uiZoomNow() * (isModuleId(id) ? layoutStore().getState().layout.prefs.moduleScale : 1);
+  if (!isModuleId(id)) return uiZoomNow();
+  // A module is drawn at its own sizes when it has them (lib/modules.ts moduleScaleOf), else the dashboard's.
+  const { prefs, modules } = layoutStore().getState().layout;
+  return uiZoomNow() * moduleScaleOf(modules.find((m) => m.id === id)?.sizes, prefs);
 }
 
 /** The other panels on screen now (NAV, the brand panel, the placed modules), but `el`: what a dropped panel can snap to. */

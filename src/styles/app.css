@@ -2255,6 +2255,45 @@ a.text-btn {
   flex-direction: column;
   gap: var(--s-sm);
 }
+/* CLOCK module (0.18.0): a big clock and nothing else. The digits are sized
+   from the module's own width (cqi: a share of its content box's width), so
+   widening the module enlarges them, and times its TEXT SIZE (--text-scale:
+   the dashboard's, or the module's own), but never past the module's width:
+   a monospace digit is about 0.6em, so eight characters (with seconds) fill
+   the width at 20cqi and five (without) at 32cqi. Beyond that, a wider
+   module or a bigger MODULE SIZE makes the clock bigger. */
+.clock-module {
+  container-type: inline-size;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--s-xs);
+  padding: var(--s-sm) var(--s-md);
+}
+.clock-digits {
+  color: var(--text-bright);
+  font-size: min(calc(28cqi * var(--text-scale)), 32cqi);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+  text-shadow: var(--glow-text-bright);
+}
+.clock-digits.with-seconds {
+  font-size: min(calc(17.5cqi * var(--text-scale)), 20cqi);
+}
+.clock-suffix {
+  margin-left: 0.25em;
+  font-size: 0.35em;
+  letter-spacing: 1px;
+  vertical-align: super;
+}
+.clock-date {
+  font-size: calc(5.5cqi * var(--text-scale));
+  letter-spacing: 2px;
+  white-space: nowrap;
+}
 .time-clock {
   display: flex;
   flex-wrap: wrap;

@@ -121,8 +121,12 @@ bridge/background.js ──(externally_connectable)──▶ src/bridge/client.t
 - **Panels** are placed with `left`/`top` from shares of the window, clamped on screen. There are no transforms, so text stays crisp, and narrow windows ignore the places.
 
 ## Modules
-- **What they are:** panels you add, place and size yourself (SEARCH, QUICK LAUNCH, TIME). The brand panel is grouped with them as an optional panel: `panels.brandOff` (only written when true, no schema bump) hides it; + MODULE offers it back.
+- **What they are:** panels you add, place and size yourself (SEARCH, QUICK LAUNCH, TIME, CLOCK). The brand panel is grouped with them as an optional panel: `panels.brandOff` (only written when true, no schema bump) hides it; + MODULE offers it back.
 - **Drawn at MODULE SIZE (`prefs.moduleScale`, 0.7 until chosen: `MODULE_SCALE`):** a module's stored width is in its own sizes. `app/arrangeDrag.ts` `scaleOf` (UI SCALE's zoom × the module size) divides a drawn width by it when saving it (drag, resize, arrow keys). They're kept in `layout.modules` (schema 4: the 3 → 4 step adds an empty list), so saving, snapshots, backups and restore cover them.
+- **A module's own sizes (0.18.0, schema 5):** `module.sizes` may hold its own `uiScale`, `textScale` and `moduleScale`. Each replaces the dashboard's for that module only, and a missing one follows the dashboard. The 4 → 5 step changes nothing, because a missing `sizes` means follow.
+  - **Applying them:** `app/modules/Modules.tsx` sets them on the module's frame as CSS variables: `--m` = `lib/modules.ts` `moduleScaleOf` (its own MODULE SIZE × its own UI SCALE ÷ the dashboard's, since #root is already zoomed by the dashboard's) and `--text-scale`. app.css then sizes it as usual.
+  - **Dragging:** `scaleOf` uses the same figure, so drags and resizes save the right width.
+  - **Editing:** each module's ⋯ ▸ SETTINGS shows the three, with DASHBOARD to follow again.
 - **`lib/modules.ts`** (pure) holds the list's rules: `newModule` at a free spot down the right-hand side, `addModule`, `placeModule`, `removeModule`, `setSettings`, and `normalizeModules`, which drops unknown kinds, bad ids and malformed entries one by one, never the whole layout. Ids are `m…`, so they can't be taken for `nav` or `brand`.
 - **Each kind's rules** are their own pure files:
   - `lib/search.ts`: the engines, a custom address with `%s`, and `searchUrl` (the words URL-encoded). The page only opens the address.
@@ -132,6 +136,7 @@ bridge/background.js ──(externally_connectable)──▶ src/bridge/client.t
   - `app/modules/catalog.ts` names each kind and holds its file (`SearchModule`, `LaunchModule`, `TimeModule`, each exporting `Panel` and `Settings`). They load with the app: lazily, the bundler split their shared code into seven small chunks, and a first visit was ~130 ms slower.
   - `app/modules/Modules.tsx` draws the frames: grip, ⋯ (`PopupMenu`), resize edge, the kind's panel (inert while editing), and the SETTINGS dialog (`ui.moduleSettings`). Narrow windows (`useNarrow`) stack them inside NAV's scrolling area instead.
   - `app/modules/actions.ts` is what the rest of the page uses: the finder's web search, keys 1–9 (`useShortcuts`), and PIN TO QUICK LAUNCH from a bookmark's ⋯.
+- **CLOCK** (0.18.0) is a big clock and the date. Its digits are sized from the module's width (a container query, capped so they never overflow), so its resize edge resizes the clock. It redraws once a second, or once a minute with seconds hidden, only while seen (`app/modules/useNow.ts`, shared with TIME).
 - **TIME and the battery.** Nothing loops. The clock redraws once a second, the countdowns at midnight, and the timer and stopwatch only while they run with their fold open. All of it pauses while the tab is hidden or the page is immersive, and reads the clock afresh when it's seen again. A running timer has one timeout to its end, so its notice arrives even from the background.
 
 ## Storage and recovery

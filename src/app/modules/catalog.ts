@@ -18,6 +18,7 @@ import type { ComponentType } from 'react';
 import type { ModuleInstance, ModuleKind } from '@/lib/modules';
 import { engineOf } from '@/lib/search';
 
+import * as clock from './ClockModule';
 import * as launch from './LaunchModule';
 import * as search from './SearchModule';
 import * as time from './TimeModule';
@@ -72,5 +73,15 @@ export const CATALOG: Record<ModuleKind, KindInfo> = {
     bare: false,
     Panel: time.Panel,
     Settings: time.Settings,
+  },
+  clock: {
+    label: 'CLOCK',
+    glyph: '◷',
+    about: 'A big clock and the date; widen the module to enlarge it',
+    note: (m) => (m.kind === 'clock' ? (m.settings.hour24 ? '24H' : '12H') : ''),
+    // Bare, like SEARCH: just the digits inside the thin ring outside edit mode.
+    bare: true,
+    Panel: clock.Panel,
+    Settings: clock.Settings,
   },
 };

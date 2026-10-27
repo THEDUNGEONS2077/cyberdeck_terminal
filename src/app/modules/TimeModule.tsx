@@ -43,46 +43,13 @@ import { uiStore } from '@/store/ui';
 
 import { cx } from '../cx';
 import { G } from '../glyphs';
-import { useUi } from '../hooks';
+import { useSecond, useSeen } from './useNow';
 import { TIMER_EVENT, type TimerCommand } from './actions';
 import type { ModuleProps } from './catalog';
 
 // Made once (a formatter per call, every second, was a cost the brand clock already learnt).
 const TIME = new Intl.DateTimeFormat('en-GB', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
 const DATE = new Intl.DateTimeFormat('en-GB', { weekday: 'short', day: '2-digit', month: 'short', year: 'numeric' });
-
-/** Is the page on screen to look at (tab in front, not immersive)? */
-function useSeen(): boolean {
-  const immersive = useUi((s) => s.immersive);
-  const [visible, setVisible] = useState(() => document.visibilityState === 'visible');
-  useEffect(() => {
-    const onChange = () => setVisible(document.visibilityState === 'visible');
-    document.addEventListener('visibilitychange', onChange);
-    return () => document.removeEventListener('visibilitychange', onChange);
-  }, []);
-  return visible && !immersive;
-}
-
-/**
- * The time, updated on each whole second while `on` (and read afresh when
- * it comes back on). One timeout at a time, to the next second's edge, so
- * the seconds turn over with the system clock's.
- */
-function useSecond(on: boolean): Date {
-  const [now, setNow] = useState(() => new Date());
-  useEffect(() => {
-    if (!on) return;
-    let t: ReturnType<typeof setTimeout>;
-    const tick = () => {
-      const d = new Date();
-      setNow(d);
-      t = setTimeout(tick, 1000 - d.getMilliseconds() + 5);
-    };
-    tick();
-    return () => clearTimeout(t);
-  }, [on]);
-  return now;
-}
 
 /** Today, updated just after midnight (and when the page is seen again, in case midnight passed unseen): the countdowns' day. */
 function useToday(seen: boolean): Date {
