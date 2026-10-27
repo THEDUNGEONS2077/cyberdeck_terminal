@@ -30,8 +30,8 @@
 
 ## Startup
 `index.html` holds the wallpaper's canvas as plain HTML, and lists every file the start needs (fonts, the first chunks, and the app's chunk as a `modulepreload`), so they're all fetched at once.
-1. `src/main.tsx`, the first chunk (about 1 KB, plus the host's 16 KB), starts the wallpaper at once: `wallpaper/host.ts` hands the canvas to the wallpaper's worker (its code is inlined in the host's chunk, so there's no extra request). The worker loads its font, draws its sprite sheets, pre-warms and animates, all off the page's main thread.
-2. It then `import()`s `src/start.tsx` (storage + React + dashboard, about 290 KB). With the rain in its worker, the app starts as soon as it arrives (until 0.5.0 it waited for the rain's pre-warm on the same thread).
+1. `src/main.tsx`, the first chunk (about 1 KB, plus the host's, about 100 KB since the worker inlined in it carries every wallpaper's engine; 0.18.0 build), starts the wallpaper at once: `wallpaper/host.ts` hands the canvas to the wallpaper's worker (its code is inlined in the host's chunk, so there's no extra request). The worker loads its font, draws its sprite sheets, pre-warms and animates, all off the page's main thread.
+2. It then `import()`s `src/start.tsx` (storage + React + dashboard, about 340 KB at 0.18.0; C7 measures what's in it). With the rain in its worker, the app starts as soon as it arrives (until 0.5.0 it waited for the rain's pre-warm on the same thread).
 
 The pre-warm records the simulation into typed arrays and paints each visible glyph once: bright ones first (the canvas fades in then), then the faint rest and the heads' leftover glows during the fade.
 
@@ -48,7 +48,7 @@ A first visit: rain about 0.37 s, dashboard about 0.43 s (the test server's HTTP
 
 ## The page
 ```
-.wallpaper         fixed, z 0 (index.html): haze · canvas (screen-sized, drawn by the worker) · fade to black at the bottom
+.wallpaper         fixed, z 0 (index.html): haze · canvas (screen-sized, drawn by the worker) · floor (the darkening toward the bottom)
 <main.ui-layer>    fixed, z 1: HUD, NAV, the modules, toast. Fades out and goes inert in immersive mode
 <SystemPanel>      modal dialog (S)
 <ModuleSettings>   modal dialog (a module's ⋯ ▸ SETTINGS)
@@ -191,10 +191,12 @@ The contract is `src/wallpaper/types.ts`: `create(canvas, { palette, glow, still
   - **The worker.** It transfers the canvas (`transferControlToOffscreen`) to `worker.ts` with the app's font URL, the palette, the glow, the size and the zoom, then forwards resize (with the zoom), start, stop, Reduce Motion and glow as messages. The worker answers `ready` (the canvas fades in), forwards the wallpaper's performance measures, and answers the tests' probes.
   - **The fallback.** If a canvas can't go to a worker, or the worker fails, the same wallpaper runs on the page, on a fresh canvas. Its engine (`registry.ts`) is loaded only then, so the page's own scripts don't carry it.
   - **The canvas is the size of the screen** (or the window, where that's bigger), not the window: resizing the window or going fullscreen doesn't touch it. Only a new screen size, zoom or pixel ratio resizes it (debounced by 150 ms). (0.15.1 sized it to the screen at the page's browser zoom; the user preferred the old behaviour, back in 0.15.2.)
+  - **Chrome's zoom is cancelled for the wallpaper too** (0.17.1, with SYSTEM ▸ CHROME ZOOM on IGNORE, the default). `wantedSize` works the size out as at 100%: the window's CSS px times the zoom being cancelled (`src/scale.ts` `cancelledZoomNow`), and the pixel ratio divided by it. Chrome's `screen.width` doesn't follow its zoom. The canvas's CSS size is that size ÷ the zoom, so it still covers the window exactly. A wallpaper then looks the same at any Chrome zoom, and only SYSTEM ▸ ZOOM zooms it. `onBrowserZoom` resizes it at once when the zoom, or IGNORE/APPLY, changes. The browser walk checks it with a simulated 175%.
   - Visibility (stopped while the tab is hidden) and Reduce Motion (a still frame).
   - **The tests' probe**, `window.__cyberdeckRain`: `pixels()` (the share of the canvas that's lit, a fingerprint, and its size in pixels), `frames(ms)` (frame gaps and drawing time in the worker), `mode()` (`worker` or `page`), `zoom()` (the running wallpaper's), `sharpness()` (the ratio in force and the guard's verdict). The page can't read a canvas it handed to a worker.
-- **MEGACITY** (`megacity/`) is WebGL 2, the only one, because its city has tens of thousands of windows.
+- **MEGACITY** (`megacity/`) was the first in WebGL 2, because its city has tens of thousands of windows.
   - **One pass per pixel.** `city.ts` lays the city out once: per layer of towers, a skyline (per column, the top there and which tower it is), packed into a float texture. `shaders/city.frag` walks the layers near to far and stops at the first tower a pixel is inside. Its face, lit roof edge, edge strip and windows all come from the tower's seed, and the windows go on and off by the clock. Nothing is drawn twice, and nothing about the city is sent per frame.
+  - **Its cache** (0.13.1). The city's clock only switches windows, so the city is drawn into a cache once a second (the clock in whole seconds) and copied each frame. A new city, size, palette or glow draws it again at once. On the phone that took a frame's graphics work from 5.09 ms to 0.93 ms (fluid_motion 0.7.0).
   - **Small draws on top.** Then the signs, haze patches, beacons and drones (`sim.ts`, a few kilobytes a frame), and the foreground (`city.ts` foreground: the railing and the ledge).
   - **Shared with fluid_motion.** Its shaders are fluid_motion's too (`assets/shaders/mc_*`, kept the same), and its layout is ported rule for rule (`lib/megacity`).
 - **Sharpness** (0.14.0, `lib/sharpness.ts`).
@@ -204,11 +206,14 @@ The contract is `src/wallpaper/types.ts`: `create(canvas, { palette, glow, still
 - **HORIZON** (`horizon/`) is WebGL 2 too, with a depth buffer.
   - **The sky** is per pixel (`shaders/sky.frag`): the haze, the glow and its core. It never changes, so it's drawn only when the size, palette or glow changes; the canvas keeps it (`preserveDrawingBuffer`).
   - **The land** (`land.ts`) is made once per layout size: a field 64 units deep cut into cells that follow the layout's height (1 unit at 1080 CSS px; smaller for a bigger layout, so more triangles zoomed out, as the other wallpapers' detail; 0.5 to 1.2), about 12 000 triangles at 1080 px, plus a far wall of haze that fills the band up to the horizon. So every pixel below the horizon is redrawn each frame (scissored to the bottom half), and the sky above is left alone. Each strip of triangles is placed by the shader at its distance from the camera now (`uCamZ`, the only per-frame number). A strip passing behind the near clip comes round at the far end, deep in the haze, so the land never ends and never pops. Strips are drawn nearest first (two ranges of the buffer), so the depth test drops hidden fragments early; the haze amount is per vertex, its colour only where there is haze.
-  - **Edges** come from each triangle's corner weights and `fwidth`, so every line is the same few px wide at any distance. The far land fades into the same `haze()` the sky draws (one function, written into both shaders).
-  - **Shared with fluid_motion later:** the shaders are written to be its own too, byte for byte, when HORIZON is ported.
+  - **Edges** (0.17.4) come from each triangle's corner weights and their gradient's length (not `fwidth`, which over-reads slanted edges and draws them thinner, in steps), so every line is the same width at any distance and angle. The core is a soft bell; a wider glow (a Gaussian bloom and a long tail, its strength per GLOW level) sits round it. The far land fades into the same `haze()` the sky draws (one function, written into both shaders).
+  - **No multisampling.** `antialias: true` smoothed the hills' outlines but made it laggy on the user's machine (0.17.4, off again in 0.17.5). The outlines a near hill draws over the land behind stay slightly stepped.
+  - **Shared with fluid_motion** (its 0.8.0): its shaders are `assets/shaders/hz_*` there, byte for byte. The phone frames it through uniforms and its own mesh: smaller cells on an upright screen, strips far end first with no depth buffer, within a triangle budget (fluid_motion's ARCHITECTURE.md).
 - **SUNSET** (`sunset/`) is WebGL 2, the lightest of them. It has no geometry, textures or depth buffer: two full-screen triangles' worth of per-pixel shader.
   - **The sky** (`shaders/sky.frag`: the sky, stars, striped sun, glow, scanlines) is drawn once per size, palette or zoom, and kept (`preserveDrawingBuffer`).
-  - **Each frame** draws only the ground below the horizon (scissored, `shaders/ground.frag`). Each pixel finds the spot on the ground it sees, then its distance to the nearest grid line from `fwidth`. The only per-frame input is how far the grid has come, wrapped after whole squares and whole wave cycles.
+  - **Each frame** draws only the ground below the horizon (scissored, `shaders/ground.frag`). Each pixel finds the spot on the ground it sees, then its distance to the nearest grid line from the gradient's length (0.17.3), drawn as a soft bell with a Gaussian glow. The only per-frame input is how far the grid has come, wrapped after whole squares and whole wave cycles.
+  - **The horizon** (0.17.2–0.17.3). Far off, where squares are a few px, the lines fade into the dark ground with a little of their average light (they once piled up into a bright band). Below the horizon, the ground melts into the sky's own colour (the same gradient and sun glow `sky.frag` draws just above, `uMeltH`, 5% of the height), so there's no line between them.
+  - **Shared with fluid_motion** (its 0.8.0): `assets/shaders/ss_*`, byte for byte. `sky.frag` asks for `precision highp int` because its star hash multiplies 32-bit numbers, which phone GPUs would otherwise do at medium precision.
 - **`catalog.ts`** names the wallpapers for the page (SYSTEM's list, checking ids); **`registry.ts`** holds their engines (the worker, or the fallback).
 
 **To add a wallpaper:** create a folder under `src/wallpaper/`, export a `Wallpaper` from it, add it to `WALLPAPERS` in `registry.ts`, and its name card to `catalog.ts`. Its `id` is stored in layouts and backups, so it must never change once released.
@@ -242,6 +247,7 @@ The contract is `src/wallpaper/types.ts`: `create(canvas, { palette, glow, still
 - No pre-warm: the first frame is the whole picture.
 
 ### Matrix rain (`src/wallpaper/matrix-rain/`)
+- **Its light layers are CSS** (app.css), around the canvas: `.wallpaper-haze` behind it (a faint accent wash) and `.wallpaper-floor` over it (the darkening toward the bottom). Since 0.17.6 both span the full height along smooth curves with a stop every 10%: the haze is (1 + cos πt) / 2 of 7% accent, the floor t³ of the background. Earlier the floor covered only the bottom 16%, and the haze had corners at 55% and 95%; their edges read as lines across the screen. fluid_motion's `rain_composite.frag` works out the same curves per pixel.
 - **`params.ts`** holds every tunable number, matched to the reference wallpaper.
 - **`glyphAtlas.ts`** pre-draws every glyph, with its glow, once per layer into a sprite sheet (an OffscreenCanvas).
   - Its rows are HEAD, BODY and DIM, plus ERASE (each glyph's bare shape, a touch bolder) and HALO (a head with its shape cut out: the glow a head leaves behind). ERASE and HALO aren't needed for the first paint, so they're drawn right after it (`finish`).

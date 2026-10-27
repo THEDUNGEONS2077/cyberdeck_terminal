@@ -9,7 +9,7 @@ The design system comes from **quest_log_desktop**: `src/styles/theme.css` was c
 - **Motion** moves `transform` and `opacity` only. Endless loops use `animation-play-state: var(--loops)`, so Reduce Motion pauses them. Prefer a one-shot accent to a loop: a running loop makes the page draw every frame, and costs more the more bookmarks are on it.
 - **Icons** are text glyphs (`src/app/glyphs.ts`), not images.
 - **Components** use tokens only, never raw colours. That includes the wallpaper engines, which read their palette from the tokens.
-- **Palettes** (SYSTEM ▸ APPEARANCE ▸ DASHBOARD COLOURS and WALLPAPER COLOURS, chosen apart; `src/lib/palettes.ts`): PHOSPHOR (the original green), AMBER, ICE, NEON, BLOOD, AZURE (deep blues). A palette sets only the base tokens (`--bg`, the surfaces, `--line`, `--line-lit`, `--xp-wash`, the four text tones, `--accent-deep`, and `--cool`, a contrasting hue for two-tone wallpapers). Every glow, tint, rule and scanline is mixed from those in theme.css (`color-mix`), so nothing stays green. Each palette keeps the colour rule above, and a unit test checks it (dim, text, accent and bright text at 4.5:1 or better on the background and both surfaces; bright text on the wash). The swatches in SYSTEM preview each palette in its own colours.
+- **Palettes** (SYSTEM ▸ APPEARANCE ▸ DASHBOARD COLOURS and WALLPAPER COLOURS, chosen apart; `src/lib/palettes.ts`): eight. PHOSPHOR (the original green: MATRIX RAIN's), AMBER, ICE (DATA FLOW starts in it), NEON (MEGACITY's reference), BLOOD (made for NEURAL NET; VELOCITY's too), AZURE (deep blues, made for the old ORBIT), SYNTH (hot pink over teal, made for HORIZON, 0.15.0) and OUTRUN (gold melting into hot pink, over blue, made for SUNSET, 0.16.0). Every wallpaper works with every palette; the one made for it gives the reference's look. A palette sets only the base tokens (`--bg`, the surfaces, `--line`, `--line-lit`, `--xp-wash`, the four text tones, `--accent-deep`, and `--cool`, a contrasting hue for two-tone wallpapers). Every glow, tint, rule and scanline is mixed from those in theme.css (`color-mix`), so nothing stays green. Each palette keeps the colour rule above, and a unit test checks it (dim, text, accent and bright text at 4.5:1 or better on the background and both surfaces; bright text on the wash). The swatches in SYSTEM preview each palette in its own colours.
 
 ## The wallpaper's look
 Reference: `wallhaven-01ye3v2.jpg`, a dense matrix rain. Measured from it, at 1920×1080:
@@ -20,9 +20,11 @@ Reference: `wallhaven-01ye3v2.jpg`, a dense matrix rain. Measured from it, at 19
 | Brightness down the screen, green channel by eighths | 21 22 20 19 17 15 13 7 | 23 22 20 18 16 15 12 4 (`END_BIAS`, `TRAIL_SECONDS`, `.wallpaper-floor`) |
 | Body glyphs | Muted green, about rgb(70,101,70) | `--text` / `--text-dim`, desaturated 50% (`BODY_DESATURATE`) |
 | Heads | Pale, nearly white, glowing | `--text-bright` with an `--accent` glow, on some drops only (`headChance`) |
-| Haze | A faint green wash, even down most of the screen | `.wallpaper-haze` (`--accent-05`) |
+| Haze | A faint green wash, even down most of the screen | `.wallpaper-haze`: the accent, strongest at the top, fading on a smooth curve (0.17.6) |
 
 To re-measure, screenshot the page at 1920×1080 with the UI hidden. Then compare the average brightness of each eighth of the height with the reference.
+
+**Seamless top to bottom** (0.17.6, the user: "it needs to be a seamless and smooth gradient from black bottom to greenest top"). The floor used to darken only the bottom 16%, and its start read as a straight line across the screen; the haze had corners at 55% and 95%. Both now span the full height along curves with no corners: the haze (1 + cos πt) / 2 of 7% accent, the floor t³ of the background (nothing at the top, black at the bottom edge). The green channel by eighths at HIGH glow is now 37 36 30 27 19 14 7 2: it falls steadily, with no step. The middle is a little darker than before, because the fade starts higher.
 
 **The glow** (SYSTEM ▸ WALLPAPER ▸ GLOW; user request 2026-10-22: more glow). The table above is LOW.
 
@@ -35,7 +37,7 @@ To re-measure, screenshot the page at 1920×1080 with the UI hidden. Then compar
 
 - A head's glow stays behind it as it moves on and fades with the trail, so lit trails glow as soft streaks, more so at each level.
 - When a glyph changes in place, only its own shape is cut out before the new one is drawn. The glow around it stays continuous: clearing whole cells left dark boxes in it.
-- The glyphs stay legible at every level; the bottom still thins out to black.
+- The glyphs stay legible at every level; the bottom still fades to black.
 
 ## The neural net's look
 Reference: `neural net pape.jpg`, a plexus: glowing nodes joined by long thin lines, with out-of-focus particles, a deep teal sky and a strong red glow rising from the bottom right. Measured from it, at 1920×1080:
@@ -106,12 +108,14 @@ Reference: `wallhaven-xl61ol.png` (the user's, 2026-10-26): a synthwave scene, a
 
 | Property | Reference | How it's matched |
 |---|---|---|
-| The land | Low-poly jagged triangles in perspective, only their edges drawn (teal, thin), dark faces, filling the bottom half; the nearest edges blurred | A field of jittered points with heights, cut into triangles whose size follows the layout (more, smaller ones zoomed out, as the other wallpapers' detail); a pinhole camera 1 unit up, the horizon at the middle; edges 0.5 CSS px from each triangle's corner weights (`fwidth`), the same width at any distance, wider and softer within a few units (the depth of field); `--cool` (SYNTH's teal) |
+| The land | Low-poly jagged triangles in perspective, only their edges drawn (teal, thin), dark faces, filling the bottom half; the nearest edges blurred | A field of jittered points with heights (gentler peaks since 0.17.4), cut into triangles whose size follows the layout (more, smaller ones zoomed out, as the other wallpapers' detail); a pinhole camera 1 unit up, the horizon at the middle; edges with a 0.5 CSS px core from each triangle's corner weights, the same width at any distance and angle, wider and softer within a few units (the depth of field); `--cool` (SYNTH's teal) |
 | The glow | A hot pink glow on the horizon, a small white core just above the middle, a tall dome of haze | The accent, as a glow and a taller dome; a white-hot core with a little bloom |
 | The sky | Dark plum, darker at the corners | Dark mixes of the accent, top to bottom; a soft falloff to the corners |
 | The haze | The far land lost in pink haze | The land fades by distance into the very same haze the sky draws (one function in both shaders, bloom and corners included, so there's no seam) |
 
 The motion is our own, and slow: the camera glides forward (0.45 units a second), so the hills roll toward you without end. Nothing else moves, so the sky is drawn once (0.15.1, for smoothness: "detail can be lowered"). ZOOM narrows the view and widens the lines. SYNTH (hot pink over teal) was added for it; every palette makes its own HORIZON.
+
+**Glow and smoothness** (0.17.4, the user: "I want the geometric hills to glow more, make them a bit smoother too"). Each edge is a soft bell-shaped core with a wider, stronger glow round it (a Gaussian bloom and a long tail), stronger at every GLOW level (edge glow 0.2 / 0.32 / 0.45 / 0.62). Lines are measured straight across, so slanted ones no longer step, and the sharpest peaks are a little lower. The browser's multisampling also smoothed the hills' outlines, but it made HORIZON laggy, so it's off (0.17.5): the outline of a near hill over the land behind stays slightly stepped.
 
 ## Sunset's look
 Reference: `1541088888512.jpg` (the user's, 2026-10-26): the outrun sunset.
@@ -120,10 +124,15 @@ Reference: `1541088888512.jpg` (the user's, 2026-10-26): the outrun sunset.
 |---|---|---|
 | The sun | Big, on the horizon a little above the middle, golden at the top melting through orange to pink, gaps from a third of the way down widening toward the base, a magenta glow | A disc (radius 17% of the height) from `--text-bright` (OUTRUN's gold) to the accent, gaps every 0.15 of its radius from 10% to 50% wide, anti-aliased; the horizon cuts its base; the accent's glow round it |
 | The sky | Night, purple on the left, blue on the right, darker up top, fine stars | The accent-and-cool mix to the cool colour across, darker up top; a star in 0.6% of 3 CSS px cells (an integer hash: no streaks), a rare bright one |
-| The grid | Squares in perspective, gently rolling, pink and orange on the left, teal on the right, into pink haze at the horizon | Per pixel: the spot on the ground each pixel sees, then px to the nearest line from `fwidth` (1 CSS px lines, a soft glow), the rows waving across; far off, where squares are a few px, the lines blend into their average light; the haze a soft drift of the accent |
+| The grid | Squares in perspective, gently rolling, pink and orange on the left, teal on the right, into pink haze at the horizon | Per pixel: the spot on the ground each pixel sees, then px to the nearest line straight across (a soft bell-shaped core and a glow: "smooth glowing lines", 0.17.3), the rows waving across; far off, where squares are a few px, the lines fade into the dark ground with a little of their average light; at the horizon the ground melts into the sky (below) |
 | The texture | CRT scanlines | A darker row every 3 CSS px |
 
 The motion is our own, and the only motion: the grid glides toward you (0.6 units a second). Built to be as light as possible: the sky is drawn once; each frame is one short shader over the bottom 39% of the screen. OUTRUN (gold, hot pink, blue) was added for it.
+
+**The horizon** took three tries, and is the clearest case of the user's rule that nothing may show a line:
+- **0.16.0:** the far grid crowded into a thick bright band of thin lines under the sun, its averaged light capped at 38% under a pink haze 7% of the height deep.
+- **0.17.2:** the far lines faded into the dark ground instead, under a shorter haze. The band was fainter and thinner, but still a band ("No it doesn't look right, can you get rid of that line completely?").
+- **0.17.3:** the haze went. Right at the horizon the ground is the sky's own colour (the same gradient and sun glow drawn just above it), melting into the grid over 5% of the height, so the grid runs straight into the night.
 
 ## The bookmarks deck
 - **Header bar:** titled **NAV**, in the desktop's centre-header look (scanlines, phosphor, a lit rule underneath).
@@ -161,9 +170,10 @@ The motion is our own, and the only motion: the grid glides toward you (0.6 unit
 
 ## Modules
 - **A module is a panel like NAV's:** a solid frame with scanlines and phosphor, a header with `> TITLE` and a short dimmed note on the right, and a lit rule under it.
-- **UI SCALE** (0.17.0): the whole UI (not the wallpaper) is drawn with CSS `zoom` on `#root`, a real relayout, so text stays crisp at any step; TEXT SIZE scales the type tokens alone (`--text-scale`). Panels keep their places as shares of the window, so a much bigger UI can make them overlap: move them in edit mode.
 - **A 9 px floor** (0.14.0): the small sizes (`--fs-meta`, `--fs-small`, `--fs-micro`) never go below 9 px in a module; 70% of them was 7–8 px, too small to read.
 - **Drawn at 70%** (user request, 2026-10-24; SYSTEM ▸ MODULE SIZE changes it since 0.17.0): `.module` sets the type, spacing and control tokens again, scaled (`--m`, from `--module-scale`), and draws its stored width as `--mw`. No `zoom` or transform of its own, so its grips measure what's drawn. What you click keeps WCAG 2.2's 24 px target (buttons, grip, ⋯, the fold heading). The brand panel and NAV keep their sizes.
+- **CLOCK** (0.18.0): a big clock and the date under it, nothing else. Its digits fill the module's width, so its resize edge sets the clock's size. 24- or 12-hour time, seconds and the date are SETTINGS.
+- **A module's own sizes** (0.18.0): each module's SETTINGS has its own UI SCALE, TEXT SIZE and MODULE SIZE, each following the dashboard (· DASHBOARD) until changed. (C6 plans to merge its UI SCALE and MODULE SIZE into one SIZE, and to make following the dashboard an explicit choice.)
 - **Bare modules** (SEARCH, QUICK LAUNCH): no header outside EDIT; the frame is only a 3 px scanlined ring round the field or the tiles.
 - **In EDIT** its frame turns dashed and lit, as NAV's does. It gets a `⠿` grip on the left, a `⋯` on the right and a resize edge down its right side. Its contents dim and rest: nothing opens mid-arrangement.
 - **Where they go:** down the right-hand side, beside NAV. In a narrow window, they stack under NAV.
@@ -172,6 +182,16 @@ The motion is our own, and the only motion: the grid glides toward you (0.6 unit
 - **TIME:** a terminal readout. The clock is large and bright (tabular figures). Countdowns are rows of label · dotted rule · value. Under them, `▸ TIMER · STOPWATCH` folds the timer and stopwatch open, with the folders' fold. A countdown due today, or a finished timer, is lit in the accent.
 - **Names only, everywhere** (user request, 2026-10-24): tiles, folder rows, QUICK LAUNCH and the finder show a bookmark's name, never its address (it's in the tooltip).
 - **The brand panel is optional:** in EDIT its corner holds the grip and a ⋯ (REMOVE); + MODULE ▸ BRAND PANEL brings it back.
+
+## Sizes (0.17.0)
+The user keeps the dashboard zoomed (about 175%), and Chrome shares one zoom between this page and quest_log_desktop (same site). So the dashboard has sizes of its own, in SYSTEM ▸ APPEARANCE:
+- **UI SCALE** (50–300%, with presets 75–200% and the keys [ and ]): the whole UI, not the wallpaper, is drawn with CSS `zoom` on `#root`. That's a real relayout, so text stays crisp at any step.
+- **TEXT SIZE** (80–150%): the type tokens alone (`--text-scale`).
+- **MODULE SIZE** (50–100%, 70% until chosen): the modules against NAV and the panels.
+- **CHROME ZOOM:**
+  - **IGNORE** (the default): the dashboard works out Chrome's zoom and cancels it, so it stays at UI SCALE whatever zoom quest_log uses. Since 0.17.1 the wallpaper cancels it too, looking as it does at 100%.
+  - **APPLY:** lets Chrome's zoom work on top.
+- **Panels keep their places** as shares of the window, so a much bigger UI can make them overlap: move them in edit mode.
 
 ## The UI over the wallpaper
 - **The HUD.** The brand panel (the desktop's `.masthead`: scanlines, corner brackets) sits top left, compact (since 0.8.1: the name at half the title size, 11 px; the panel about 30% smaller; the time on the left and the date on the right). The key hints (`[F] FULLSCREEN`, `[S] SYSTEM`) sit bottom right, and both are buttons.
