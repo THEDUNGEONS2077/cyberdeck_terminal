@@ -31,7 +31,7 @@
 ## Startup
 `index.html` holds the wallpaper's canvas as plain HTML, and lists every file the start needs (fonts, the first chunks, and the app's chunk as a `modulepreload`), so they're all fetched at once.
 1. `src/main.tsx`, the first chunk (about 1 KB, plus the host's, about 100 KB since the worker inlined in it carries every wallpaper's engine; 0.18.0 build), starts the wallpaper at once: `wallpaper/host.ts` hands the canvas to the wallpaper's worker (its code is inlined in the host's chunk, so there's no extra request). The worker loads its font, draws its sprite sheets, pre-warms and animates, all off the page's main thread.
-2. It then `import()`s `src/start.tsx` (storage + React + dashboard, about 340 KB at 0.18.0; C7 measures what's in it). With the rain in its worker, the app starts as soon as it arrives (until 0.5.0 it waited for the rain's pre-warm on the same thread).
+2. It then `import()`s `src/start.tsx` (storage + React + dashboard, about 340 KB: react-dom is 202 KB of it, React 8 KB, and the app's own code about 120 KB with no file over 14 KB; measured in C7, 0.19.0). With the rain in its worker, the app starts as soon as it arrives (until 0.5.0 it waited for the rain's pre-warm on the same thread).
 
 The pre-warm records the simulation into typed arrays and paints each visible glyph once: bright ones first (the canvas fades in then), then the faint rest and the heads' leftover glows during the fade.
 
@@ -43,6 +43,14 @@ Timings come from `npm run e2e:perf`. It simulates a 120 ms network delay and me
 | Dashboard | about 0.07 s | about 0.27 s |
 
 A first visit: rain about 0.37 s, dashboard about 0.43 s (the test server's HTTP/1.1 limit of 6 connections delays the app's chunk; GitHub Pages serves HTTP/2).
+
+**The C7 baseline (0.19.0, 2026-10-28)** is what later speed work compares against. Nothing was cut in C7: each figure below was already small, so the pass changed no behaviour.
+- **Opening** (`e2e:perf` A): repeat visits 88–158 ms to the dashboard at normal CPU and 374–451 ms at 4× slower; a first visit 456 ms and 714 ms. Most of it is the simulated network delay, and the app's own script is about 16 ms of start-up at 4× slower. With the default layout there's no long task; with the 2,000-link layout, 89 ms at 4× slower.
+- **Idle** (the dashboard showing, the rain in its worker): about 0.5–1.9 ms of page script a second, 10–14 ms of main-thread work in all. The brand panel's scanline drift, refresh band and LIVE dot cost 2–4 ms of that and 4 style recalculations a second; they're kept, being the panel's look, and stop with Reduce Motion and in hidden tabs.
+- **The rain** (`e2e:motion`): every frame on time at 60 Hz, at normal and 4× slower CPU; 17.5–25 ms a second of drawing in its worker, 0.5–1.7 ms of page script.
+- **Each wallpaper's drawing script in its worker** (ms a second, 1920×1080 at 1×): MATRIX RAIN 22, NEURAL NET 36 (the most: every link is its own stroke, twice, so it fades smoothly), VELOCITY 16, DATA FLOW 22, MEGACITY 6, HORIZON 2, SUNSET 3. The test browser here has no GPU, so frame gaps for the GPU-heavy ones mean nothing here; the user's PC runs them smoothly.
+- **Dragging on the big bar** (`e2e:perf` D at 4× slower; `PERF_REPEAT=4`): median frame 16.7 ms, 10–14 of about 103 frames over 25 ms. The first drag of a page is slower (36 of 111). 0.16.0 measured the same or worse (17–36), so nothing has regressed; 0.3.0's "7 of 108" was a single good run. Timings on this machine vary run to run: compare several runs, never one.
+- **Chunks:** the start (`main` + `host`) 103 KB, of which the inlined worker is 92 KB (every engine: one fewer round trip before the rain, so it stays whole); the app 339 KB (104 KB gzipped); the page-fallback engines (`registry`) 87 KB, loaded only when a worker can't run.
 
 `app:start`, `app:booted` and `app:ui` performance marks time the app's stages; the wallpaper's `rain-atlas` and `rain-prewarm` measures come from its worker into the page's timeline.
 
