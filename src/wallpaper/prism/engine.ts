@@ -1,21 +1,22 @@
 /**
  * src/wallpaper/prism/engine.ts: the PRISM wallpaper: a field of smoky glass
- * blocks lit magenta and blue from inside and behind, with neon tubes
- * running among them (params.ts has the reference and how it's matched).
+ * blocks lit magenta and blue from inside and behind (params.ts has the
+ * reference and how it's matched).
  *
  * Layer: wallpaper (WebGL 2; no React, no stores, no DOM: it runs in the
  * wallpaper's worker, wallpaper/worker.ts, on an OffscreenCanvas).
  *
  * Built for smoothness, as HORIZON and SUNSET are:
  *   - one background triangle (back.frag), then every block in one
- *     instanced draw, then every tube in another: three draw calls;
+ *     instanced draw: two draw calls;
  *   - no depth buffer: glass is see-through, so the blocks are drawn back
  *     to front (field.ts sortBackToFront: an insertion sort each frame, the
  *     order barely changing as the camera sways), and within a block its
  *     far faces before its near ones (the cube's buffer lists them so: from
  *     the camera's high corner every block shows the same three faces);
- *   - edges and neon are worked out per pixel (smooth at any angle, no
- *     multisampling: WORKING.md);
+ *   - edges are worked out per pixel, and each face's own outline fades out
+ *     over one device px (box.frag): smooth at any angle without
+ *     multisampling (WORKING.md);
  *   - nothing new is made per frame: the blocks' instance data is written
  *     into one reused array.
  * Up to about 72 frames a second. If WebGL 2 isn't there, a still 2D
@@ -26,13 +27,11 @@ import type { GlowLevel } from '@/lib/layout';
 
 import { type Wallpaper, type WallpaperInstance, type WallpaperOptions, type WallpaperPalette, zoomedSize } from '../types';
 import { BOX, type Field, type Rng, breath, buildField, cameraAt, sortBackToFront } from './field';
-import { CAMERA, EDGE, GLASS, MAX_DPR, MAX_FRAME_STEP, MIN_FRAME_MS, PRISM_GLOW, PULSE, TUBE } from './params';
+import { CAMERA, EDGE, GLASS, MAX_DPR, MAX_FRAME_STEP, MIN_FRAME_MS, PRISM_GLOW } from './params';
 import backFrag from './shaders/back.frag?raw';
 import boxFrag from './shaders/box.frag?raw';
 import boxVert from './shaders/box.vert?raw';
 import fullVert from './shaders/full.vert?raw';
-import tubeFrag from './shaders/tube.frag?raw';
-import tubeVert from './shaders/tube.vert?raw';
 
 /** A colour as 0–1 RGB (the shaders' uniforms). */
 type Rgb = [number, number, number];
@@ -57,8 +56,6 @@ export interface PrismTones {
   blue: Rgb;
   /** The blocks' edges: the cool colour, lifted. */
   edge: Rgb;
-  /** The neon: the cool colour lifted most of the way to white (the reference's about rgb(172, 226, 245)). */
-  neon: Rgb;
 }
 
 /** The tones for a palette: everything from its --bg, --accent and --cool. */
@@ -71,8 +68,8 @@ export function prismTones(p: WallpaperPalette): PrismTones {
   const navy = mix(mix(bg, cool, 0.12), accent, 0.035);
   // Edges a dim, cool glint (the reference's thin teal lines), not lit wires.
   const edge = mix(cool, white, 0.3).map((v) => v * 0.45) as Rgb;
-  // The blue pools at half the magenta's strength: the reference's blue is mostly the neon's own.
-  return { navy, magenta: accent, blue: cool.map((v) => v * 0.55) as Rgb, edge, neon: mix(cool, white, 0.42) };
+  // The blue pools at half the magenta's strength: in the reference the magenta leads.
+  return { navy, magenta: accent, blue: cool.map((v) => v * 0.55) as Rgb, edge };
 }
 
 /** A compiled program, its uniforms looked up once each. */
@@ -158,20 +155,16 @@ export function cubeVertices(): Float32Array {
 interface Gpu {
   back: Program;
   box: Program;
-  tube: Program;
   empty: WebGLVertexArrayObject;
   boxVao: WebGLVertexArrayObject;
   instances: WebGLBuffer;
-  tubeVao: WebGLVertexArrayObject;
-  tubeBuffer: WebGLBuffer;
 }
 
 /** Sets up the programs and buffers; null if anything fails. */
 function setUp(gl: WebGL2RenderingContext): Gpu | null {
   const back = compile(gl, fullVert, backFrag);
   const box = compile(gl, boxVert, boxFrag);
-  const tube = compile(gl, tubeVert, tubeFrag);
-  if (!back || !box || !tube) return null;
+  if (!back || !box) return null;
   // The cube (per vertex), then the blocks (per instance: min corner, size).
   const cube = gl.createBuffer()!;
   const instances = gl.createBuffer()!;
@@ -190,22 +183,8 @@ function setUp(gl: WebGL2RenderingContext): Gpu | null {
   gl.enableVertexAttribArray(3);
   gl.vertexAttribPointer(3, 3, gl.FLOAT, false, BOX * 4, 12);
   gl.vertexAttribDivisor(3, 1);
-  // The tubes (per instance: a, b, the pulse's phase).
-  const tubeBuffer = gl.createBuffer()!;
-  const tubeVao = gl.createVertexArray()!;
-  gl.bindVertexArray(tubeVao);
-  gl.bindBuffer(gl.ARRAY_BUFFER, tubeBuffer);
-  gl.enableVertexAttribArray(0);
-  gl.vertexAttribPointer(0, 3, gl.FLOAT, false, 28, 0);
-  gl.vertexAttribDivisor(0, 1);
-  gl.enableVertexAttribArray(1);
-  gl.vertexAttribPointer(1, 3, gl.FLOAT, false, 28, 12);
-  gl.vertexAttribDivisor(1, 1);
-  gl.enableVertexAttribArray(2);
-  gl.vertexAttribPointer(2, 1, gl.FLOAT, false, 28, 24);
-  gl.vertexAttribDivisor(2, 1);
   gl.bindVertexArray(null);
-  return { back, box, tube, empty: gl.createVertexArray()!, boxVao, instances, tubeVao, tubeBuffer };
+  return { back, box, empty: gl.createVertexArray()!, boxVao, instances };
 }
 
 /** The still picture, when WebGL 2 isn't there: the navy and a pool of each light. */
@@ -253,16 +232,6 @@ function createPrism(canvas: HTMLCanvasElement | OffscreenCanvas, options: Wallp
   let clock = 0;
   let announced = false;
   let lost = false;
-
-  /** Sends the tubes (once, and after a lost context). */
-  const sendTubes = () => {
-    if (!gl || !gpu) return;
-    const data = new Float32Array(field.tubes.length * 7);
-    field.tubes.forEach((t, i) => data.set([...t.a, ...t.b, t.phase], i * 7));
-    gl.bindBuffer(gl.ARRAY_BUFFER, gpu.tubeBuffer);
-    gl.bufferData(gl.ARRAY_BUFFER, data, gl.STATIC_DRAW);
-  };
-  sendTubes();
 
   /** Draws the scene at the clock's time. */
   const draw = () => {
@@ -324,23 +293,6 @@ function createPrism(canvas: HTMLCanvasElement | OffscreenCanvas, options: Wallp
       gl.bufferData(gl.ARRAY_BUFFER, sorted, gl.STREAM_DRAW);
       gl.bindVertexArray(gpu.boxVao);
       gl.drawArraysInstanced(gl.TRIANGLES, 0, 36, field.count);
-
-      // 3. The neon, added on top (light).
-      gl.blendFunc(gl.ONE, gl.ONE);
-      gl.useProgram(gpu.tube.program);
-      gl.uniformMatrix4fv(gpu.tube.u('uViewProj'), false, cam.viewProj);
-      gl.uniform2f(gpu.tube.u('uTargetPx'), gl.drawingBufferWidth, gl.drawingBufferHeight);
-      gl.uniform1f(gpu.tube.u('uReach'), TUBE.glow * 3 * dpr);
-      gl.uniform3fv(gpu.tube.u('uNeon'), tones.neon);
-      gl.uniform1f(gpu.tube.u('uDensity'), dpr);
-      gl.uniform1f(gpu.tube.u('uCoreW'), TUBE.width);
-      gl.uniform1f(gpu.tube.u('uGlowW'), TUBE.glow);
-      gl.uniform1f(gpu.tube.u('uGlowAmt'), g.tube);
-      gl.uniform1f(gpu.tube.u('uTime'), clock);
-      gl.uniform1f(gpu.tube.u('uSpeed'), PULSE.speed);
-      gl.uniform1f(gpu.tube.u('uPulseLen'), PULSE.length);
-      gl.bindVertexArray(gpu.tubeVao);
-      gl.drawArraysInstanced(gl.TRIANGLE_STRIP, 0, 4, field.tubes.length);
       gl.bindVertexArray(null);
       gl.disable(gl.BLEND);
     } else if (!gl) {
@@ -415,7 +367,6 @@ function createPrism(canvas: HTMLCanvasElement | OffscreenCanvas, options: Wallp
   target.addEventListener('contextrestored', () => {
     lost = false;
     gpu = gl ? setUp(gl) : null;
-    sendTubes();
     draw();
   });
   return instance;

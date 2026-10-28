@@ -1,6 +1,6 @@
 /**
  * src/wallpaper/prism/field.ts: PRISM's scene: the glass blocks, the lights
- * among them and the neon tubes, made once from a random source; the camera
+ * among them, made once from a random source; the camera
  * (its matrices, swaying); and the blocks' order back to front.
  *
  * Layer: wallpaper (pure: no canvas, no WebGL), so tests check it and a
@@ -11,7 +11,7 @@
  * floating ones sparse, and a block is only placed above cells whose blocks
  * end below its floor, so no two ever cut through each other.
  */
-import { BLOCKS, BREATHE, CAMERA, FIELD, LIGHTS, SWAY, TUBES } from './params';
+import { BLOCKS, BREATHE, CAMERA, FIELD, LIGHTS, SWAY } from './params';
 
 /** A random number source returning 0 ≤ n < 1 (injectable for tests). */
 export type Rng = () => number;
@@ -33,23 +33,15 @@ export interface Light {
   phase: number;
 }
 
-/** A neon line: its ends (units), and where a pulse along it stands (its phase offset). */
-export interface Tube {
-  a: [number, number, number];
-  b: [number, number, number];
-  phase: number;
-}
-
 /** The scene. */
 export interface Field {
   /** Each block: min corner (x, y, z) and size (w, h, d), 6 floats each. */
   boxes: Float32Array;
   count: number;
   lights: Light[];
-  tubes: Tube[];
 }
 
-/** Half the width of the field's part in view, around the camera's target (units): where the lights and tubes go. */
+/** Half the width of the field's part in view, around the camera's target (units): where the lights go. */
 export const VIEW = 6;
 
 /** Floats per block in `Field.boxes`. */
@@ -108,25 +100,7 @@ export function buildField(rng: Rng): Field {
     light(i < LIGHTS.magenta ? 0 : 1, x, between(rng, [0.3, 2.6]), z, between(rng, LIGHTS.reach));
   }
 
-  // Neon runs: a pair of lines along x or z, on a layer's floor or a block's top, each lighting its surroundings blue.
-  const tubes: Tube[] = [];
-  for (let i = 0; i < TUBES.runs; i++) {
-    const alongX = rng() < 0.5;
-    const len = whole(rng, TUBES.length);
-    // Running through the part in view: its middle within VIEW, across and along.
-    const u0 = Math.round(between(rng, [-VIEW, VIEW]) - len / 2);
-    const v = Math.round(between(rng, [-VIEW, VIEW]));
-    const y = FIELD.layers[Math.floor(rng() * FIELD.layers.length)]! + between(rng, [0, 1.4]);
-    const phase = rng();
-    for (const off of [-TUBES.spacing / 2, TUBES.spacing / 2]) {
-      const a: [number, number, number] = alongX ? [u0, y, v + off] : [v + off, y, u0];
-      const b: [number, number, number] = alongX ? [u0 + len, y, v + off] : [v + off, y, u0 + len];
-      tubes.push({ a, b, phase });
-    }
-    const mid = alongX ? [u0 + len / 2, y, v] : [v, y, u0 + len / 2];
-    light(1, mid[0]!, mid[1]!, mid[2]!, Math.max(1.6, len * 0.3));
-  }
-  return { boxes: new Float32Array(boxes), count: boxes.length / BOX, lights, tubes };
+  return { boxes: new Float32Array(boxes), count: boxes.length / BOX, lights };
 }
 
 /** A 4×4 matrix, column-major (as WebGL takes it). */

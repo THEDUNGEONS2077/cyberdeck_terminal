@@ -5,8 +5,12 @@
 // dark with distance. Its edges are thin lit lines: how far a pixel is from
 // the face's edge (units), over how fast that changes across the screen
 // (its gradient's length), gives px, so every edge is the same smooth width
-// at any distance and angle (as HORIZON's lines). Premultiplied: the body
-// blends over what's behind; the light and the edges add to it.
+// at any distance and angle (as HORIZON's lines). Each line sits wholly
+// inside its face (its centre a core-width in), and the face's own outline
+// fades out over its last device px: without multisampling, a triangle's
+// edge is a hard step, and the bright glass against the dark stepped
+// (0.23.1). Premultiplied: the body blends over what's behind; the light
+// and the edges add to it.
 precision highp float;
 
 const int MAX_LIGHTS = 16;
@@ -49,9 +53,13 @@ void main() {
     vec3 e = min(vLocal, vSize - vLocal);
     float d = a.x > 0.5 ? min(e.y, e.z) : (a.y > 0.5 ? min(e.x, e.z) : min(e.x, e.y));
     float g = length(vec2(dFdx(d), dFdy(d)));
-    float px = d / max(g, 1e-6) / uDensity;  // CSS px
-    float core = exp(-0.5 * pow(px / max(uEdgeW, 0.3), 2.0));
-    float glow = uGlowAmt * exp(-0.5 * pow(px / uEdgeGlow, 2.0));
+    float dev = d / max(g, 1e-6);  // device px to the face's edge
+    float px = dev / uDensity;     // CSS px
+    float off = px - uEdgeW;       // from the line's centre, a core-width in
+    float core = exp(-0.5 * pow(off / (0.6 * uEdgeW), 2.0));
+    float glow = uGlowAmt * exp(-0.5 * pow(off / uEdgeGlow, 2.0));
+    // The outline: full cover a device px in, none at the triangle's edge.
+    float cover = clamp(dev, 0.0, 1.0);
 
     // Fading into the dark with distance (the far blocks sink into the navy).
     float fade = 1.0 - smoothstep(uFar * 0.55, uFar, length(uEye - vWorld));
@@ -60,5 +68,5 @@ void main() {
     vec3 body = uBody * 0.7 * alpha;
     vec3 add = (light * catchLight + uEdge * 0.25 * fres * uFresnel) * fade;
     add += (uEdge + light * 0.6) * (core + glow) * fade;
-    fragColor = vec4(body + add, alpha);
+    fragColor = vec4(body + add, alpha) * cover;
 }

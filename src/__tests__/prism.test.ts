@@ -1,7 +1,7 @@
 /**
  * src/__tests__/prism.test.ts: PRISM's rules (wallpaper/prism): the field
  * (the same for a seed, blocks never cutting through each other, the lights
- * and tubes in view), the cube's faces (outward, far ones first), the
+ * in view), the cube's faces (outward, far ones first), the
  * blocks' order back to front, and its colours from every palette.
  */
 import { describe, expect, it } from 'vitest';
@@ -9,7 +9,7 @@ import { describe, expect, it } from 'vitest';
 import { PALETTES } from '@/lib/palettes';
 import { BOX, VIEW, breath, buildField, cameraAt, sortBackToFront } from '@/wallpaper/prism/field';
 import { cubeVertices, prismTones } from '@/wallpaper/prism/engine';
-import { FIELD, LIGHTS, TUBES } from '@/wallpaper/prism/params';
+import { FIELD, LIGHTS } from '@/wallpaper/prism/params';
 
 /** A seeded random source (mulberry32), so a field can be made twice. */
 function seeded(seed: number) {
@@ -49,15 +49,10 @@ describe('prism', () => {
     }
   });
 
-  it('puts the lights and the tubes in the part the camera sees', () => {
+  it('puts the lights in the part the camera sees', () => {
     const f = buildField(seeded(11));
-    expect(f.lights).toHaveLength(LIGHTS.magenta + LIGHTS.blue + TUBES.runs);
+    expect(f.lights).toHaveLength(LIGHTS.magenta + LIGHTS.blue);
     for (const l of f.lights) expect(Math.max(Math.abs(l.x), Math.abs(l.z))).toBeLessThanOrEqual(VIEW + 0.5);
-    expect(f.tubes).toHaveLength(TUBES.runs * 2);
-    for (const t of f.tubes) {
-      const mid = [(t.a[0] + t.b[0]) / 2, (t.a[2] + t.b[2]) / 2];
-      expect(Math.max(Math.abs(mid[0]!), Math.abs(mid[1]!))).toBeLessThanOrEqual(VIEW + 1);
-    }
     // Lights breathe a little, around their strength.
     expect(breath(f.lights[0]!, 0)).toBeGreaterThan(0.7);
     expect(breath(f.lights[0]!, 3)).toBeLessThan(1.3);
@@ -90,12 +85,12 @@ describe('prism', () => {
     }
   });
 
-  it('makes its colours from every palette, the neon the brightest', () => {
+  it('makes its colours from every palette: dark glass, edges brighter than it', () => {
     for (const p of PALETTES) {
       const c = p.colors;
       const t = prismTones({ bg: c.bg, line: c.line, dim: c.textDim, text: c.text, accent: c.accent, bright: c.textBright, cool: c.cool });
       const lum = (x: readonly number[]) => 0.2126 * x[0]! + 0.7152 * x[1]! + 0.0722 * x[2]!;
-      expect(lum(t.neon)).toBeGreaterThan(lum(t.edge));
+      expect(lum(t.edge)).toBeGreaterThan(lum(t.navy));
       expect(lum(t.navy)).toBeLessThan(0.12);
     }
   });

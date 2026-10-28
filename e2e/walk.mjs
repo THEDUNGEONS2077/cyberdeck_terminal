@@ -997,7 +997,7 @@ try {
     expect(u1.w === 1920 && u1.h === 1080, `SUNSET's canvas is ${u1.w}×${u1.h}`);
     expect(u1.sig !== u2.sig, 'SUNSET doesn’t move');
     await shot('18c-sunset');
-    // PRISM: glass blocks lit magenta and blue, neon among them; the camera sways and the lights breathe.
+    // PRISM: glass blocks lit magenta and blue; the camera sways and the lights breathe.
     await page.keyboard.press('s');
     await page.getByRole('radio', { name: 'PRISM' }).check({ force: true });
     await page.getByRole('radiogroup', { name: 'WALLPAPER COLOURS' }).getByRole('radio', { name: 'NEON' }).check({ force: true });

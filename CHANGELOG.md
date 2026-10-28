@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.23.1 (build 40)
+- **PRISM:**
+  - **No more glowing lines:** the neon tubes are gone, as you asked. A blue light pool takes the place of the light they gave.
+  - **Smooth edges:** the blocks' edge lines are thicker (1 px, was 0.6), and each glass face now smooths its own outline, so the edges no longer step against the dark.
+- **NEURAL NET's links are thicker on the dashboard** (1.3 px, was 0.9), so the last jagged ones are smooth. The phone app is unchanged: it keeps its own width.
+
 ## 0.23.0 (build 39)
 - **New wallpaper: PRISM** (SYSTEM ▸ WALLPAPER), from your reference: a field of smoky glass blocks lit magenta and blue from inside, with blue-white neon tubes running among them.
   - **Motion:** slow. The camera sways a little, the lights breathe, and now and then a pulse of light runs along a tube.

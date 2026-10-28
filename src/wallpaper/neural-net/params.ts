@@ -63,8 +63,13 @@ export const LINE_ALPHA: readonly [number, number] = [0.6, 0.16];
 /** Each link's own brightness, range: most are faint, a few shine. */
 export const LINK_WEIGHT: readonly [number, number] = [0.35, 1.6];
 
-/** A link's width (CSS px). */
-export const LINE_WIDTH = 0.9;
+/**
+ * A link's width (CSS px). 1.3 since 0.23.1 (was 0.9): the user still saw
+ * some jagged links on the web, and a line under a pixel wide can only be
+ * so smooth. The phone keeps its own 0.9 (NeuralParams.LINE_WIDTH): the
+ * user called it perfect there.
+ */
+export const LINE_WIDTH = 1.3;
 
 /** Signals: new ones a second, speed (CSS px/s), links they run (range), and how long a reached node stays lit (s). */
 export const PULSES_PER_SECOND = 1.1;

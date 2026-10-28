@@ -140,13 +140,13 @@ Reference: `wallhaven-lymvol.png` (the user's, 2026-10-28, 2560×1440): glass bl
 | Property | Reference | How it's matched |
 |---|---|---|
 | The blocks | Smoky glass blocks of many sizes from a high angle (edges running down-right and up-right), packed with thin seams, some stacked or floating | Blocks of 1–3 cells (0.5–2.2 units tall) on three layers, 90% / 42% / 20% full, 0.035-unit seams; a camera 38° down, turned 36°, 34° field of view |
-| The glass | Dark navy faces, about rgb(11, 10, 44) (56% of the picture); thin teal edges | The body a dark mix of `--bg`, `--cool` and a little `--accent` (NEON gives about the reference's navy), 80% opaque in front; edges a dim cool glint, 0.6 px with a soft glow, the same width at any angle |
-| The light | Magenta and violet inside and behind the glass (hue about 300°), blue elsewhere (200–240°) | Pools of `--accent` (six, strong and tight) and `--cool` (three, weaker) spread evenly over the view, tinting the faces near them, brightest on the tops |
-| The neon | Blue-white tubes, about rgb(172, 226, 245), in parallel pairs | `--cool` lifted 42% to white, in pairs 0.12 units apart, a 0.9 px core with a 5 px glow; each a blue pool too |
-| Brightness | Median 20 of 255; 90th percentile 83; brightest 1% 178; brighter towards the bottom | First pass (0.23.0): median 24–27, brightest 1% 177–184 over two layouts; the 90th percentile is lower (about 56): the reference has more mid-bright glass |
+| The glass | Dark navy faces, about rgb(11, 10, 44) (56% of the picture); thin teal edges | The body a dark mix of `--bg`, `--cool` and a little `--accent` (NEON gives about the reference's navy), 80% opaque in front; edges a dim cool glint, 1 px with a soft glow (0.6 px in 0.23.0 stepped), the same width at any angle, each face's outline smoothed over its last pixel |
+| The light | Magenta and violet inside and behind the glass (hue about 300°), blue elsewhere (200–240°) | Pools of `--accent` (six, strong and tight) and `--cool` (four, weaker) spread evenly over the view, tinting the faces near them, brightest on the tops |
+| The neon | Blue-white tubes, about rgb(172, 226, 245), in parallel pairs | Left out (0.23.1, the user: "the glowing lines don't make a lot of sense, remove that"). 0.23.0 drew them as pairs of glowing lines with pulses running along |
+| Brightness | Median 20 of 255; 90th percentile 83; brightest 1% 178 (its neon); brighter towards the bottom | 0.23.1: median 23, 90th percentile 44; the brightest 1% (83) is lower without the neon |
 | Left out | Colour fringing at the brightest edges; window-like frames inset in some blocks | Fringing would cost a pass over every pixel; the frames can come with the user's tweaks |
 
-The motion is its own and slow: the camera sways a few degrees (53 s and 67 s cycles), each light breathes (±22%, 9–17 s), and now and then a pulse of light runs along a tube. NEON (magenta over electric blue) suits it; every palette makes its own PRISM.
+The motion is its own and slow: the camera sways a few degrees (53 s and 67 s cycles), and each light breathes (±22%, 9–17 s). NEON (magenta over electric blue) suits it; every palette makes its own PRISM.
 
 ## The bookmarks deck
 - **Header bar:** titled **NAV**, in the desktop's centre-header look (scanlines, phosphor, a lit rule underneath).
