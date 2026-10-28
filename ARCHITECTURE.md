@@ -272,6 +272,7 @@ The contract is `src/wallpaper/types.ts`: `create(canvas, { palette, glow, still
   - **each link is a quad** (`shaders/link.vert`) whose fragment shader gives it a one-pixel soft edge at any angle, in two passes (a wide faint glow, then the line); each node and signal a sprite worked out per pixel (`spark.vert`);
   - **shared with the phone, byte for byte:** `shaders/link.frag`, `spark.frag` and `shade.glsl` are fluid_motion's `neural_link.frag`, `neural_spark.frag` and `neural_shade.glsl`. The vertex shaders are the web's own: they take each link's ends and each sprite per instance (`engine.ts` `pack`, into arrays reused frame to frame), since a big desktop screen holds more nodes than the phone's uniform arrays (128);
   - **cost:** the drawing script fell from about 36 to 4 ms a second; the GPU's work is a few hundred quads;
+  - **supersampled** (0.23.2): with WebGL it draws at twice the screen's pixels each way (`SUPERSAMPLE`, at most 4 canvas px per CSS px), and the browser shrinks the canvas to the screen, averaging each 2 × 2 block; thin links were still a little jagged at the screen's own resolution, most in the lower half where the red links are brightest. Its links are 1.3 CSS px since 0.23.1 (the phone keeps 0.9);
   - **without WebGL 2** the 2D drawing (`draw2d`: strokes and pre-drawn sprites, one per colour step) stands in. A lost context waits and starts again, as HORIZON's does.
 - No pre-warm: the first frame is the whole picture.
 

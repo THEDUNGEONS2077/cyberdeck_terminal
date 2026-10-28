@@ -49,6 +49,7 @@ import {
   LINK_WEIGHT,
   LINKS,
   MAX_DPR,
+  MAX_SUPERSAMPLED_DPR,
   MAX_FRAME_STEP,
   MAX_LINK,
   NEURAL_GLOW,
@@ -59,6 +60,7 @@ import {
   PULSE_SPEED,
   PULSES_PER_SECOND,
   SCATTER,
+  SUPERSAMPLE,
 } from './params';
 
 /** A random number source returning 0 ≤ n < 1 (injectable for tests). */
@@ -502,7 +504,9 @@ function createNeuralNet(canvas: HTMLCanvasElement | OffscreenCanvas, options: W
     resize(cw, ch, ratio, zoom) {
       if (destroyed || (!ctx && !gl)) return;
       // Zoomed: laid out for a screen 1/zoom as big, drawn zoom times as large (the canvas keeps its pixels).
-      const { w, h, dpr: nextDpr } = zoomedSize(cw, ch, ratio, zoom, MAX_DPR);
+      const { w, h, dpr: screenDpr } = zoomedSize(cw, ch, ratio, zoom, MAX_DPR);
+      // With WebGL, supersampled (params.ts SUPERSAMPLE): the browser shrinks the canvas to the screen.
+      const nextDpr = gl ? Math.min(screenDpr * SUPERSAMPLE, Math.max(screenDpr, MAX_SUPERSAMPLED_DPR)) : screenDpr;
       canvas.width = Math.round(w * nextDpr);
       canvas.height = Math.round(h * nextDpr);
       // The 2D drawing's sprites (the GPU works its sprites out per pixel).

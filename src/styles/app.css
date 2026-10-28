@@ -1298,8 +1298,8 @@ kbd {
 }
 .folder-title {
   flex: 1;
-  color: var(--accent);
-  text-shadow: var(--glow-text);
+  /* Soft like the tiles' titles (the user, 0.23.2): the head's bright text with a faint glow; the accent only on hover. */
+  text-shadow: var(--glow-text-faint);
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;

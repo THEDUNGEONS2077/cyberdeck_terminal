@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.23.2 (build 41)
+- **Folder names are soft again,** like the tiles: pale text with a faint glow, lighting up in the accent colour only when you point at them.
+- **NEURAL NET is drawn at twice the resolution each way** on the dashboard, then shrunk to fit the screen, which smooths the links that still stepped, mostly in the lower half. It's the lightest of the graphics-card wallpapers, so it has room for the extra pixels. A sharp (2×) screen goes up to 4×, no more. The phone app is unchanged.
+
 ## 0.23.1 (build 40)
 - **PRISM:**
   - **No more glowing lines:** the neon tubes are gone, as you asked. A blue light pool takes the place of the light they gave.
