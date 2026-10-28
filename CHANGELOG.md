@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.19.0 (build 35)
+- **NEURAL NET has no floating circles any more.** The soft, faint discs that drifted up behind the net are gone, at your request (on the phone too, in fluid_motion). The nodes, links, signals and glow are unchanged.
+- **A module's own sizes are simpler.**
+  - **One SIZE instead of two:** a module's UI SCALE and MODULE SIZE both just made it bigger or smaller, so they're one **SIZE** now (40–200%), beside **TEXT SIZE**.
+  - **DASHBOARD | OWN:** each has a switch. **DASHBOARD** follows SYSTEM ▸ APPEARANCE and shows its value. **OWN** shows − + RESET, starting from the dashboard's value.
+  - **No more undoing itself:** in 0.18.0, stepping a size onto the dashboard's value quietly switched it back to following the dashboard. OWN now stays OWN until you pick DASHBOARD.
+  - **Your layout:** a module that had its own sizes keeps the same size on screen. Its old UI SCALE and MODULE SIZE become its SIZE, and its TEXT SIZE is kept.
+- **Layout schema 6.** Layouts and backups from 0.18.0 and earlier open as they were, as described above.
+- **The clocks** (TIME, CLOCK) read the time just after they appear rather than during it (a code-quality fix; no visible change).
+
 ## 0.18.0 (build 34)
 - **New CLOCK module** (+ MODULE ▸ CLOCK): a big clock with the date under it.
   - **Size:** it fills the module's width, so dragging its right edge makes the clock bigger or smaller.

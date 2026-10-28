@@ -712,6 +712,26 @@ kbd {
   outline: var(--hairline) solid var(--accent);
   outline-offset: -2px;
 }
+/*
+ * A module's own size (SETTINGS ▸ SIZE, TEXT SIZE): DASHBOARD | OWN, then the
+ * dashboard's value or OWN's stepper beside it. Wraps under the label when
+ * the dialog is narrow.
+ */
+.own-size {
+  flex-wrap: wrap;
+  row-gap: var(--s-xs);
+}
+.own-size-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--s-sm);
+}
+/* The dashboard's value while following it: shown, but quieter than an OWN value. */
+.own-size-controls > .stepper-value {
+  color: var(--text-dim);
+}
 /* A value stepped with buttons: − 125% + RESET (SYSTEM ▸ APPEARANCE ▸ ZOOM). */
 .stepper {
   display: flex;

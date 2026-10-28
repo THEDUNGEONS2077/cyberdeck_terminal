@@ -18,9 +18,12 @@
  * modules stack under NAV in its scrolling area (app/Bookmarks.tsx), and
  * places are ignored, as NAV's own is.
  *
- * Its own sizes (0.18.0): SETTINGS has UI SCALE, TEXT SIZE and MODULE SIZE
- * for this module alone. Each one chosen replaces the dashboard's (SYSTEM ▸
- * APPEARANCE) for it; RESET goes back to following the dashboard. They're
+ * Its own sizes (0.19.0): SETTINGS has SIZE and TEXT SIZE for this module
+ * alone, each with a DASHBOARD | OWN switch. DASHBOARD follows the
+ * dashboard's (SYSTEM ▸ APPEARANCE: MODULE SIZE, TEXT SIZE); OWN shows a
+ * stepper that starts from the dashboard's value and stays OWN whatever
+ * value it reaches (0.18.0 went back to following the dashboard when a step
+ * landed on its value, which read as the setting undoing itself). They're
  * applied as CSS variables on the module's frame (--m, --text-scale), as the
  * dashboard's are, so text stays crisp.
  *
@@ -32,7 +35,7 @@
 import { type CSSProperties, memo, useId, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 
 import { type DashboardSizes, type ModuleInstance, type ModuleSizes, moduleScaleOf, moduleTextOf, removeModule, setSizes } from '@/lib/modules';
-import { MODULE_SCALE_STEPS, TEXT_SCALE_STEPS, UI_SCALE_STEPS, percentLabel } from '@/lib/scale';
+import { MODULE_OWN_STEPS, TEXT_SCALE_STEPS, nearestStep, percentLabel } from '@/lib/scale';
 import { editStore } from '@/store/edit';
 import { uiStore } from '@/store/ui';
 
@@ -94,10 +97,9 @@ export function StackedModules() {
 
 /** The dashboard's sizes (SYSTEM ▸ APPEARANCE), which a module follows unless it has its own. */
 function useDashboardSizes(): DashboardSizes {
-  const uiScale = useLayout((s) => s.layout.prefs.uiScale);
   const textScale = useLayout((s) => s.layout.prefs.textScale);
   const moduleScale = useLayout((s) => s.layout.prefs.moduleScale);
-  return useMemo(() => ({ uiScale, textScale, moduleScale }), [uiScale, textScale, moduleScale]);
+  return useMemo(() => ({ textScale, moduleScale }), [textScale, moduleScale]);
 }
 
 /**
@@ -203,32 +205,52 @@ export function ModuleSettingsDialog() {
   );
 }
 
-/** One of a module's own sizes: its value, or the dashboard's (marked so) while it follows it. */
-function OwnSize(props: { label: string; own: number | undefined; dashboard: number; steps: readonly number[]; set: (value: number | undefined) => void }) {
+/**
+ * One of a module's own sizes: DASHBOARD (follow the dashboard's, shown) or
+ * OWN (a stepper). OWN starts at the dashboard's value and stays OWN at any
+ * value, the dashboard's included; its RESET goes back to that start. Only
+ * DASHBOARD goes back to following.
+ */
+function OwnSize(props: { label: string; name: string; own: number | undefined; dashboard: number; steps: readonly number[]; set: (value: number | undefined) => void }) {
   const id = useId();
-  const value = props.own ?? props.dashboard;
-  const name = props.label.toLowerCase();
+  const what = props.label.toLowerCase();
+  // The dashboard's value as one of this size's steps (all of MODULE SIZE's and TEXT SIZE's are).
+  const start = nearestStep(props.steps, props.dashboard, props.dashboard);
+  const own = props.own !== undefined;
   return (
-    <div className="setting">
+    <div className="setting own-size">
       <span id={id}>{props.label}</span>
-      <Stepper
-        labelledBy={id}
-        value={value}
-        steps={props.steps}
-        fallback={props.dashboard}
-        less={`Make this module's ${name} smaller`}
-        more={`Make this module's ${name} bigger`}
-        reset={`Follow the dashboard's ${name}`}
-        resetText="DASHBOARD"
-        label={(v) => (props.own === undefined ? `${percentLabel(v)} · DASHBOARD` : percentLabel(v))}
-        // Back at the dashboard's value (RESET, or stepped onto it) means following it again.
-        onChange={(v) => props.set(v === props.dashboard ? undefined : v)}
-      />
+      <div className="own-size-controls">
+        <div className="segmented" role="radiogroup" aria-labelledby={id}>
+          <label title={`Follow the dashboard's ${what} (SYSTEM ▸ APPEARANCE)`}>
+            <input className="sr-only" type="radio" name={props.name} value="dashboard" checked={!own} onChange={() => props.set(undefined)} />
+            <span>DASHBOARD</span>
+          </label>
+          <label title={`A ${what} for this module alone`}>
+            <input className="sr-only" type="radio" name={props.name} value="own" checked={own} onChange={() => props.set(start)} />
+            <span>OWN</span>
+          </label>
+        </div>
+        {own ? (
+          <Stepper
+            labelledBy={id}
+            value={props.own ?? start}
+            steps={props.steps}
+            fallback={start}
+            less={`Make this module's ${what} smaller`}
+            more={`Make this module's ${what} bigger`}
+            reset={`Reset this module's ${what} to the dashboard's ${percentLabel(start)}`}
+            onChange={props.set}
+          />
+        ) : (
+          <output className="stepper-value">{percentLabel(props.dashboard)}</output>
+        )}
+      </div>
     </div>
   );
 }
 
-/** SIZE: this module's own UI SCALE, TEXT SIZE and MODULE SIZE (0.18.0). Each change is one undoable step. */
+/** SIZE and TEXT SIZE for this module alone (0.19.0). Each change is one undoable step. */
 function ModuleSizeSettings({ module }: { module: ModuleInstance }) {
   const dashboard = useDashboardSizes();
   const own = module.sizes ?? {};
@@ -237,9 +259,8 @@ function ModuleSizeSettings({ module }: { module: ModuleInstance }) {
   return (
     <div className="settings-group">
       <span className="setting-label">THIS MODULE'S SIZE · DASHBOARD = SYSTEM ▸ APPEARANCE</span>
-      <OwnSize label="UI SCALE" own={own.uiScale} dashboard={dashboard.uiScale} steps={UI_SCALE_STEPS} set={set('uiScale')} />
-      <OwnSize label="TEXT SIZE" own={own.textScale} dashboard={dashboard.textScale} steps={TEXT_SCALE_STEPS} set={set('textScale')} />
-      <OwnSize label="MODULE SIZE" own={own.moduleScale} dashboard={dashboard.moduleScale} steps={MODULE_SCALE_STEPS} set={set('moduleScale')} />
+      <OwnSize label="SIZE" name={`size-${module.id}`} own={own.scale} dashboard={dashboard.moduleScale} steps={MODULE_OWN_STEPS} set={set('scale')} />
+      <OwnSize label="TEXT SIZE" name={`text-${module.id}`} own={own.textScale} dashboard={dashboard.textScale} steps={TEXT_SCALE_STEPS} set={set('textScale')} />
     </div>
   );
 }

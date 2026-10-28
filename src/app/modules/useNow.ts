@@ -40,7 +40,8 @@ export function useNow(on: boolean, everySecond = true): Date {
       // A few ms late, so the read lands just after the edge rather than just before it.
       t = setTimeout(tick, nextTick(d, everySecond) + 5);
     };
-    tick();
+    // The first read straight after, not inside the effect: an effect shouldn't set state as it runs (React Compiler rules).
+    t = setTimeout(tick, 0);
     return () => clearTimeout(t);
   }, [on, everySecond]);
   return now;

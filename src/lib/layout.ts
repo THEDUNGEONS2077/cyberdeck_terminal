@@ -18,6 +18,7 @@
  *      panels (where NAV and the brand sit) (0.3.0)
  *   4  + modules: SEARCH, QUICK LAUNCH, TIME panels you add (0.11.0)
  *   5  + a module's own sizes (modules[].sizes), and the CLOCK kind (0.18.0)
+ *   6  a module's own UI SCALE and MODULE SIZE folded into one SIZE (sizes.scale; 0.19.0)
  */
 import { DEFAULT_PALETTE, type PaletteId } from './palettes';
 import { type Arrangement, type Panels, defaultPanels, emptyArrangement } from './arrange';
@@ -26,7 +27,7 @@ import type { ModuleInstance } from './modules';
 import { DEFAULT_MODULE_SCALE, DEFAULT_TEXT_SCALE, DEFAULT_UI_SCALE, percentLabel } from './scale';
 
 /** The current schema version of the layout document. */
-export const LAYOUT_SCHEMA_VERSION = 5;
+export const LAYOUT_SCHEMA_VERSION = 6;
 
 /** The wallpaper a new layout starts with (src/wallpaper/registry.ts lists them all). */
 export const DEFAULT_WALLPAPER_ID = 'matrix-rain';

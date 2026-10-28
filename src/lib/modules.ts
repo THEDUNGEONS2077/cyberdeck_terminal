@@ -3,7 +3,7 @@
  * size yourself, beside NAV and the brand panel (SEARCH, QUICK LAUNCH, TIME,
  * CLOCK).
  *
- * Layer: pure lib. The modules live in the layout document (schema 4), so
+ * Layer: pure lib. The modules live in the layout document (since schema 4), so
  * they're saved, snapshotted, backed up and restored with everything else.
  * Each kind's settings have their own rules (lib/search.ts, lib/launch.ts,
  * lib/time.ts, lib/clock.ts); here are the list's: adding one at a free spot, moving,
@@ -11,9 +11,11 @@
  * (unknown kinds and malformed entries are dropped one by one, never the
  * whole layout).
  *
- * Every module can also have its own sizes (0.18.0, schema 5): UI SCALE,
- * TEXT SIZE and MODULE SIZE of its own, each replacing the dashboard's for
- * that module alone (`ModuleSizes`, `moduleScaleOf`, `moduleTextOf`).
+ * Every module can also have its own sizes: a SIZE and a TEXT SIZE of its
+ * own, each replacing the dashboard's for that module alone (`ModuleSizes`,
+ * `moduleScaleOf`, `moduleTextOf`). 0.18.0 (schema 5) had three, UI SCALE,
+ * TEXT SIZE and MODULE SIZE, but its UI SCALE and MODULE SIZE both just made
+ * the module bigger: 0.19.0 (schema 6) folds them into one SIZE.
  *
  * The page knows how each kind looks from app/modules/catalog.ts.
  */
@@ -22,7 +24,7 @@ import { type ClockSettings, defaultClock, normalizeClock } from './clock';
 import { type LaunchSettings, defaultLaunch, normalizeLaunch } from './launch';
 import { type SearchSettings, defaultSearch, normalizeSearch } from './search';
 import { type TimeSettings, defaultTime, normalizeTime } from './time';
-import { MODULE_SCALE_STEPS, TEXT_SCALE_STEPS, UI_SCALE_STEPS, nearestStep } from './scale';
+import { MODULE_OWN_STEPS, TEXT_SCALE_STEPS, nearestStep } from './scale';
 
 /** The kinds of module. */
 export type ModuleKind = 'search' | 'launch' | 'time' | 'clock';
@@ -30,17 +32,16 @@ export type ModuleKind = 'search' | 'launch' | 'time' | 'clock';
 export const MODULE_KINDS: readonly ModuleKind[] = ['search', 'launch', 'time', 'clock'];
 
 /**
- * A module's own sizes (0.18.0). Each one that's set replaces the dashboard's
- * for this module alone; one that's missing follows the dashboard (SYSTEM ▸
- * APPEARANCE). Values are steps of lib/scale.ts.
+ * A module's own sizes (0.19.0, schema 6). Each one that's set (OWN) replaces
+ * the dashboard's for this module alone; one that's missing (DASHBOARD)
+ * follows the dashboard's (SYSTEM ▸ APPEARANCE). Values are steps of
+ * lib/scale.ts.
  */
 export interface ModuleSizes {
-  /** UI SCALE: the module's own size, instead of the dashboard's UI SCALE. */
-  uiScale?: number;
-  /** TEXT SIZE: its text, instead of the dashboard's TEXT SIZE. */
+  /** SIZE: how big it's drawn against the UI, instead of the dashboard's MODULE SIZE (MODULE_OWN_STEPS). */
+  scale?: number;
+  /** TEXT SIZE: its text, instead of the dashboard's TEXT SIZE (TEXT_SCALE_STEPS). */
   textScale?: number;
-  /** MODULE SIZE: how big it's drawn, instead of the dashboard's MODULE SIZE. */
-  moduleScale?: number;
 }
 
 /** A module of one kind: its id, where it sits (always placed: it has no usual spot), and its settings. */
@@ -143,20 +144,17 @@ export function setSizes(modules: readonly ModuleInstance[], id: string, sizes: 
 
 /** The dashboard's sizes a module's own replace (SYSTEM ▸ APPEARANCE; the layout's prefs). */
 export interface DashboardSizes {
-  uiScale: number;
   textScale: number;
   moduleScale: number;
 }
 
 /**
- * How big module content is drawn, against the UI's own px (app.css --m).
- * The UI is already drawn at the dashboard's UI SCALE (#root's zoom), so a
- * module with a UI SCALE of its own is drawn at its own ÷ the dashboard's:
- * it then looks the size it chose whatever the dashboard's is.
+ * How big module content is drawn, against the UI's own px (app.css --m):
+ * its own SIZE, else the dashboard's MODULE SIZE. Either way it's on top of
+ * the dashboard's UI SCALE (#root's zoom), as the rest of the UI is.
  */
 export function moduleScaleOf(sizes: ModuleSizes | undefined, dashboard: DashboardSizes): number {
-  const ui = sizes?.uiScale !== undefined ? sizes.uiScale / dashboard.uiScale : 1;
-  return (sizes?.moduleScale ?? dashboard.moduleScale) * ui;
+  return sizes?.scale ?? dashboard.moduleScale;
 }
 
 /** A module's TEXT SIZE: its own, else the dashboard's. */
@@ -170,10 +168,9 @@ export function normalizeSizes(v: unknown): ModuleSizes | undefined {
   const out: ModuleSizes = {};
   // A number snaps to its nearest step; anything else means "follow the dashboard".
   const snap = (steps: readonly number[], x: unknown) => (typeof x === 'number' && Number.isFinite(x) ? nearestStep(steps, x, steps[0]!) : undefined);
-  const ui = snap(UI_SCALE_STEPS, v.uiScale), text = snap(TEXT_SCALE_STEPS, v.textScale), module = snap(MODULE_SCALE_STEPS, v.moduleScale);
-  if (ui !== undefined) out.uiScale = ui;
+  const scale = snap(MODULE_OWN_STEPS, v.scale), text = snap(TEXT_SCALE_STEPS, v.textScale);
+  if (scale !== undefined) out.scale = scale;
   if (text !== undefined) out.textScale = text;
-  if (module !== undefined) out.moduleScale = module;
   return Object.keys(out).length ? out : undefined;
 }
 

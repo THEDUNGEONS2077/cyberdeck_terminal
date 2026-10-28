@@ -15,7 +15,7 @@ import { type Arrangement, type Area, type PanelPlace, type Panels, MAX_AREAS, c
 import { sanitizeTree } from './bookmarks';
 import { type BookmarksLayout, type GlowLevel, type LayoutDocument, GLOW_LEVELS, LAYOUT_SCHEMA_VERSION, MAX_OPEN_FOLDERS, defaultBookmarks, defaultPrefs, normalizeZooms } from './layout';
 import { normalizeModules } from './modules';
-import { DEFAULT_MODULE_SCALE, DEFAULT_TEXT_SCALE, DEFAULT_UI_SCALE, MODULE_SCALE_STEPS, TEXT_SCALE_STEPS, UI_SCALE_STEPS, nearestStep } from './scale';
+import { DEFAULT_MODULE_SCALE, DEFAULT_TEXT_SCALE, DEFAULT_UI_SCALE, MODULE_OWN_STEPS, MODULE_SCALE_STEPS, TEXT_SCALE_STEPS, UI_SCALE_STEPS, nearestStep } from './scale';
 import { normalizeSwitchTabs } from './switching';
 import { PALETTE_IDS, type PaletteId } from './palettes';
 
@@ -37,13 +37,40 @@ function isRecord(v: unknown): v is Record<string, unknown> {
  *   3 → 4: no modules yet.
  *   4 → 5: nothing to change: every module follows the dashboard's sizes
  *          (a missing `sizes`), and no layout has a CLOCK yet.
+ *   5 → 6: a module's own UI SCALE and MODULE SIZE become one SIZE
+ *          (ownScale), drawn as big as before; its TEXT SIZE is kept.
  */
 const STEPS: Record<number, (doc: Record<string, unknown>) => Record<string, unknown>> = {
   1: (doc) => ({ ...doc, bookmarks: { imported: null, importedAt: null, open: [] } }),
   2: (doc) => ({ ...doc, bookmarks: { ...(isRecord(doc.bookmarks) ? doc.bookmarks : {}), arrangement: emptyArrangement() }, panels: defaultPanels() }),
   3: (doc) => ({ ...doc, modules: [] }),
   4: (doc) => ({ ...doc }),
+  5: (doc) => {
+    const prefs = isRecord(doc.prefs) ? doc.prefs : {};
+    const modules = Array.isArray(doc.modules) ? doc.modules.map((m) => (isRecord(m) && isRecord(m.sizes) ? { ...m, sizes: ownScale(m.sizes, prefs) } : m)) : doc.modules;
+    return { ...doc, modules };
+  },
 };
+
+/**
+ * A schema-5 module's sizes as schema 6's (5 → 6). In 0.18.0 a module was
+ * drawn at (its MODULE SIZE, else the dashboard's) × (its UI SCALE ÷ the
+ * dashboard's), against the UI: that product, snapped to the new SIZE's
+ * steps, is its SIZE now, so it stays as big on screen at the dashboard's
+ * UI SCALE when it migrates. Reads the document's own prefs, as
+ * normalizeLayout would (a missing or odd one is its default).
+ */
+export function ownScale(sizes: Record<string, unknown>, prefs: Record<string, unknown>): Record<string, unknown> {
+  const { uiScale, moduleScale, ...rest } = sizes;
+  const num = (v: unknown) => (typeof v === 'number' && Number.isFinite(v) && v > 0 ? v : undefined);
+  const ui = num(uiScale), module = num(moduleScale);
+  // Neither set: the module followed the dashboard's size, and still does.
+  if (ui === undefined && module === undefined) return rest;
+  const dashUi = nearestStep(UI_SCALE_STEPS, prefs.uiScale, DEFAULT_UI_SCALE);
+  const dashModule = nearestStep(MODULE_SCALE_STEPS, prefs.moduleScale, DEFAULT_MODULE_SCALE);
+  const drawn = (module ?? dashModule) * ((ui ?? dashUi) / dashUi);
+  return { ...rest, scale: nearestStep(MODULE_OWN_STEPS, drawn, DEFAULT_MODULE_SCALE) };
+}
 
 /** Strings only, each once, at most `max`. */
 function stringList(v: unknown, max = 5000): string[] {

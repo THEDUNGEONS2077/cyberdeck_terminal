@@ -494,27 +494,44 @@ try {
     const f1 = await fontSize();
     expect(f1 > f0 * 1.05, `the digits didn’t grow with the module (${f0} → ${f1})`);
 
-    // Its own TEXT SIZE and MODULE SIZE: only this module changes; SEARCH keeps the dashboard's.
+    // Its own SIZE and TEXT SIZE (DASHBOARD | OWN): only this module changes; SEARCH keeps the dashboard's.
     const textScaleOf = (name) => mod(name).evaluate((el) => getComputedStyle(el).getPropertyValue('--text-scale').trim());
+    const ownVar = (name) => clock.evaluate((el, n) => el.style.getPropertyValue(n), name);
     const searchText = await textScaleOf('SEARCH');
     const w0 = (await clock.boundingBox()).width;
     await settingsOf('CLOCK');
     const dialog = page.getByRole('dialog', { name: 'CLOCK · SETTINGS' });
-    await dialog.getByText('100% · DASHBOARD').first().waitFor();
+    const sizeGroup = dialog.getByRole('radiogroup', { name: 'SIZE', exact: true });
+    const textGroup = dialog.getByRole('radiogroup', { name: 'TEXT SIZE' });
+    // Following the dashboard: its values shown, no stepper.
+    await dialog.getByText('70%', { exact: true }).waitFor();
+    expect(!(await dialog.getByRole('button', { name: "Make this module's size bigger" }).count()), 'a stepper shows while SIZE follows the dashboard');
+    // OWN starts at the dashboard's value.
+    await sizeGroup.getByText('OWN').click();
+    await textGroup.getByText('OWN').click();
+    await dialog.getByRole('button', { name: "Make this module's size bigger" }).waitFor();
+    expect((await ownVar('--m')) === '0.7', `OWN SIZE started at ${await ownVar('--m')}, not the dashboard's 70%`);
     await dialog.getByRole('button', { name: "Make this module's text size bigger" }).click();
     await dialog.getByRole('button', { name: "Make this module's text size bigger" }).click();
-    await dialog.getByRole('button', { name: "Make this module's module size bigger" }).click();
+    await dialog.getByRole('button', { name: "Make this module's size bigger" }).click();
+    await dialog.getByRole('button', { name: "Make this module's size bigger" }).click();
     await page.waitForTimeout(100);
     expect((await textScaleOf('CLOCK')) === '1.2', `CLOCK's own text size is ${await textScaleOf('CLOCK')}`);
     expect((await textScaleOf('SEARCH')) === searchText, 'SEARCH’s text size changed with CLOCK’s');
-    expect((await clock.boundingBox()).width > w0 * 1.1, 'CLOCK’s own module size didn’t widen it');
+    expect((await clock.boundingBox()).width > w0 * 1.1, 'CLOCK’s own size didn’t widen it');
     await shot('20-clock-own-sizes');
     await audit('CLOCK’s settings');
-    // Its own UI SCALE, then back to the dashboard's for all three.
-    await dialog.getByRole('button', { name: "Make this module's ui scale bigger" }).click();
-    for (const name of ['ui scale', 'text size', 'module size']) await dialog.getByRole('button', { name: `Follow the dashboard's ${name}` }).click();
+    // Stepping back onto the dashboard's value stays OWN (0.18.0 silently went back to following).
+    await dialog.getByRole('button', { name: "Make this module's size smaller" }).click();
+    await dialog.getByRole('button', { name: "Make this module's size smaller" }).click();
     await page.waitForTimeout(100);
-    expect(await mod('CLOCK').evaluate((el) => !el.style.getPropertyValue('--m') && !el.style.getPropertyValue('--text-scale')), 'CLOCK kept its own sizes after DASHBOARD');
+    expect((await ownVar('--m')) === '0.7' && (await sizeGroup.getByRole('radio', { name: 'OWN' }).isChecked()), 'SIZE at the dashboard’s value stopped being OWN');
+    expect(await dialog.getByRole('button', { name: "Make this module's size bigger" }).isVisible(), 'the SIZE stepper went away at the dashboard’s value');
+    // DASHBOARD for both: back to following, no sizes of its own.
+    await sizeGroup.getByText('DASHBOARD').click();
+    await textGroup.getByText('DASHBOARD').click();
+    await page.waitForTimeout(100);
+    expect(!(await ownVar('--m')) && !(await ownVar('--text-scale')), 'CLOCK kept its own sizes after DASHBOARD');
     // 12-hour, without seconds.
     await dialog.getByRole('radio', { name: '12-HOUR' }).check({ force: true });
     await dialog.getByRole('radio', { name: 'HIDE' }).first().check({ force: true });
@@ -752,7 +769,7 @@ try {
     backupPath = join(shots, 'backup.json');
     await download.saveAs(backupPath);
     const file = JSON.parse(readFileSync(backupPath, 'utf8'));
-    expect(file.format === 'cyberdeck_terminal-backup' && file.layout?.schemaVersion === 5, 'not a backup file');
+    expect(file.format === 'cyberdeck_terminal-backup' && file.layout?.schemaVersion === 6, 'not a backup file');
     expect(file.layout.modules?.length === 3, 'the backup has no modules');
     expect(file.layout.prefs.backupReminderDays === 14 && file.layout.prefs.rainGlow === 'high', 'unexpected layout in backup');
     await page.locator('.toast', { hasText: 'BACKUP EXPORTED' }).waitFor();

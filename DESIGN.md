@@ -173,7 +173,10 @@ The motion is our own, and the only motion: the grid glides toward you (0.6 unit
 - **A 9 px floor** (0.14.0): the small sizes (`--fs-meta`, `--fs-small`, `--fs-micro`) never go below 9 px in a module; 70% of them was 7–8 px, too small to read.
 - **Drawn at 70%** (user request, 2026-10-24; SYSTEM ▸ MODULE SIZE changes it since 0.17.0): `.module` sets the type, spacing and control tokens again, scaled (`--m`, from `--module-scale`), and draws its stored width as `--mw`. No `zoom` or transform of its own, so its grips measure what's drawn. What you click keeps WCAG 2.2's 24 px target (buttons, grip, ⋯, the fold heading). The brand panel and NAV keep their sizes.
 - **CLOCK** (0.18.0): a big clock and the date under it, nothing else. Its digits fill the module's width, so its resize edge sets the clock's size. 24- or 12-hour time, seconds and the date are SETTINGS.
-- **A module's own sizes** (0.18.0): each module's SETTINGS has its own UI SCALE, TEXT SIZE and MODULE SIZE, each following the dashboard (· DASHBOARD) until changed. (C6 plans to merge its UI SCALE and MODULE SIZE into one SIZE, and to make following the dashboard an explicit choice.)
+- **A module's own sizes** (0.19.0): each module's SETTINGS has a SIZE and a TEXT SIZE, each with a **DASHBOARD | OWN** switch.
+  - **DASHBOARD** (the default) follows SYSTEM ▸ APPEARANCE (MODULE SIZE, TEXT SIZE) and shows the dashboard's value, dimmed, with no stepper.
+  - **OWN** shows − value + RESET, starting at the dashboard's value. It stays OWN at any value; RESET goes back to the dashboard's value, still OWN. SIZE runs 40–200%.
+  - **Why:** 0.18.0 had UI SCALE, TEXT SIZE and MODULE SIZE per module, where UI SCALE and MODULE SIZE did the same thing, and stepping onto the dashboard's value quietly went back to following it.
 - **Bare modules** (SEARCH, QUICK LAUNCH): no header outside EDIT; the frame is only a 3 px scanlined ring round the field or the tiles.
 - **In EDIT** its frame turns dashed and lit, as NAV's does. It gets a `⠿` grip on the left, a `⋯` on the right and a resize edge down its right side. Its contents dim and rest: nothing opens mid-arrangement.
 - **Where they go:** down the right-hand side, beside NAV. In a narrow window, they stack under NAV.

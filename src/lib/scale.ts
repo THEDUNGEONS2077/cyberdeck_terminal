@@ -21,6 +21,13 @@ export const UI_SCALE_STEPS: readonly number[] = [0.5, 0.6, 0.67, 0.75, 0.8, 0.9
 export const TEXT_SCALE_STEPS: readonly number[] = [0.8, 0.9, 1, 1.1, 1.2, 1.35, 1.5];
 /** MODULE SIZE's steps: how big the modules are drawn against NAV and the panels (70% unless chosen: 0.13.0). */
 export const MODULE_SCALE_STEPS: readonly number[] = [0.5, 0.6, 0.7, 0.8, 0.9, 1];
+/**
+ * A module's own SIZE's steps (0.19.0): the same measure as MODULE SIZE (how
+ * big it's drawn against the UI), over a wider range, since one module's
+ * SIZE also does what its own UI SCALE did in 0.18.0. Every MODULE SIZE step
+ * is one of these, so OWN can start from the dashboard's value exactly.
+ */
+export const MODULE_OWN_STEPS: readonly number[] = [0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1, 1.1, 1.25, 1.5, 1.75, 2];
 
 /**
  * How big a module is drawn until MODULE SIZE is chosen: 70% of its own
