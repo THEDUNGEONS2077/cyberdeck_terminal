@@ -30,8 +30,9 @@ Bookmarks open in a new tab, so the dashboard stays put. With the bridge, links 
   - DATA FLOW: a circuit board at night, packets of light running along its traces and into its chips;
   - MEGACITY: a city of towers in blue haze at night, seen from a rooftop ledge; windows go on and off, signs flicker, drones cross;
   - HORIZON: a glowing wireframe land running to a hot pink horizon, gliding toward you;
-  - SUNSET: the striped outrun sun over a glowing grid that glides toward you, under the stars.
-- **Wallpaper colours:** the same eight palettes, chosen on their own: any dashboard colours with any wallpaper and any wallpaper colours. BLOOD suits the neural net and VELOCITY, NEON suits MEGACITY, SYNTH suits HORIZON and OUTRUN suits SUNSET.
+  - SUNSET: the striped outrun sun over a glowing grid that glides toward you, under the stars;
+  - PRISM: a field of smoky glass blocks lit magenta and blue from inside, neon tubes running among them.
+- **Wallpaper colours:** the same eight palettes, chosen on their own: any dashboard colours with any wallpaper and any wallpaper colours. BLOOD suits the neural net and VELOCITY, NEON suits MEGACITY and PRISM, SYNTH suits HORIZON and OUTRUN suits SUNSET.
 - **Glow:** from LOW (the original look) to MAX. HIGH is the default.
 - **Zoom:** 50% to 200% for the wallpaper shown (**−** / **+**, or the keys), in a browser's zoom steps. Each wallpaper keeps its own zoom and opens at it from then on. Zoomed in, the wallpaper is laid out as if the screen were smaller and drawn larger, so it's as sharp as at 100%.
 

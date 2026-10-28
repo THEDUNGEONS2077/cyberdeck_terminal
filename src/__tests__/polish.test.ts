@@ -46,6 +46,7 @@ describe('sharpness', () => {
       ['megacity', 2],
       ['horizon', 2],
       ['sunset', 2],
+      ['prism', 2],
     ]);
     expect(safeDprOf('unknown')).toBe(2);
   });

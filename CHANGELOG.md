@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.23.0 (build 39)
+- **New wallpaper: PRISM** (SYSTEM ▸ WALLPAPER), from your reference: a field of smoky glass blocks lit magenta and blue from inside, with blue-white neon tubes running among them.
+  - **Motion:** slow. The camera sways a little, the lights breathe, and now and then a pulse of light runs along a tube.
+  - **Colours:** it suits NEON. Every palette makes its own.
+  - **Lightweight:** three draw calls a frame, with no depth buffer and no textures. Edges and neon stay smooth at any angle.
+  - **First pass.** Tell me what to change, and it goes to the phone once you're happy with it.
+
 ## 0.22.0 (build 38)
 - **NEURAL NET's lines are smooth now,** at every angle, as they are on the phone.
   - **Why they were jagged:** each link was a canvas line under a pixel wide, and Chrome's graphics-card canvas smooths lines that thin poorly, so shallow ones stepped.

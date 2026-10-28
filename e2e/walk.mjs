@@ -899,7 +899,7 @@ try {
     await page.keyboard.press('Escape');
   });
 
-  await path('APPEARANCE: the dashboard and the wallpaper each take their own palette; the neural net, VELOCITY, DATA FLOW, MEGACITY, HORIZON and SUNSET run in the worker; all survive a reload', async () => {
+  await path('APPEARANCE: the dashboard and the wallpaper each take their own palette; the neural net, VELOCITY, DATA FLOW, MEGACITY, HORIZON, SUNSET and PRISM run in the worker; all survive a reload', async () => {
     const accent = () => page.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue('--accent').trim());
     const wallAccent = () => page.evaluate(() => getComputedStyle(document.querySelector('.wallpaper')).getPropertyValue('--accent').trim());
     const swatch = (group, name) => page.getByRole('radiogroup', { name: group }).locator('.swatch', { hasText: name });
@@ -997,6 +997,21 @@ try {
     expect(u1.w === 1920 && u1.h === 1080, `SUNSET's canvas is ${u1.w}×${u1.h}`);
     expect(u1.sig !== u2.sig, 'SUNSET doesn’t move');
     await shot('18c-sunset');
+    // PRISM: glass blocks lit magenta and blue, neon among them; the camera sways and the lights breathe.
+    await page.keyboard.press('s');
+    await page.getByRole('radio', { name: 'PRISM' }).check({ force: true });
+    await page.getByRole('radiogroup', { name: 'WALLPAPER COLOURS' }).getByRole('radio', { name: 'NEON' }).check({ force: true });
+    await page.keyboard.press('Escape');
+    await page.waitForFunction(() => document.querySelector('.wallpaper')?.getAttribute('data-wallpaper') === 'prism');
+    await page.locator('.wallpaper-canvas[data-ready]').waitFor({ state: 'attached', timeout: 10000 });
+    expect((await page.evaluate(() => window.__cyberdeckRain.mode())) === 'worker', 'PRISM isn’t in the worker');
+    const q1 = await rain();
+    await page.waitForTimeout(800);
+    const q2 = await rain();
+    expect(q1.lit > 0.15, `PRISM is only ${(q1.lit * 100).toFixed(1)}% lit`);
+    expect(q1.w === 1920 && q1.h === 1080, `PRISM's canvas is ${q1.w}×${q1.h}`);
+    expect(q1.sig !== q2.sig, 'PRISM doesn’t move');
+    await shot('18d-prism');
     // Accessibility in another palette (contrast especially), with SYSTEM open.
     await page.addScriptTag({ path: join(root, 'node_modules/axe-core/axe.min.js') });
     await page.keyboard.press('s');

@@ -9,7 +9,7 @@ The design system comes from **quest_log_desktop**: `src/styles/theme.css` was c
 - **Motion** moves `transform` and `opacity` only. Endless loops use `animation-play-state: var(--loops)`, so Reduce Motion pauses them. Prefer a one-shot accent to a loop: a running loop makes the page draw every frame, and costs more the more bookmarks are on it.
 - **Icons** are text glyphs (`src/app/glyphs.ts`), not images.
 - **Components** use tokens only, never raw colours. That includes the wallpaper engines, which read their palette from the tokens.
-- **Palettes** (SYSTEM ▸ APPEARANCE ▸ DASHBOARD COLOURS and WALLPAPER COLOURS, chosen apart; `src/lib/palettes.ts`): eight. PHOSPHOR (the original green: MATRIX RAIN's), AMBER, ICE (DATA FLOW starts in it), NEON (MEGACITY's reference), BLOOD (made for NEURAL NET; VELOCITY's too), AZURE (deep blues, made for the old ORBIT), SYNTH (hot pink over teal, made for HORIZON, 0.15.0) and OUTRUN (gold melting into hot pink, over blue, made for SUNSET, 0.16.0). Every wallpaper works with every palette; the one made for it gives the reference's look. A palette sets only the base tokens (`--bg`, the surfaces, `--line`, `--line-lit`, `--xp-wash`, the four text tones, `--accent-deep`, and `--cool`, a contrasting hue for two-tone wallpapers). Every glow, tint, rule and scanline is mixed from those in theme.css (`color-mix`), so nothing stays green. Each palette keeps the colour rule above, and a unit test checks it (dim, text, accent and bright text at 4.5:1 or better on the background and both surfaces; bright text on the wash). The swatches in SYSTEM preview each palette in its own colours.
+- **Palettes** (SYSTEM ▸ APPEARANCE ▸ DASHBOARD COLOURS and WALLPAPER COLOURS, chosen apart; `src/lib/palettes.ts`): eight. PHOSPHOR (the original green: MATRIX RAIN's), AMBER, ICE (DATA FLOW starts in it), NEON (MEGACITY's reference), BLOOD (made for NEURAL NET; VELOCITY's too), AZURE (deep blues, made for the old ORBIT), SYNTH (hot pink over teal, made for HORIZON, 0.15.0) and OUTRUN (gold melting into hot pink, over blue, made for SUNSET, 0.16.0). NEON also suits PRISM (0.23.0). Every wallpaper works with every palette; the one made for it gives the reference's look. A palette sets only the base tokens (`--bg`, the surfaces, `--line`, `--line-lit`, `--xp-wash`, the four text tones, `--accent-deep`, and `--cool`, a contrasting hue for two-tone wallpapers). Every glow, tint, rule and scanline is mixed from those in theme.css (`color-mix`), so nothing stays green. Each palette keeps the colour rule above, and a unit test checks it (dim, text, accent and bright text at 4.5:1 or better on the background and both surfaces; bright text on the wash). The swatches in SYSTEM preview each palette in its own colours.
 
 ## The wallpaper's look
 Reference: `wallhaven-01ye3v2.jpg`, a dense matrix rain. Measured from it, at 1920×1080:
@@ -133,6 +133,20 @@ The motion is our own, and the only motion: the grid glides toward you (0.6 unit
 - **0.16.0:** the far grid crowded into a thick bright band of thin lines under the sun, its averaged light capped at 38% under a pink haze 7% of the height deep.
 - **0.17.2:** the far lines faded into the dark ground instead, under a shorter haze. The band was fainter and thinner, but still a band ("No it doesn't look right, can you get rid of that line completely?").
 - **0.17.3:** the haze went. Right at the horizon the ground is the sky's own colour (the same gradient and sun glow drawn just above it), melting into the grid over 5% of the height, so the grid runs straight into the night.
+
+## Prism's look
+Reference: `wallhaven-lymvol.png` (the user's, 2026-10-28, 2560×1440): glass blocks lit from inside. C10, the first wallpaper since the plan of 2026-10-27; built here first, to be ported to fluid_motion once the user is happy with it. Measured from it:
+
+| Property | Reference | How it's matched |
+|---|---|---|
+| The blocks | Smoky glass blocks of many sizes from a high angle (edges running down-right and up-right), packed with thin seams, some stacked or floating | Blocks of 1–3 cells (0.5–2.2 units tall) on three layers, 90% / 42% / 20% full, 0.035-unit seams; a camera 38° down, turned 36°, 34° field of view |
+| The glass | Dark navy faces, about rgb(11, 10, 44) (56% of the picture); thin teal edges | The body a dark mix of `--bg`, `--cool` and a little `--accent` (NEON gives about the reference's navy), 80% opaque in front; edges a dim cool glint, 0.6 px with a soft glow, the same width at any angle |
+| The light | Magenta and violet inside and behind the glass (hue about 300°), blue elsewhere (200–240°) | Pools of `--accent` (six, strong and tight) and `--cool` (three, weaker) spread evenly over the view, tinting the faces near them, brightest on the tops |
+| The neon | Blue-white tubes, about rgb(172, 226, 245), in parallel pairs | `--cool` lifted 42% to white, in pairs 0.12 units apart, a 0.9 px core with a 5 px glow; each a blue pool too |
+| Brightness | Median 20 of 255; 90th percentile 83; brightest 1% 178; brighter towards the bottom | First pass (0.23.0): median 24–27, brightest 1% 177–184 over two layouts; the 90th percentile is lower (about 56): the reference has more mid-bright glass |
+| Left out | Colour fringing at the brightest edges; window-like frames inset in some blocks | Fringing would cost a pass over every pixel; the frames can come with the user's tweaks |
+
+The motion is its own and slow: the camera sways a few degrees (53 s and 67 s cycles), each light breathes (±22%, 9–17 s), and now and then a pulse of light runs along a tube. NEON (magenta over electric blue) suits it; every palette makes its own PRISM.
 
 ## The bookmarks deck
 - **Header bar:** titled **NAV**, in the desktop's centre-header look (scanlines, phosphor, a lit rule underneath).
