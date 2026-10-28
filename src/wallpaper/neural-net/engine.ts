@@ -1,24 +1,26 @@
 /**
  * src/wallpaper/neural-net/engine.ts: the neural-net wallpaper: a plexus of
  * glowing nodes joined by long thin links, drifting slowly, with signals
- * running along the links and out-of-focus particles behind.
+ * running along the links.
  *
  * Layer: wallpaper (canvas; no React, no stores, no DOM: it runs in the
  * wallpaper's worker, wallpaper/worker.ts, on an OffscreenCanvas).
  *
  * The scene is built once per screen size (scene()): node homes (an even
  * scatter plus loose clusters, past the screen's edges so links run off
- * it), each node linked to a few near neighbours (a few hubs to many),
- * and the bokeh. Each frame redraws it all, which stays cheap because
+ * it), and each node linked to a few near neighbours (a few hubs to
+ * many). Each frame redraws it all, which stays cheap because
  * nothing is drawn one pixel at a time:
  *   - each link is one stroke (plus a soft wide pass for glow), at its own
  *     exact opacity, so links fade smoothly as they stretch (batching them
  *     by opacity step made them jump between steps);
- *   - nodes, signals and bokeh are copies of small pre-drawn glow sprites
+ *   - nodes and signals are copies of small pre-drawn glow sprites
  *     (sprites()), one per colour step (fine steps: no visible jumps).
  * It draws on every frame the screen shows (no frame-rate cap: the user
  * asked for it as smooth as possible, 2026-10-23), and lit nodes brighten
  * with a short rise instead of popping on.
+ * There are no out-of-focus particles (bokeh) behind the net: the user had
+ * them removed (0.19.0), on the phone too.
  * Colour follows the palette along a diagonal (shade()): --cool at the top
  * left, --text-bright in the middle, --accent at the bottom right; the big
  * background glow is CSS under the canvas (app.css .wallpaper[data-wallpaper]).
@@ -27,10 +29,6 @@ import type { GlowLevel } from '@/lib/layout';
 
 import { type Wallpaper, type WallpaperInstance, type WallpaperOptions, type WallpaperPalette, zoomedSize } from '../types';
 import {
-  BOKEH_ALPHA,
-  BOKEH_PER_MPX,
-  BOKEH_RADIUS,
-  BOKEH_SPEED,
   CLUSTERS,
   COLOR_STEPS,
   DRIFT,
@@ -144,7 +142,7 @@ export function linkNodes(xs: ArrayLike<number>, ys: ArrayLike<number>, want: Ar
   return links;
 }
 
-/** The scene for one screen size: nodes (homes and drift), their links, and the bokeh. All in CSS px. */
+/** The scene for one screen size: nodes (homes and drift), and their links. All in CSS px. */
 interface Scene {
   w: number;
   h: number;
@@ -170,13 +168,6 @@ interface Scene {
   weight: Float32Array;
   /** Each node's links (indexes into `links`). */
   linksOf: number[][];
-  /** Bokeh: place, radius, opacity, velocity. */
-  bx: Float32Array;
-  by: Float32Array;
-  br: Float32Array;
-  ba: Float32Array;
-  bvx: Float32Array;
-  bvy: Float32Array;
 }
 
 /** Builds the scene for a w × h screen (CSS px). */
@@ -217,33 +208,16 @@ function scene(w: number, h: number, rng: Rng): Scene {
     linksOf[a]!.push(k);
     linksOf[b]!.push(k);
   });
-  const nb = Math.round((BOKEH_PER_MPX * w * h) / 1e6);
-  const b32 = () => new Float32Array(nb);
-  const bokeh = { bx: b32(), by: b32(), br: b32(), ba: b32(), bvx: b32(), bvy: b32() };
-  for (let i = 0; i < nb; i++) {
-    bokeh.bx[i] = rng() * w;
-    bokeh.by[i] = rng() * h;
-    bokeh.br[i] = between(rng, BOKEH_RADIUS);
-    bokeh.ba[i] = between(rng, BOKEH_ALPHA);
-    // Drifting mostly upwards, a little sideways, like dust in warm air.
-    const speed = between(rng, BOKEH_SPEED);
-    const angle = -Math.PI / 2 + (rng() - 0.5) * 1.6;
-    bokeh.bvx[i] = Math.cos(angle) * speed;
-    bokeh.bvy[i] = Math.sin(angle) * speed;
-  }
   const weight = new Float32Array(links.length).map(() => between(rng, LINK_WEIGHT));
-  return { ...s, links, weight, linksOf, ...bokeh };
+  return { ...s, links, weight, linksOf };
 }
 
-/** The sprites, one per colour step: a node (white-hot core in a halo) and a soft bokeh disc. */
+/** The sprites, one per colour step: a node (white-hot core in a halo). */
 interface Sprites {
   node: OffscreenCanvas[];
   /** A node sprite's core radius and full radius (device px). */
   core: number;
   size: number;
-  bokeh: OffscreenCanvas[];
-  /** A bokeh sprite's radius (device px). */
-  bokehSize: number;
   /** The link colours, one per colour step. */
   line: string[];
 }
@@ -253,9 +227,7 @@ function sprites(palette: WallpaperPalette, glow: GlowLevel, dpr: number): Sprit
   const g = NEURAL_GLOW[glow];
   const core = Math.ceil(4 * dpr);
   const size = Math.ceil(core * g.haloSize);
-  const bokehSize = Math.ceil(24 * dpr);
   const node: OffscreenCanvas[] = [];
-  const bokeh: OffscreenCanvas[] = [];
   const line: string[] = [];
   const white: Rgb = [255, 255, 255];
   for (let c = 0; c < COLOR_STEPS; c++) {
@@ -277,20 +249,8 @@ function sprites(palette: WallpaperPalette, glow: GlowLevel, dpr: number): Sprit
       ctx.fillRect(0, 0, size * 2, size * 2);
     }
     node.push(sprite);
-    // Bokeh: an even disc with a soft edge (out of focus).
-    const disc = new OffscreenCanvas(bokehSize * 2, bokehSize * 2);
-    const dctx = disc.getContext('2d');
-    if (dctx) {
-      const grad = dctx.createRadialGradient(bokehSize, bokehSize, 0, bokehSize, bokehSize, bokehSize);
-      grad.addColorStop(0, css(colour, 0.9));
-      grad.addColorStop(0.65, css(colour, 0.75));
-      grad.addColorStop(1, css(colour, 0));
-      dctx.fillStyle = grad;
-      dctx.fillRect(0, 0, bokehSize * 2, bokehSize * 2);
-    }
-    bokeh.push(disc);
   }
-  return { node, core, size, bokeh, bokehSize, line };
+  return { node, core, size, line };
 }
 
 /** A signal running along a link. */
@@ -339,12 +299,6 @@ function createNeuralNet(canvas: HTMLCanvasElement | OffscreenCanvas, options: W
         s.flash[i] = Math.max(0, s.flash[i]! - dt / FLASH_SECONDS);
       }
     }
-    // Bokeh drift, wrapping round the screen.
-    for (let i = 0; i < s.bx.length; i++) {
-      const r = s.br[i]!;
-      s.bx[i] = ((s.bx[i]! + s.bvx[i]! * dt + r) % (s.w + 2 * r) + s.w + 2 * r) % (s.w + 2 * r) - r;
-      s.by[i] = ((s.by[i]! + s.bvy[i]! * dt + r) % (s.h + 2 * r) + s.h + 2 * r) % (s.h + 2 * r) - r;
-    }
     // New signals, from a random node with links.
     pulseDebt += PULSES_PER_SECOND * dt;
     while (pulseDebt >= 1 && s.links.length) {
@@ -389,16 +343,7 @@ function createNeuralNet(canvas: HTMLCanvasElement | OffscreenCanvas, options: W
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     const step = (x: number, y: number) => Math.round(diagonal(x / w, y / h) * (COLOR_STEPS - 1));
 
-    // 1. Bokeh, behind everything.
-    for (let i = 0; i < s.bx.length; i++) {
-      const r = s.br[i]!;
-      const t = diagonal(s.bx[i]! / w, s.by[i]! / h);
-      // Brighter down in the glow, where the reference's out-of-focus particles crowd.
-      ctx.globalAlpha = Math.min(1, s.ba[i]! * (0.6 + 0.9 * t));
-      ctx.drawImage(art.bokeh[Math.round(t * (COLOR_STEPS - 1))]!, s.bx[i]! - r, s.by[i]! - r, 2 * r, 2 * r);
-    }
-
-    // 2. Links: one stroke each, at its exact opacity (by length, longer is
+    // 1. Links: one stroke each, at its exact opacity (by length, longer is
     //    fainter, times its own weight), so it fades smoothly as it stretches.
     const maxLen = MAX_LINK * Math.hypot(w, h);
     const links = s.links;
@@ -428,7 +373,7 @@ function createNeuralNet(canvas: HTMLCanvasElement | OffscreenCanvas, options: W
     if (g.lineGlow > 0) stroke(LINE_WIDTH * 4, g.lineGlow);
     stroke(LINE_WIDTH, 1);
 
-    // 3. Nodes: a halo sprite each, bigger and brighter while lit by a signal.
+    // 2. Nodes: a halo sprite each, bigger and brighter while lit by a signal.
     const scale = art.size / art.core;
     for (let i = 0; i < s.x.length; i++) {
       const x = s.x[i]!;
@@ -439,7 +384,7 @@ function createNeuralNet(canvas: HTMLCanvasElement | OffscreenCanvas, options: W
       ctx.drawImage(art.node[step(x, y)]!, x - r, y - r, 2 * r, 2 * r);
     }
 
-    // 4. Signals: a bright spark on its link.
+    // 3. Signals: a bright spark on its link.
     for (const p of pulses) {
       const [a, b] = s.links[p.link]!;
       const to = p.from === a ? b : a;

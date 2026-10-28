@@ -15,9 +15,10 @@
  *   - colour by place: teal at the top, pale in the middle, a strong red
  *     glow in the bottom right → the palette's --cool, --text-bright and
  *     --accent along the same diagonal (and the CSS glow, app.css);
- *   - out-of-focus particles (bokeh) behind, teal above and red below.
+ *   - the reference's out-of-focus particles (bokeh) are left out: the
+ *     user had them removed (0.19.0).
  * Motion is the animation's own: each node drifts slowly round its home,
- * the bokeh drift, and now and then a signal runs along a few links and
+ * and now and then a signal runs along a few links and
  * lights the nodes it reaches.
  */
 import { SHARP_DPR } from '@/lib/sharpness';
@@ -64,12 +65,6 @@ export const LINK_WEIGHT: readonly [number, number] = [0.35, 1.6];
 
 /** A link's width (CSS px). */
 export const LINE_WIDTH = 0.9;
-
-/** Bokeh: particles per million CSS px², radius (CSS px), opacity and drift speed (CSS px/s), ranges. */
-export const BOKEH_PER_MPX = 22;
-export const BOKEH_RADIUS: readonly [number, number] = [4, 24];
-export const BOKEH_ALPHA: readonly [number, number] = [0.05, 0.3];
-export const BOKEH_SPEED: readonly [number, number] = [2, 9];
 
 /** Signals: new ones a second, speed (CSS px/s), links they run (range), and how long a reached node stays lit (s). */
 export const PULSES_PER_SECOND = 1.1;

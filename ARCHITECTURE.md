@@ -240,9 +240,9 @@ The contract is `src/wallpaper/types.ts`: `create(canvas, { palette, glow, still
 
 ### Neural net (`src/wallpaper/neural-net/`)
 - **`params.ts`** holds every tunable number, matched to its reference (DESIGN.md).
-- **`engine.ts`** builds a scene per screen size (`scene`): node homes (a scatter plus clusters, past the screen's edges), links (`linkNodes`: each node's picks from its nearer neighbours, so some reach far), and bokeh. Each frame it redraws everything, cheaply:
+- **`engine.ts`** builds a scene per screen size (`scene`): node homes (a scatter plus clusters, past the screen's edges), links (`linkNodes`: each node's picks from its nearer neighbours, so some reach far). Each frame it redraws everything, cheaply:
   - one stroke per link at its exact opacity (plus a wide soft pass for glow), so links fade smoothly as they stretch; it draws on every frame the screen shows (no frame-rate cap);
-  - nodes, signals and bokeh as copies of small glow sprites, one per colour step (`sprites`, rebuilt when the palette, glow or pixel ratio changes);
+  - nodes and signals as copies of small glow sprites, one per colour step (`sprites`, rebuilt when the palette, glow or pixel ratio changes);
   - colour by place along a diagonal (`shade`): `--cool`, `--text-bright`, `--accent`. The big glow behind is CSS (app.css `.wallpaper[data-wallpaper='neural-net']`).
 - No pre-warm: the first frame is the whole picture.
 

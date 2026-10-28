@@ -48,9 +48,9 @@ Reference: `neural net pape.jpg`, a plexus: glowing nodes joined by long thin li
 | Links | Long, straight, 1 px; most faint, a few bright; they cross and run off the screen | Each node links to 2–4 (hubs more) picked at random from its nearer neighbours, up to 42% of the diagonal; longer is fainter; each link has its own brightness |
 | Colour | Teal lines and nodes above, pale in the middle, red below | `--cool` (lifted towards white) to `--text-bright` to `--accent` along a diagonal weighted to the height |
 | Background | Teal-navy, about rgb(16,31,44) at the top; red up to about rgb(226,2,15) in the bottom right | CSS under the canvas: `--cool` mixed into `--bg` from the top, and the `--accent` glowing from the bottom right. Matched within a few percent per sixteenth of the screen (BLOOD) in 0.6.0, then softened at the user's request (0.6.1): the corner glow is about half as strong |
-| Bokeh | Soft discs, teal above, red and denser below | Soft sprites drifting upwards, brighter towards the glow |
+| Bokeh | Soft discs, teal above, red and denser below | Left out: the user had them removed (0.19.0), on the phone too. Until then, soft sprites drifted upwards, brighter towards the glow |
 
-The motion is its own (drawn on every frame the screen shows, each link at its exact opacity, so nothing steps or pops): each node drifts round its home on a slow loop (10–38 px, 26–70 s), the bokeh drift upwards, and about once a second a signal runs along one to four links and lights each node it reaches. The glow levels set the nodes' halos and a soft second stroke on the links. With BLOOD it looks like the reference; with any other palette it takes that palette's two hues.
+The motion is its own (drawn on every frame the screen shows, each link at its exact opacity, so nothing steps or pops): each node drifts round its home on a slow loop (10–38 px, 26–70 s), and about once a second a signal runs along one to four links and lights each node it reaches. The glow levels set the nodes' halos and a soft second stroke on the links. With BLOOD it looks like the reference; with any other palette it takes that palette's two hues.
 
 ## Velocity's look
 Reference: `wallhaven-ox7v2l.jpg`, light caught in motion (a long exposure).
