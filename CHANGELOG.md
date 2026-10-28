@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.24.0 (build 43)
+- **New TIMER module** (EDIT ▸ + MODULE ▸ TIMER): a stand-alone countdown with big digits.
+  - **START, PAUSE / RESUME, RESET.** When it runs out, the digits light up and a notice says so, even if the tab is in the background.
+  - **SETTINGS:** a label (FOCUS, TEA…) shown over the digits, and the length in hours, minutes and seconds.
+  - **It keeps going:** a running timer carries on through a reload or a closed tab. Unlike TIME's small timer, it doesn't start over.
+  - **Size:** the digits fill the module's width, like CLOCK, so its resize edge sets their size.
+  - **Battery:** it ticks once a second only while running and on screen.
+
 ## 0.23.3 (build 42)
 - **NEURAL NET finds its own sharpest setting.** It starts at twice your screen's resolution each way, steps up (3×, then 4×) every couple of seconds while frames stay smooth, and steps back one level, for good, the moment they don't. A single hiccup doesn't count. If even 2× strains a slower machine, it goes down to 1.5× or 1×. It finds its level again on each page load.
 
