@@ -260,10 +260,12 @@ The contract is `src/wallpaper/types.ts`: `create(canvas, { palette, glow, still
 
 ### Neural net (`src/wallpaper/neural-net/`)
 - **`params.ts`** holds every tunable number, matched to its reference (DESIGN.md).
-- **`engine.ts`** builds a scene per screen size (`scene`): node homes (a scatter plus clusters, past the screen's edges), links (`linkNodes`: each node's picks from its nearer neighbours, so some reach far). Each frame it redraws everything, cheaply:
-  - one stroke per link at its exact opacity (plus a wide soft pass for glow), so links fade smoothly as they stretch; it draws on every frame the screen shows (no frame-rate cap);
-  - nodes and signals as copies of small glow sprites, one per colour step (`sprites`, rebuilt when the palette, glow or pixel ratio changes);
-  - colour by place along a diagonal (`shade`): `--cool`, `--text-bright`, `--accent`. The big glow behind is CSS (app.css `.wallpaper[data-wallpaper='neural-net']`).
+- **`engine.ts`** builds a scene per screen size (`scene`): node homes (a scatter plus clusters, past the screen's edges), links (`linkNodes`: each node's picks from its nearer neighbours, so some reach far). It moves it on (`advance`) and redraws everything on every frame the screen shows (no frame-rate cap); colour is by place along a diagonal (`shade`): `--cool`, `--text-bright`, `--accent`. The big glow behind is CSS (app.css `.wallpaper[data-wallpaper='neural-net']`).
+- **Drawn with WebGL 2 (0.22.0; `gl.ts`)**, as fluid_motion draws it. The 2D canvas stroked each link 0.9 px wide, and Chrome's GPU-drawn canvas (the worker's) anti-aliases strokes thinner than a pixel poorly: the links stepped on the user's screen though not in tests (headless Chromium draws canvases in software). Now:
+  - **each link is a quad** (`shaders/link.vert`) whose fragment shader gives it a one-pixel soft edge at any angle, in two passes (a wide faint glow, then the line); each node and signal a sprite worked out per pixel (`spark.vert`);
+  - **shared with the phone, byte for byte:** `shaders/link.frag`, `spark.frag` and `shade.glsl` are fluid_motion's `neural_link.frag`, `neural_spark.frag` and `neural_shade.glsl`. The vertex shaders are the web's own: they take each link's ends and each sprite per instance (`engine.ts` `pack`, into arrays reused frame to frame), since a big desktop screen holds more nodes than the phone's uniform arrays (128);
+  - **cost:** the drawing script fell from about 36 to 4 ms a second; the GPU's work is a few hundred quads;
+  - **without WebGL 2** the 2D drawing (`draw2d`: strokes and pre-drawn sprites, one per colour step) stands in. A lost context waits and starts again, as HORIZON's does.
 - No pre-warm: the first frame is the whole picture.
 
 ### Matrix rain (`src/wallpaper/matrix-rain/`)

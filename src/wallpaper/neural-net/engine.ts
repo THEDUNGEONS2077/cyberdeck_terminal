@@ -9,7 +9,14 @@
  * The scene is built once per screen size (scene()): node homes (an even
  * scatter plus loose clusters, past the screen's edges so links run off
  * it), and each node linked to a few near neighbours (a few hubs to
- * many). Each frame redraws it all, which stays cheap because
+ * many). Each frame redraws it all.
+ *
+ * Drawn with WebGL 2 since 0.22.0 (gl.ts, fluid_motion's shaders): each link
+ * a quad with its own smooth edge, each node a sprite worked out per pixel.
+ * The 2D canvas's thin strokes stepped on Chrome's GPU-drawn canvas (the
+ * user: "jaggedness ... it looks fine on mobile"). This file packs each
+ * frame (`pack`): the links' ends and the sprites. Where WebGL 2 isn't
+ * there, the 2D drawing below (`draw2d`) stands in, cheap because
  * nothing is drawn one pixel at a time:
  *   - each link is one stroke (plus a soft wide pass for glow), at its own
  *     exact opacity, so links fade smoothly as they stretch (batching them
@@ -28,6 +35,7 @@
 import type { GlowLevel } from '@/lib/layout';
 
 import { type Wallpaper, type WallpaperInstance, type WallpaperOptions, type WallpaperPalette, zoomedSize } from '../types';
+import { type NeuralFrame, type NeuralGpu, drawGl, sendWeights, setUpGl } from './gl';
 import {
   CLUSTERS,
   COLOR_STEPS,
@@ -212,6 +220,15 @@ function scene(w: number, h: number, rng: Rng): Scene {
   return { ...s, links, weight, linksOf };
 }
 
+/**
+ * A node sprite's full radius per CSS px of core radius: its size over its
+ * core, both whole device px at `dpr` (as sprites() draws them).
+ */
+export function spriteScale(haloSize: number, dpr: number): number {
+  const core = Math.ceil(4 * dpr);
+  return Math.ceil(core * haloSize) / core;
+}
+
 /** The sprites, one per colour step: a node (white-hot core in a halo). */
 interface Sprites {
   node: OffscreenCanvas[];
@@ -269,8 +286,18 @@ interface Pulse {
 
 /** Creates the neural-net engine on a canvas (the `create` of the Wallpaper). */
 function createNeuralNet(canvas: HTMLCanvasElement | OffscreenCanvas, options: WallpaperOptions, rng: Rng = Math.random): WallpaperInstance {
-  // Typed as the offscreen kind: the 2D API both kinds share, which is all the engine uses.
-  const ctx = (canvas as OffscreenCanvas).getContext('2d');
+  // Typed as the offscreen kind: the APIs both kinds share, which is all the engine uses.
+  const target = canvas as OffscreenCanvas;
+  // WebGL 2 first (gl.ts: smooth links at any angle). preserveDrawingBuffer: the tests' probe reads
+  // the picture back between frames. No antialias: the shaders make the edges smooth (WORKING.md).
+  const gl = target.getContext('webgl2', { alpha: true, premultipliedAlpha: true, antialias: false, depth: false, stencil: false, preserveDrawingBuffer: true, powerPreference: 'low-power' });
+  let gpu: NeuralGpu | null = gl ? setUpGl(gl) : null;
+  let lost = false;
+  // The 2D canvas only where there's no WebGL 2 (a canvas has one kind of context).
+  const ctx = gl ? null : target.getContext('2d');
+  // Each frame's links' ends and sprites, grown as needed (no new arrays per frame).
+  let ends = new Float32Array(0);
+  let sparks = new Float32Array(0);
   let palette = options.palette;
   let glow: GlowLevel = options.glow;
   let still = options.still;
@@ -332,8 +359,64 @@ function createNeuralNet(canvas: HTMLCanvasElement | OffscreenCanvas, options: W
     }
   };
 
-  /** Draws the scene as it is now. */
+  /** This frame for the GPU: each link's ends, then the sprites (nodes on screen, bigger and brighter while lit; then the signals). */
+  const pack = (sc: Scene): NeuralFrame => {
+    const { w, h } = sc;
+    const g = NEURAL_GLOW[glow];
+    const n = sc.links.length;
+    if (ends.length < n * 4) ends = new Float32Array(n * 4);
+    for (let l = 0; l < n; l++) {
+      const [a, b] = sc.links[l]!;
+      ends[4 * l] = sc.x[a]!;
+      ends[4 * l + 1] = sc.y[a]!;
+      ends[4 * l + 2] = sc.x[b]!;
+      ends[4 * l + 3] = sc.y[b]!;
+    }
+    const scale = spriteScale(g.haloSize, dpr);
+    /** Writes sprite `k`: no small arrays per sprite, so a frame leaves no garbage. */
+    const put = (k: number, x: number, y: number, r: number, alpha: number) => {
+      sparks[4 * k] = x;
+      sparks[4 * k + 1] = y;
+      sparks[4 * k + 2] = r;
+      sparks[4 * k + 3] = alpha;
+    };
+    if (sparks.length < (sc.x.length + pulses.length) * 4) sparks = new Float32Array((sc.x.length + pulses.length + 16) * 4);
+    let k = 0;
+    for (let i = 0; i < sc.x.length; i++) {
+      const x = sc.x[i]!;
+      const y = sc.y[i]!;
+      const r = sc.radius[i]! * (1 + 0.8 * sc.flash[i]!) * scale;
+      if (x < -r || y < -r || x > w + r || y > h + r) continue;
+      put(k++, x, y, r, Math.min(1, 0.8 + 0.2 * sc.flash[i]!));
+    }
+    for (const p of pulses) {
+      const [a, b] = sc.links[p.link]!;
+      const to = p.from === a ? b : a;
+      const x = sc.x[p.from]! + (sc.x[to]! - sc.x[p.from]!) * p.along;
+      const y = sc.y[p.from]! + (sc.y[to]! - sc.y[p.from]!) * p.along;
+      // A new signal fades in over the start of its first link.
+      put(k++, x, y, 2.2 * scale, p.first ? Math.min(1, p.along * 8) : 1);
+    }
+    return { w, h, dpr, ends, links: n, sprites: sparks, sparks: k, maxLink: MAX_LINK * Math.hypot(w, h), lineWidth: LINE_WIDTH, lineGlow: g.lineGlow, glowWidth: 4, edge: 1 / scale, halo: g.halo };
+  };
+
+  /** Draws the scene as it is now: with WebGL 2 where there is one (gl.ts), else on the 2D canvas. */
   const draw = () => {
+    if (!s) return;
+    if (gl) {
+      if (gpu && !lost) drawGl(gl, gpu, pack(s), palette);
+    } else {
+      draw2d();
+    }
+    // The first frame is on the canvas: the host fades it in.
+    if (!announced) {
+      announced = true;
+      options.onReady?.();
+    }
+  };
+
+  /** The 2D drawing, where there's no WebGL 2. */
+  const draw2d = () => {
     if (!ctx || !s || !art) return;
     const { w, h } = s;
     const g = NEURAL_GLOW[glow];
@@ -396,12 +479,6 @@ function createNeuralNet(canvas: HTMLCanvasElement | OffscreenCanvas, options: W
       ctx.drawImage(art.node[step(x, y)]!, x - r, y - r, 2 * r, 2 * r);
     }
     ctx.globalAlpha = 1;
-
-    // The first frame is on the canvas: the host fades it in.
-    if (!announced) {
-      announced = true;
-      options.onReady?.();
-    }
   };
 
   /** One animation frame. */
@@ -423,17 +500,20 @@ function createNeuralNet(canvas: HTMLCanvasElement | OffscreenCanvas, options: W
 
   const instance: WallpaperInstance = {
     resize(cw, ch, ratio, zoom) {
-      if (destroyed || !ctx) return;
+      if (destroyed || (!ctx && !gl)) return;
       // Zoomed: laid out for a screen 1/zoom as big, drawn zoom times as large (the canvas keeps its pixels).
       const { w, h, dpr: nextDpr } = zoomedSize(cw, ch, ratio, zoom, MAX_DPR);
       canvas.width = Math.round(w * nextDpr);
       canvas.height = Math.round(h * nextDpr);
-      if (!art || nextDpr !== dpr) art = sprites(palette, glow, nextDpr);
+      // The 2D drawing's sprites (the GPU works its sprites out per pixel).
+      if (ctx && (!art || nextDpr !== dpr)) art = sprites(palette, glow, nextDpr);
       dpr = nextDpr;
       if (!s || s.w !== w || s.h !== h) {
         const start = performance.now();
         s = scene(w, h, rng);
         pulses.length = 0;
+        // The links' weights never change on a screen: sent once.
+        if (gl && gpu) sendWeights(gl, gpu, s.weight);
         performance.measure('neural-scene', { start });
       }
       drawNow();
@@ -462,12 +542,12 @@ function createNeuralNet(canvas: HTMLCanvasElement | OffscreenCanvas, options: W
     setGlow(next) {
       if (next === glow) return;
       glow = next;
-      art = sprites(palette, glow, dpr);
+      if (ctx) art = sprites(palette, glow, dpr);
       if (still) drawNow();
     },
     setPalette(next) {
       palette = next;
-      art = sprites(palette, glow, dpr);
+      if (ctx) art = sprites(palette, glow, dpr);
       if (still) drawNow();
     },
     destroy() {
@@ -477,6 +557,18 @@ function createNeuralNet(canvas: HTMLCanvasElement | OffscreenCanvas, options: W
       art = null;
     },
   };
+
+  // The graphics card can drop the context (a driver reset): pause, then set everything up again.
+  target.addEventListener('contextlost', (e) => {
+    e.preventDefault();
+    lost = true;
+  });
+  target.addEventListener('contextrestored', () => {
+    lost = false;
+    gpu = gl ? setUpGl(gl) : null;
+    if (gl && gpu && s) sendWeights(gl, gpu, s.weight);
+    draw();
+  });
   return instance;
 }
 

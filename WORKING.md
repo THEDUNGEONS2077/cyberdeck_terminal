@@ -22,7 +22,7 @@ Its sister project, **fluid_motion** (`~/projects/fluid_motion`), is the Android
 - **Screenshots, then the user's tweaks.**
   - **My checks:** screenshot what I build (Playwright on the built page) and look at it before asking the user. Crop and boost the contrast to find seams and banding: a blurred, eight-times-brightened copy shows a line the eye only half sees.
   - **The user's checks:** they look at the live page and send screenshots back. Their words are the spec: quote them in CHANGELOG and DESIGN.md.
-- **Web first, then the phone.** A wallpaper is built and tuned here, then ported to fluid_motion once the user is happy with it (HORIZON and SUNSET, fluid_motion 0.8.0). Its shaders are then **one set, byte for byte** (MEGACITY's `mc_*`, HORIZON's `hz_*`, SUNSET's `ss_*`), so a change to one is made to both. Anything the phone does differently goes through uniforms.
+- **Web first, then the phone.** A wallpaper is built and tuned here, then ported to fluid_motion once the user is happy with it (HORIZON and SUNSET, fluid_motion 0.8.0). Its shaders are then **one set, byte for byte** (MEGACITY's `mc_*`, HORIZON's `hz_*`, SUNSET's `ss_*`, NEURAL NET's `neural_link.frag`, `neural_spark.frag` and `neural_shade.glsl`), so a change to one is made to both. The sharing can go the other way too: NEURAL NET's web drawing took the phone's shaders (0.22.0), because the phone's looked smoother. Anything the phone does differently goes through uniforms.
 - **Ask before anything public:**
   - every `npm run deploy`;
   - every push;

@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.22.0 (build 38)
+- **NEURAL NET's lines are smooth now,** at every angle, as they are on the phone.
+  - **Why they were jagged:** each link was a canvas line under a pixel wide, and Chrome's graphics-card canvas smooths lines that thin poorly, so shallow ones stepped.
+  - **Now:** it's drawn the way the phone app draws it, with each line's soft edge worked out by the graphics card. Same look, same colours and glow.
+  - **Lighter, too:** its drawing work on the processor fell from about 36 to 4 ms a second.
+
 ## 0.21.0 (build 37)
 - **Layout profiles** (SYSTEM ▸ PROFILES): keep whole layouts with names and switch between them by hand.
   - **What a profile holds:** everything about the dashboard: bookmark areas and order, panels, modules and their sizes, the wallpaper and its zoom, the colours and the sizes.
