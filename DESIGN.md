@@ -162,6 +162,9 @@ The motion is our own, and the only motion: the grid glides toward you (0.6 unit
   - **Arrow keys** move between tiles, folder headings, links and area headings: ← → in reading order, ↑ ↓ to the nearest item above or below.
 - **Small and crisp.** Titles are 12 px, hosts 10 px, and nothing holding text is placed with a transform at rest.
 
+## Profiles (0.21.0)
+SYSTEM ▸ PROFILES, under APPEARANCE: one line per profile, as RESTORE lists snapshots. The open one is marked `● OPEN` in the accent; the others have OPEN, RENAME and DELETE (which asks first, as RESTORE does). RENAME edits the name in place (Enter saves, Esc cancels only the rename). SAVE AS NEW takes a name in a boxed field beside it. Names are upper case, like area titles. Switching is manual only (the user's call, 2026-10-27): nothing switches by time or place. Each switch says what happened in a toast (`PROFILE NIGHT · MAIN SAVED`).
+
 ## Edit mode
 - **Unlocked:** the header and edit bar frames turn dashed and lit (`--accent-35`), and the edit bar carries a breathing `●`. Tiles and cards get dashed frames, a grab cursor and a `⋯` button.
 - **Areas** are section bars with scanlines. In edit mode the title becomes a field, with a `⠿` grip and `✕`.

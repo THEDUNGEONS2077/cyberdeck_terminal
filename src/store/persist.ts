@@ -16,9 +16,14 @@
  *     place (the newer version can still read it), and nothing overwrites
  *     it until the layout is changed here;
  *   - a snapshot is taken if the layout differs from the newest one.
+ *
+ * Profiles (lib/profiles.ts): startup reads their list, never their copies;
+ * a copy is read only to switch to it or to back it up. One that can't be
+ * read is kept under `corrupt.*` like a damaged layout, and isn't opened.
  */
 import { type LayoutDocument, defaultLayout, layoutFingerprint, summarizeLayout } from '@/lib/layout';
 import { FutureSchemaError, migrateLayout } from '@/lib/migrations';
+import { type ProfileIndex, normalizeProfiles } from '@/lib/profiles';
 import { type BackupMeta, freshMeta } from '@/lib/reminder';
 import { type Snapshot, type SnapshotInfo, type SnapshotReason, SNAPSHOT_REASONS, infoOf, makeSnapshot, pruneSnapshots, shouldSnapshot } from '@/lib/snapshots';
 
@@ -30,6 +35,8 @@ export interface Boot {
   meta: BackupMeta;
   /** The snapshots' index, newest first (the copies themselves stay in storage until restored). */
   snapshots: SnapshotInfo[];
+  /** The profiles' list (MAIN alone until a second is saved). */
+  profiles: ProfileIndex;
   /** A message for the user about the load (damaged data), or null. */
   notice: string | null;
 }
@@ -105,6 +112,37 @@ export function saveLayout(kv: KV, layout: LayoutDocument): Promise<void> {
   return kv.set(KEYS.layout, layout);
 }
 
+/** Saves the profiles' list. */
+export function saveProfiles(kv: KV, profiles: ProfileIndex): Promise<void> {
+  return kv.set(KEYS.profiles, profiles);
+}
+
+/** Stores profile `id`'s layout (a profile that isn't open). */
+export function saveProfileLayout(kv: KV, id: string, layout: LayoutDocument): Promise<void> {
+  return kv.set(KEYS.profilePrefix + id, layout);
+}
+
+/** Deletes profile `id`'s stored copy (it was opened, or removed). */
+export function deleteProfileLayout(kv: KV, id: string): Promise<void> {
+  return kv.del(KEYS.profilePrefix + id);
+}
+
+/**
+ * Reads profile `id`'s layout, brought up to the current schema; null if
+ * it's gone or can't be read (a damaged one is copied to `corrupt.<now>`
+ * first, as a damaged layout is). A newer version's copy stays in place.
+ */
+export async function loadProfileLayout(kv: KV, id: string, now: number): Promise<LayoutDocument | null> {
+  const raw = await kv.get(KEYS.profilePrefix + id);
+  if (raw === undefined) return null;
+  try {
+    return migrateLayout(raw).doc;
+  } catch {
+    await kv.set(KEYS.corruptPrefix + now, raw);
+    return null;
+  }
+}
+
 /** Saves the backup bookkeeping. */
 export function saveMeta(kv: KV, meta: BackupMeta): Promise<void> {
   return kv.set(KEYS.meta, meta);
@@ -131,7 +169,10 @@ export async function storeSnapshot(kv: KV, index: readonly SnapshotInfo[], layo
 /** Loads (or creates) everything the app needs to start. See the file header for the rules. */
 export async function boot(kv: KV, now: number): Promise<Boot> {
   // Everything startup reads, asked for at once (one round of storage reads, not one after another).
-  const [rawMeta, keys, raw] = await Promise.all([kv.get(KEYS.meta), kv.keys(), kv.get(KEYS.layout)]);
+  const [rawMeta, keys, raw, rawProfiles] = await Promise.all([kv.get(KEYS.meta), kv.keys(), kv.get(KEYS.layout), kv.get(KEYS.profiles)]);
+  // The profiles' list, checked against the copies that are stored (only the open one has none).
+  const stored = new Set(keys);
+  const profiles = normalizeProfiles(rawProfiles, (id) => stored.has(KEYS.profilePrefix + id));
 
   // Backup bookkeeping: created on the first run.
   const meta = isMeta(rawMeta) ? rawMeta : freshMeta(now);
@@ -161,5 +202,5 @@ export async function boot(kv: KV, now: number): Promise<Boot> {
   // The startup snapshot (only when the layout differs from the newest one;
   // not for a newer version's layout, which this one can't represent).
   if (notice !== NOTICE_NEWER) snapshots = await storeSnapshot(kv, snapshots, layout, 'startup', now);
-  return { layout, meta, snapshots, notice };
+  return { layout, meta, snapshots, profiles, notice };
 }

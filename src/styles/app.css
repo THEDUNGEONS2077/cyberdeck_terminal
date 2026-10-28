@@ -783,7 +783,9 @@ kbd {
   display: flex;
   flex-direction: column;
 }
-.snapshot {
+/* A snapshot in RESTORE, and a profile in PROFILES: a line each, its buttons on the right. */
+.snapshot,
+.profile-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -791,7 +793,8 @@ kbd {
   padding: var(--s-xs) 0;
   border-bottom: var(--hairline) solid var(--line);
 }
-.snapshot:hover {
+.snapshot:hover,
+.profile-row:hover {
   background: var(--surface);
 }
 .snapshot-text {

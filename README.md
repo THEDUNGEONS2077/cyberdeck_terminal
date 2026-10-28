@@ -11,7 +11,7 @@ The same wallpapers run on Android as live wallpapers: [fluid_motion](https://gi
 |---|---|
 | **F** | Fullscreen with only the wallpaper. F or Esc comes back. |
 | **/** | Find: type a few letters of any bookmark (in any folder) and press Enter to open it, or run a command. ↑ ↓ choose. |
-| **S** | SYSTEM: appearance (colours, wallpaper, glow, zoom), bookmarks source, backups, restore |
+| **S** | SYSTEM: appearance (colours, wallpaper, glow, zoom), profiles, bookmarks source, backups, restore |
 | **+ −** | Zoom the wallpaper in / out a step (**0**: back to 100%), in fullscreen too. Each wallpaper keeps its own zoom. |
 | **[ ]** | Make the dashboard smaller / bigger (UI SCALE) |
 | **1–9** | Open the QUICK LAUNCH tile with that key |
@@ -64,7 +64,10 @@ Press **DONE** (or Esc) to lock it again. Changes save as you go.
 
 ## Your layout is recoverable
 - **Automatic snapshots** are kept in this browser: when the page opens, after changes, and before any import or restore. Restore any of them from **SYSTEM ▸ RESTORE**.
-- **Backup files:** **SYSTEM ▸ EXPORT BACKUP** saves a `.json` file wherever you like, and **IMPORT BACKUP…** brings one back after showing what it holds.
+- **Backup files:** **SYSTEM ▸ EXPORT BACKUP** saves a `.json` file wherever you like (every profile in it), and **IMPORT BACKUP…** brings one back after showing what it holds.
+
+## Profiles
+**SYSTEM ▸ PROFILES** keeps whole layouts with names (bookmark areas, panels, modules, wallpaper, colours and sizes), up to 12. **SAVE AS NEW** copies the layout you're looking at into a new profile and opens it; **OPEN** switches (or type *open profile* in the finder); changes save to the open one. Switching and deleting both leave a snapshot in RESTORE.
 - **The reminder:** if you haven't exported for a while (14 days by default, adjustable), the page offers to export.
 
 ## Development

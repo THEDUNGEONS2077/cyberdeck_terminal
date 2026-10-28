@@ -9,7 +9,9 @@
  *   - at startup (so each day the page is used has one),
  *   - right before an import or a restore replaces the layout, so that
  *     replacing can itself be undone;
- *   - when edit mode starts, so a whole editing session can be undone.
+ *   - when edit mode starts, so a whole editing session can be undone;
+ *   - right before switching to another profile (lib/profiles.ts);
+ *   - of a profile as it's deleted, so deleting one can be undone.
  * A snapshot identical to the newest one is never stored twice.
  *
  * Each snapshot is stored whole (Snapshot), and described in an index
@@ -22,7 +24,7 @@ import { formatStamp } from './backup';
 import { type LayoutDocument, layoutFingerprint, summarizeLayout } from './layout';
 
 /** Why a snapshot was taken (shown in the RESTORE list). */
-export type SnapshotReason = 'change' | 'startup' | 'before-import' | 'before-restore' | 'before-edit';
+export type SnapshotReason = 'change' | 'startup' | 'before-import' | 'before-restore' | 'before-edit' | 'before-switch' | 'profile-deleted';
 
 /** What the index says about one snapshot. */
 export interface SnapshotInfo {
@@ -41,7 +43,7 @@ export interface Snapshot extends SnapshotInfo {
 }
 
 /** The reasons a snapshot can have (for checking stored ones). */
-export const SNAPSHOT_REASONS: readonly SnapshotReason[] = ['change', 'startup', 'before-import', 'before-restore', 'before-edit'];
+export const SNAPSHOT_REASONS: readonly SnapshotReason[] = ['change', 'startup', 'before-import', 'before-restore', 'before-edit', 'before-switch', 'profile-deleted'];
 
 /** How long the layout must be still before a change is snapshotted. */
 export const CHANGE_DEBOUNCE_MS = 30_000;
@@ -108,5 +110,9 @@ export function reasonLabel(reason: SnapshotReason): string {
       return 'BEFORE RESTORE';
     case 'before-edit':
       return 'BEFORE EDIT';
+    case 'before-switch':
+      return 'BEFORE SWITCH';
+    case 'profile-deleted':
+      return 'DELETED PROFILE';
   }
 }

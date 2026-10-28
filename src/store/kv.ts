@@ -32,6 +32,10 @@ export const KEYS = {
   snapshotPrefix: 'snapshot.',
   /** The snapshots' index: when, why, summary and fingerprint of each, newest first. */
   snapshotIndex: 'snapshots.index.v1',
+  /** The profiles' list: names, and which is open (lib/profiles.ts). Missing until a second profile is saved. */
+  profiles: 'profiles.v1',
+  /** Each profile but the open one: `profile.<id>`, a whole layout (the open one's is `layout`). */
+  profilePrefix: 'profile.',
   /** Unreadable data is kept under `corrupt.<epoch ms>` instead of being thrown away. */
   corruptPrefix: 'corrupt.',
 } as const;

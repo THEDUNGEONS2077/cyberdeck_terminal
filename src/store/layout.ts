@@ -9,19 +9,26 @@
  * layout has been still for CHANGE_DEBOUNCE_MS. Replacing the layout
  * (import, restore) snapshots the current one first, so it's never lost.
  * Storage writes run one at a time, in order, through `queue`.
+ *
+ * Profiles (lib/profiles.ts): the open profile's layout is `layout`; the
+ * others are stored copies. Their writes are ordered so a page closed
+ * midway never loses a layout: a copy is written before the list points
+ * at it, and deleted only after nothing does (the worst left behind is a
+ * spare copy, which startup ignores).
  */
 import { createStore, type StoreApi } from 'zustand/vanilla';
 
 import type { Arrangement, Panels } from '@/lib/arrange';
 import type { BookmarkNode } from '@/lib/bookmarks';
-import { type GlowLevel, type LayoutDocument, type LayoutPrefs, withZoom, zoomOf } from '@/lib/layout';
+import { type GlowLevel, type LayoutDocument, type LayoutPrefs, layoutFingerprint, withZoom, zoomOf } from '@/lib/layout';
 import type { ModuleInstance } from '@/lib/modules';
 import type { PaletteId } from '@/lib/palettes';
+import { type ProfileCopy, type ProfileIndex, MAX_PROFILES, addProfile, newProfileId, openProfile, profilesToAdd, removeProfile, renameProfile, uniqueName } from '@/lib/profiles';
 import { type BackupMeta, SNOOZE_MS } from '@/lib/reminder';
 import { CHANGE_DEBOUNCE_MS, type SnapshotInfo, type SnapshotReason } from '@/lib/snapshots';
 
 import type { KV } from './kv';
-import { type Boot, loadSnapshot, saveLayout, saveMeta, storeSnapshot } from './persist';
+import { type Boot, deleteProfileLayout, loadProfileLayout, loadSnapshot, saveLayout, saveMeta, saveProfileLayout, saveProfiles, storeSnapshot } from './persist';
 
 /** The layout store's state and actions. */
 export interface LayoutState {
@@ -29,6 +36,8 @@ export interface LayoutState {
   meta: BackupMeta;
   /** The snapshots' index, newest first. */
   snapshots: SnapshotInfo[];
+  /** The profiles, and which is open (lib/profiles.ts). */
+  profiles: ProfileIndex;
   /** Shows a different wallpaper. */
   setWallpaper(id: string): void;
   /** Sets the backup reminder's interval in days (0 = off). */
@@ -69,6 +78,25 @@ export interface LayoutState {
    * the current one with `reason`. Resolves once both are stored.
    */
   replaceLayout(next: LayoutDocument, reason: 'before-import' | 'before-restore'): Promise<void>;
+  /**
+   * Saves the layout as a new profile (its name made free) and opens it;
+   * the profile that was open keeps the layout as it is now. Resolves to
+   * the new profile's name, or null at MAX_PROFILES.
+   */
+  saveProfileAs(name: string): Promise<string | null>;
+  /**
+   * Opens profile `id`: snapshots the open one, stores its layout, and
+   * loads the other's. False (nothing changed) if it can't be read.
+   */
+  switchProfile(id: string): Promise<boolean>;
+  /** Renames profile `id` (to a free, clean name). */
+  renameProfile(id: string, name: string): void;
+  /** Deletes profile `id` (not the open one), keeping its layout as a snapshot first. */
+  deleteProfile(id: string): Promise<void>;
+  /** Every profile but the open one, read whole (for a backup); one that can't be read is left out. */
+  otherProfiles(): Promise<ProfileCopy[]>;
+  /** Adds a backup's profiles that aren't here already (by content; lib/profiles.ts profilesToAdd). Resolves to their names. */
+  addProfiles(copies: readonly ProfileCopy[]): Promise<string[]>;
   /** Records that a backup file was exported now (and ends any snooze). */
   markExported(): void;
   /** LATER on the reminder: quiet for SNOOZE_MS. */
@@ -125,6 +153,7 @@ export function createLayoutStore(kv: KV, boot: Boot, onSaveError: SaveErrorHand
       layout: boot.layout,
       meta: boot.meta,
       snapshots: boot.snapshots,
+      profiles: boot.profiles,
 
       setWallpaper(id) {
         if (get().layout.wallpaper !== id) commit({ ...get().layout, wallpaper: id });
@@ -219,6 +248,101 @@ export function createLayoutStore(kv: KV, boot: Boot, onSaveError: SaveErrorHand
         await snapshot(reason);
         commit(next);
         await queue;
+      },
+
+      async saveProfileAs(name) {
+        const before = get().profiles;
+        if (before.list.length >= MAX_PROFILES) return null;
+        const entry = { id: newProfileId(before, now(), Math.random()), name: uniqueName(before, name) };
+        const profiles = addProfile(before, entry, true);
+        const layout = get().layout;
+        set({ profiles });
+        // The one that was open keeps the layout as it is now; the new one opens on the same layout.
+        await enqueue(async () => {
+          await saveProfileLayout(kv, before.active, layout);
+          await saveProfiles(kv, profiles);
+        });
+        return entry.name;
+      },
+
+      async switchProfile(id) {
+        const from = get().profiles.active;
+        if (id === from || !get().profiles.list.some((p) => p.id === id)) return false;
+        await queue;
+        const next = await loadProfileLayout(kv, id, now());
+        if (!next) return false;
+        // The open layout is snapshotted (RESTORE can bring it back), then stored as its profile.
+        if (timer) clearTimeout(timer);
+        timer = null;
+        await snapshot('before-switch');
+        const layout = get().layout;
+        const profiles = openProfile(get().profiles, id);
+        set({ profiles });
+        void enqueue(() => saveProfileLayout(kv, from, layout));
+        commit(next);
+        // Only once the new layout is saved does the list point at it, and its spare copy go.
+        void enqueue(async () => {
+          await saveProfiles(kv, profiles);
+          await deleteProfileLayout(kv, id);
+        });
+        await queue;
+        return true;
+      },
+
+      renameProfile(id, name) {
+        const profiles = renameProfile(get().profiles, id, name);
+        if (profiles === get().profiles) return;
+        set({ profiles });
+        void enqueue(() => saveProfiles(kv, profiles));
+      },
+
+      async deleteProfile(id) {
+        const profiles = removeProfile(get().profiles, id);
+        if (profiles === get().profiles) return;
+        await queue;
+        // Its layout goes into RESTORE first, so deleting it can be undone.
+        const layout = await loadProfileLayout(kv, id, now());
+        if (layout)
+          await enqueue(async () => {
+            const snapshots = await storeSnapshot(kv, get().snapshots, layout, 'profile-deleted', now());
+            set({ snapshots });
+          });
+        set({ profiles });
+        await enqueue(async () => {
+          await saveProfiles(kv, profiles);
+          await deleteProfileLayout(kv, id);
+        });
+      },
+
+      async otherProfiles() {
+        await queue;
+        const { profiles } = get();
+        const out: ProfileCopy[] = [];
+        for (const p of profiles.list) {
+          if (p.id === profiles.active) continue;
+          const layout = await loadProfileLayout(kv, p.id, now());
+          if (layout) out.push({ name: p.name, layout });
+        }
+        return out;
+      },
+
+      async addProfiles(copies) {
+        if (!copies.length) return [];
+        const have = [get().layout, ...(await get().otherProfiles()).map((c) => c.layout)].map(layoutFingerprint);
+        const add = profilesToAdd(get().profiles, copies, have);
+        let profiles = get().profiles;
+        const names: string[] = [];
+        for (const copy of add) {
+          const entry = { id: newProfileId(profiles, now(), Math.random()), name: copy.name };
+          const next = addProfile(profiles, entry, false);
+          if (next === profiles) break;
+          profiles = next;
+          names.push(entry.name);
+          await enqueue(() => saveProfileLayout(kv, entry.id, copy.layout));
+        }
+        set({ profiles });
+        await enqueue(() => saveProfiles(kv, profiles));
+        return names;
       },
 
       markExported() {

@@ -829,6 +829,51 @@ try {
     await page.keyboard.press('Escape');
   });
 
+  await path('PROFILES: SAVE AS NEW opens a copy, each keeps its own layout, OPEN from SYSTEM and the finder, RENAME, DELETE (kept in RESTORE), all through a reload', async () => {
+    await page.keyboard.press('s');
+    const profiles = page.getByRole('region', { name: 'Profiles' });
+    await profiles.getByText('● OPEN').waitFor();
+    // SAVE AS NEW: NIGHT opens on the same layout; then only NIGHT's reminder changes.
+    await profiles.getByLabel("New profile's name").fill('night');
+    await profiles.getByRole('button', { name: 'SAVE AS NEW' }).click();
+    await page.locator('.toast', { hasText: 'SAVED AS NIGHT' }).waitFor();
+    expect((await reminder().inputValue()) === '7', 'SAVE AS NEW changed the layout');
+    await reminder().selectOption('30');
+    await settled();
+    // OPEN MAIN: its own layout comes back, and the one left is snapshotted.
+    await profiles.getByRole('button', { name: 'Open the profile MAIN' }).click();
+    await page.locator('.toast', { hasText: 'PROFILE MAIN · NIGHT SAVED' }).waitFor();
+    expect((await reminder().inputValue()) === '7', 'MAIN did not keep its own layout');
+    await page.locator('.snapshot').first().getByText('BEFORE SWITCH').waitFor();
+    await shot('22-profiles');
+    await audit('SYSTEM ▸ PROFILES');
+    // The finder opens one by name.
+    await page.keyboard.press('Escape');
+    await page.keyboard.press('/');
+    await page.keyboard.type('open profile night');
+    await page.getByRole('option', { name: /OPEN PROFILE NIGHT/ }).waitFor();
+    await page.keyboard.press('Enter');
+    await page.locator('.toast', { hasText: 'PROFILE NIGHT · MAIN SAVED' }).waitFor();
+    // Through a reload: NIGHT still open, with its own layout.
+    await settled();
+    await page.reload();
+    await page.locator('.brand').waitFor();
+    await page.keyboard.press('s');
+    expect((await reminder().inputValue()) === '30', 'NIGHT’s layout was not kept through a reload');
+    await profiles.locator('.profile-row', { hasText: 'NIGHT' }).getByText('● OPEN').waitFor();
+    // RENAME MAIN to HOME, then DELETE it (asks first; its layout goes into RESTORE).
+    await profiles.getByRole('button', { name: 'Rename the profile MAIN' }).click();
+    await profiles.getByLabel('New name for MAIN').fill('home');
+    await page.keyboard.press('Enter');
+    await profiles.getByText('HOME', { exact: true }).waitFor();
+    await profiles.getByRole('button', { name: 'Delete the profile HOME' }).click();
+    await profiles.getByRole('button', { name: 'CONFIRM DELETE' }).click();
+    await page.locator('.toast', { hasText: 'DELETED HOME · ITS LAYOUT IS IN RESTORE' }).waitFor();
+    expect((await profiles.locator('.profile-row').count()) === 1, 'HOME was not deleted');
+    expect((await page.locator('.snapshot', { hasText: 'REMIND 7D' }).count()) > 0, 'HOME’s layout is not in RESTORE');
+    await page.keyboard.press('Escape');
+  });
+
   await path('GLOW: a level is saved with the layout (and as the start-up hint), the rain keeps drawing, and it survives a reload', async () => {
     const glow = () => page.getByRole('radiogroup', { name: 'GLOW' });
     const hint = () => page.evaluate(() => localStorage.getItem('cyberdeck_terminal:glow'));

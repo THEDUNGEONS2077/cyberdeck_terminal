@@ -157,6 +157,8 @@ IndexedDB, database `cyberdeck_terminal`, store `kv`. quest_log_desktop shares t
 | `meta.backup.v1` | Last export, reminder snooze, first run |
 | `bookmarks.cache.v1` | The bridge's last bookmarks bar: a cache for an instant first draw. Not in the layout or backups |
 | `snapshot.<ms>` | Automatic snapshots: `{ at, reason, summary, layout }` |
+| `profiles.v1` | The profiles' list: names, and which is open (missing until a second profile is saved) |
+| `profile.<id>` | Each profile but the open one: a whole layout document |
 | `corrupt.<ms>` | Data that couldn't be read, kept rather than overwritten |
 
 **Startup (`store/persist.ts` `boot`):**
@@ -175,6 +177,15 @@ IndexedDB, database `cyberdeck_terminal`, store `kv`. quest_log_desktop shares t
 - Every change is saved at once.
 - A snapshot follows once the layout has been still for 30 s.
 - Import and restore snapshot the current layout first, so they can be undone.
+
+**Profiles (0.21.0, C9; `lib/profiles.ts`, `store/layout.ts`):** whole layouts with names, switched by hand (SYSTEM ▸ PROFILES, or OPEN PROFILE … in the finder).
+- **The open profile's layout is `layout.v1`.** Everything else (saving, snapshots, RESTORE, edit mode, backups) works on it as it always did. Each other profile is a stored copy, `profile.<id>`, read only to open or back it up; startup reads just the list.
+- **Until a second profile is saved** there's one, MAIN, and nothing extra is stored. No schema change: the layout document is untouched.
+- **SAVE AS NEW** stores the layout as the open profile's copy, then opens a new profile on the same layout.
+- **Switching** (`switchProfile`; the page locks edit mode first, `app/profiles.ts`) snapshots the open layout (`before-switch`), stores it as its profile, saves the other as the layout, and only then points the list at it and deletes its copy. A page closed midway never loses a layout; the worst left behind is a spare copy, which startup ignores. A copy that can't be read isn't opened, and is kept under `corrupt.*`.
+- **Deleting** one (never the open one) snapshots its layout first (`profile-deleted`, unless the newest snapshot already holds it), so RESTORE can bring it back.
+- **Backups** carry the open profile's name (`profile`) and every other profile (`profiles`), both optional, so the file's version stays 1. Older files read as before; older apps ignore the extras. IMPORT replaces the open layout (snapshotted first, as always) and adds the file's other profiles beside yours: one already here by content is skipped, a taken name gets a number, and none of yours is removed. Fixture tests: `src/__tests__/profiles.test.ts`.
+- **Limits:** 12 profiles, names up to 24 characters (upper case, unique).
 
 **Keeping snapshots (`lib/snapshots.ts`):**
 - The newest 20 are kept.

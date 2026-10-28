@@ -8,7 +8,10 @@
  *
  *   BOOKMARKS  where the bookmarks bar comes from (the bridge, live, or an
  *              imported copy), the bridge download (and update), importing;
- *   BACKUP     export a file, import one (preview, then REPLACE), the
+ *   PROFILES   whole layouts with names (lib/profiles.ts): the open one,
+ *              OPEN another, RENAME, DELETE (asks first), SAVE AS NEW;
+ *   BACKUP     export a file (every profile), import one (preview, then
+ *              REPLACE; its other profiles are added beside yours), the
  *              reminder interval, and when the last export was;
  *   RESTORE    the automatic snapshots, newest first; RESTORE asks to confirm;
  *   APPEARANCE (first) the dashboard's colours, its sizes (UI SCALE, TEXT
@@ -18,13 +21,14 @@
  *   KEYS       the shortcuts;
  *   and at the foot, COPY DIAGNOSTICS (app/diagnostics.ts).
  */
-import { type ChangeEvent, type CSSProperties, useId, useRef, useState, useSyncExternalStore } from 'react';
+import { type ChangeEvent, type CSSProperties, type FormEvent, useId, useRef, useState, useSyncExternalStore } from 'react';
 
 import { BRIDGE_VERSION } from '@/bridge/client';
 import { BackupError, type ParsedBackup, formatStamp } from '@/lib/backup';
 import { countLinks } from '@/lib/bookmarks';
 import { DEFAULT_ZOOM, GLOW_LEVELS, REMINDER_DAY_CHOICES, ZOOM_STEPS, stepZoom, summarizeLayout, zoomLabel, zoomOf } from '@/lib/layout';
 import { type PaletteId, PALETTES } from '@/lib/palettes';
+import { MAX_PROFILES, MAX_PROFILE_NAME, activeProfile } from '@/lib/profiles';
 import { DEFAULT_MODULE_SCALE, DEFAULT_TEXT_SCALE, DEFAULT_UI_SCALE, MODULE_SCALE_STEPS, TEXT_SCALE_STEPS, UI_SCALE_STEPS, percentLabel } from '@/lib/scale';
 import { exportAge } from '@/lib/reminder';
 import { reasonLabel, type SnapshotInfo } from '@/lib/snapshots';
@@ -41,6 +45,7 @@ import { Dialog } from './Dialog';
 import { useBookmarks, useLayout } from './hooks';
 import { CopyAddress, DownloadBridgeButton, ImportBookmarksButton } from './ImportBookmarks';
 import { Prompted } from './Prompted';
+import { switchToProfile } from './profiles';
 import { Stepper } from './Stepper';
 
 /** The SYSTEM panel; `leaving` while it fades out. */
@@ -50,6 +55,7 @@ export function SystemPanel({ leaving }: { leaving: boolean }) {
     <Dialog title="SYSTEM" onClose={close} leaving={leaving} wide>
       <div className="panel-body">
         <AppearanceSection />
+        <ProfilesSection />
         <BookmarksSection />
         <BackupSection />
         <RestoreSection />
@@ -186,9 +192,11 @@ function BackupSection() {
     if (!preview) return;
     setBusy(true);
     await layoutStore().getState().replaceLayout(preview.layout, 'before-import');
+    // Its other profiles join yours (one already here, by content, isn't added twice); none of yours is removed.
+    const added = await layoutStore().getState().addProfiles(preview.profiles);
     setBusy(false);
     setPreview(null);
-    uiStore.getState().showToast('BACKUP IMPORTED · PREVIOUS LAYOUT SAVED IN RESTORE');
+    uiStore.getState().showToast(`BACKUP IMPORTED${added.length ? ` · ${added.length} PROFILE${added.length > 1 ? 'S' : ''} ADDED` : ''} · PREVIOUS LAYOUT SAVED IN RESTORE`);
   };
 
   return (
@@ -209,7 +217,7 @@ function BackupSection() {
         </select>
       </div>
       <div className="button-row">
-        <button type="button" className="text-btn primary" onClick={downloadBackup}>
+        <button type="button" className="text-btn primary" onClick={() => void downloadBackup()}>
           EXPORT BACKUP
         </button>
         <button type="button" className="text-btn" onClick={() => fileInput.current?.click()}>
@@ -227,8 +235,15 @@ function BackupSection() {
           <p className="bright">
             <Prompted>BACKUP {preview.exportedAt ? `FROM ${formatStamp(preview.exportedAt)}` : '(NO DATE)'}</Prompted>
           </p>
-          <p className="small">{summarizeLayout(preview.layout)}</p>
-          <p className="small dim">REPLACES THE CURRENT LAYOUT. THE CURRENT ONE IS SNAPSHOTTED FIRST, SO RESTORE CAN BRING IT BACK.</p>
+          <p className="small">
+            {preview.profile ? `${preview.profile} · ` : ''}
+            {summarizeLayout(preview.layout)}
+          </p>
+          {preview.profiles.length > 0 && <p className="small">ALSO {preview.profiles.length} OTHER PROFILE{preview.profiles.length > 1 ? 'S' : ''}: {preview.profiles.map((p) => p.name).join(', ')}</p>}
+          <p className="small dim">
+            REPLACES THE OPEN PROFILE'S LAYOUT. THE CURRENT ONE IS SNAPSHOTTED FIRST, SO RESTORE CAN BRING IT BACK.
+            {preview.profiles.length > 0 && ' ITS OTHER PROFILES ARE ADDED BESIDE YOURS; NONE OF YOURS IS REMOVED.'}
+          </p>
           <div className="button-row">
             <button type="button" className="text-btn primary" disabled={busy} onClick={replace}>
               REPLACE LAYOUT
@@ -239,6 +254,149 @@ function BackupSection() {
           </div>
         </div>
       )}
+    </section>
+  );
+}
+
+/**
+ * PROFILES: whole layouts with names (lib/profiles.ts). The open one is
+ * the layout you're looking at; changes save to it as you go. OPEN switches
+ * (app/profiles.ts: the open one is snapshotted and kept), RENAME edits a
+ * name in place, DELETE asks first (its layout goes into RESTORE), and
+ * SAVE AS NEW copies the layout into a new profile and opens it.
+ */
+function ProfilesSection() {
+  const profiles = useLayout((s) => s.profiles);
+  const [name, setName] = useState('');
+  // The profile being renamed (by id), and its new name.
+  const [renaming, setRenaming] = useState<string | null>(null);
+  const [renameTo, setRenameTo] = useState('');
+  // The profile waiting for DELETE's confirm, by id.
+  const [confirming, setConfirming] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const nameId = useId();
+  const full = profiles.list.length >= MAX_PROFILES;
+  const open = activeProfile(profiles);
+
+  /** SAVE AS NEW: the layout copied into a new profile, which opens. */
+  const saveAs = async (e: FormEvent) => {
+    e.preventDefault();
+    setBusy(true);
+    const saved = await layoutStore().getState().saveProfileAs(name || 'PROFILE');
+    setBusy(false);
+    setName('');
+    uiStore.getState().showToast(saved ? `SAVED AS ${saved} · NOW OPEN · ${open.name} KEPT AS IT WAS` : `${MAX_PROFILES} PROFILES IS THE MOST · DELETE ONE FIRST`);
+  };
+
+  const openOne = async (id: string) => {
+    setBusy(true);
+    await switchToProfile(id);
+    setBusy(false);
+  };
+
+  const rename = (e: FormEvent) => {
+    e.preventDefault();
+    if (renaming) layoutStore().getState().renameProfile(renaming, renameTo);
+    setRenaming(null);
+  };
+
+  const remove = async (id: string) => {
+    const gone = profiles.list.find((p) => p.id === id)?.name ?? 'PROFILE';
+    setBusy(true);
+    await layoutStore().getState().deleteProfile(id);
+    setBusy(false);
+    setConfirming(null);
+    uiStore.getState().showToast(`DELETED ${gone} · ITS LAYOUT IS IN RESTORE`);
+  };
+
+  return (
+    <section className="settings-group" aria-label="Profiles">
+      <h3 className="section-title">
+        PROFILES <span className="section-count">· {profiles.list.length}</span>
+      </h3>
+      <p className="small dim">EACH PROFILE IS A WHOLE LAYOUT: BOOKMARK AREAS, PANELS, MODULES, WALLPAPER, COLOURS AND SIZES. CHANGES SAVE TO THE OPEN ONE.</p>
+      <ul className="snapshot-list">
+        {profiles.list.map((p) => (
+          <li key={p.id} className="profile-row">
+            {renaming === p.id ? (
+              <form className="field-row profile-rename" onSubmit={rename}>
+                <input
+                  className="module-input boxed"
+                  aria-label={`New name for ${p.name}`}
+                  value={renameTo}
+                  maxLength={MAX_PROFILE_NAME}
+                  autoComplete="off"
+                  autoFocus
+                  onChange={(e) => setRenameTo(e.target.value)}
+                  onKeyDown={(e) => {
+                    // Escape cancels the rename only, not the whole panel.
+                    if (e.key === 'Escape') {
+                      e.stopPropagation();
+                      setRenaming(null);
+                    }
+                  }}
+                />
+                <button type="submit" className="text-btn primary">
+                  SAVE
+                </button>
+                <button type="button" className="text-btn" onClick={() => setRenaming(null)}>
+                  CANCEL
+                </button>
+              </form>
+            ) : (
+              <>
+                <div className="snapshot-text">
+                  <span className="bright">{p.name}</span> {p.id === profiles.active && <span className="accent small">● OPEN</span>}
+                </div>
+                {confirming === p.id ? (
+                  <div className="button-row">
+                    <button type="button" className="text-btn danger" disabled={busy} onClick={() => void remove(p.id)} autoFocus>
+                      CONFIRM DELETE
+                    </button>
+                    <button type="button" className="text-btn" onClick={() => setConfirming(null)}>
+                      CANCEL
+                    </button>
+                  </div>
+                ) : (
+                  <div className="button-row">
+                    {p.id !== profiles.active && (
+                      <button type="button" className="text-btn" disabled={busy} onClick={() => void openOne(p.id)} aria-label={`Open the profile ${p.name}`}>
+                        OPEN
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      className="text-btn"
+                      onClick={() => {
+                        setRenaming(p.id);
+                        setRenameTo(p.name);
+                      }}
+                      aria-label={`Rename the profile ${p.name}`}
+                    >
+                      RENAME
+                    </button>
+                    {p.id !== profiles.active && (
+                      <button type="button" className="text-btn" onClick={() => setConfirming(p.id)} aria-label={`Delete the profile ${p.name}`}>
+                        DELETE
+                      </button>
+                    )}
+                  </div>
+                )}
+              </>
+            )}
+          </li>
+        ))}
+      </ul>
+      <form className="field-row" onSubmit={saveAs}>
+        <label className="sr-only" htmlFor={nameId}>
+          New profile's name
+        </label>
+        <input id={nameId} className="module-input boxed" placeholder="NEW PROFILE'S NAME" value={name} maxLength={MAX_PROFILE_NAME} autoComplete="off" disabled={full} onChange={(e) => setName(e.target.value)} />
+        <button type="submit" className="text-btn primary" disabled={busy || full}>
+          SAVE AS NEW
+        </button>
+      </form>
+      <p className="small dim">{full ? `${MAX_PROFILES} PROFILES IS THE MOST: DELETE ONE TO SAVE ANOTHER.` : `SAVE AS NEW COPIES THIS LAYOUT INTO A NEW PROFILE AND OPENS IT; ${open.name} KEEPS THE LAYOUT AS IT IS NOW.`}</p>
     </section>
   );
 }

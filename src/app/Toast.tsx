@@ -80,7 +80,7 @@ export function Toast() {
             className="text-btn primary"
             onClick={() => {
               dismiss();
-              downloadBackup();
+              void downloadBackup();
             }}
           >
             EXPORT

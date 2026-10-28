@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.21.0 (build 37)
+- **Layout profiles** (SYSTEM ▸ PROFILES): keep whole layouts with names and switch between them by hand.
+  - **What a profile holds:** everything about the dashboard: bookmark areas and order, panels, modules and their sizes, the wallpaper and its zoom, the colours and the sizes.
+  - **SAVE AS NEW** copies the layout you're looking at into a new profile and opens it. The one you were on keeps the layout as it was.
+  - **OPEN** switches. So does typing *open profile* and the name in the finder (/). Changes save to the open profile as you go.
+  - **RENAME** and **DELETE** (which asks first). Up to 12 profiles.
+  - **Nothing is lost:** switching snapshots the layout you leave, and a deleted profile's layout stays in RESTORE.
+  - **Your layout now** becomes the first profile, MAIN. Nothing changes until you save a second one.
+- **Backups carry every profile.** Importing one replaces the open layout as before, and adds the file's other profiles beside yours (skipping any you already have). None of yours is removed. Older backups import as they always did.
+
 ## 0.20.0 (build 36)
 - **The dashboard stands out from the wallpaper now ("lit frames").**
   - **Panels:** NAV's header bar, every module, the brand panel, the key hints and toasts have a lit edge and a soft glow. Their titles glow in the accent colour.

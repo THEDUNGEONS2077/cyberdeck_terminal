@@ -41,6 +41,7 @@ import { useShownBar } from './useShownBar';
 import { addBrand, addKind } from './deck/EditBar';
 import { defaultEngine, focusSearch, openSearch, timerCommand } from './modules/actions';
 import { CATALOG } from './modules/catalog';
+import { switchToProfile } from './profiles';
 import { openUrl } from './switchTab';
 import { scaleUi } from './uiScale';
 import { zoomWallpaper } from './zoom';
@@ -92,6 +93,7 @@ function FinderPanel({ leaving }: { leaving: boolean }) {
   const kinds = useLayout((s) => s.layout.modules.map((m) => m.kind).join());
   const moduleCount = useLayout((s) => s.layout.modules.length);
   const brandOff = useLayout((s) => s.layout.panels.brandOff === true);
+  const profiles = useLayout((s) => s.profiles);
   const has = (kind: ModuleKind) => kinds.split(',').includes(kind);
   /** Runs `change` in edit mode (opening it first, so UNDO and DONE are at hand). */
   const inEditMode = (change: () => void) => () => {
@@ -113,7 +115,9 @@ function FinderPanel({ leaving }: { leaving: boolean }) {
     { id: 'edit', glyph: '⠿', label: editing ? 'LOCK THE LAYOUT' : 'EDIT THE LAYOUT', run: () => toggleEdit() },
     { id: 'system', glyph: G.system, label: 'OPEN SYSTEM', key: 'S', run: () => uiStore.getState().setPanelOpen(true) },
     { id: 'fullscreen', glyph: G.fullscreen, label: 'FULLSCREEN', key: 'F', run: () => void toggleFullscreen() },
-    { id: 'backup', glyph: '↓', label: 'EXPORT A BACKUP', run: () => downloadBackup() },
+    { id: 'backup', glyph: '↓', label: 'EXPORT A BACKUP', run: () => void downloadBackup() },
+    // Every other profile (SYSTEM ▸ PROFILES), to open by name.
+    ...profiles.list.filter((p) => p.id !== profiles.active).map((p) => ({ id: `profile-${p.id}`, glyph: '◇', label: `OPEN PROFILE ${p.name}`, run: () => void switchToProfile(p.id) })),
     { id: 'zoom-in', glyph: '+', label: 'ZOOM THE WALLPAPER IN', key: '+', run: () => zoomWallpaper('in') },
     { id: 'zoom-out', glyph: '−', label: 'ZOOM THE WALLPAPER OUT', key: '−', run: () => zoomWallpaper('out') },
     { id: 'zoom-reset', glyph: '0', label: 'WALLPAPER ZOOM 100%', key: '0', run: () => zoomWallpaper('reset') },

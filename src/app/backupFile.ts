@@ -6,6 +6,7 @@
  * and by the reminder toast's EXPORT.
  */
 import { type ParsedBackup, backupFileName, checkBackupSize, makeBackup, parseBackup } from '@/lib/backup';
+import { activeProfile } from '@/lib/profiles';
 import { layoutStore } from '@/store/instance';
 import { uiStore } from '@/store/ui';
 
@@ -15,10 +16,12 @@ declare const __APP_BUILD__: number;
 /** This build, as recorded in backups. */
 export const APP_INFO = { version: __APP_VERSION__, build: __APP_BUILD__ };
 
-/** Downloads a backup of the current layout, records when, and says so. */
-export function downloadBackup(): void {
+/** Downloads a backup of the current layout and every other profile, records when, and says so. */
+export async function downloadBackup(): Promise<void> {
+  const store = layoutStore().getState();
+  const others = await store.otherProfiles();
   const now = Date.now();
-  const json = JSON.stringify(makeBackup(layoutStore().getState().layout, now, APP_INFO), null, 2);
+  const json = JSON.stringify(makeBackup(store.layout, now, APP_INFO, activeProfile(store.profiles).name, others), null, 2);
   const url = URL.createObjectURL(new Blob([json], { type: 'application/json' }));
   const a = document.createElement('a');
   a.href = url;
