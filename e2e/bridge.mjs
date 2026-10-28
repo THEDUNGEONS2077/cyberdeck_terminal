@@ -131,14 +131,18 @@ try {
     await folder.waitFor({ timeout: 5000 });
     await folder.getByRole('button', { name: /Other bookmarks/i }).click();
     await page.getByRole('link', { name: /Starred elsewhere/ }).waitFor();
-    // SYSTEM says what the bridge reads.
+    // SYSTEM ▸ BOOKMARKS (closed when SYSTEM opens, 0.25.0) says what the bridge reads.
     await page.keyboard.press('s');
+    await page.getByRole('button', { name: 'BOOKMARKS' }).click();
     await page.locator('.setting', { hasText: 'CHROME HAS' }).getByText(/BAR \d+ · OTHER 1 · MOBILE 0/).waitFor();
     await page.keyboard.press('Escape');
   });
 
   await path('SYSTEM shows the live source and the bridge version', async () => {
     await page.keyboard.press('s');
+    // Closed, BOOKMARKS says its source beside its title; open, in full.
+    await page.locator('.fold-summary', { hasText: 'LIVE · BRIDGE v1.3.0' }).waitFor();
+    await page.getByRole('button', { name: 'BOOKMARKS' }).click();
     await page.locator('.setting', { hasText: 'SOURCE' }).getByText('LIVE · BRIDGE v1.3.0').waitFor();
     await page.keyboard.press('Escape');
   });

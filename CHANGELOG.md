@@ -7,6 +7,7 @@
   - **When it's reached,** the digits light up and a notice says so, even if the tab is in the background.
   - **Battery:** it ticks once a second only while on screen and still counting.
   - **A TIMER you'd placed becomes a COUNTDOWN** in the same spot and size, with its label kept (layout schema 7). Choose its date in its SETTINGS.
+- **SYSTEM's sections fold,** all closed when it opens: APPEARANCE, PROFILES, BOOKMARKS, BACKUP, RESTORE and KEYS. Click a title to open or close it. A closed one still says what's set in it (the wallpaper, the open profile, the bookmarks' source, the last export).
 
 ## 0.24.0 (build 43)
 - **New TIMER module** (EDIT ▸ + MODULE ▸ TIMER): a stand-alone countdown with big digits.

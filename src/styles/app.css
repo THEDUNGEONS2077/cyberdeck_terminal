@@ -596,6 +596,49 @@ kbd {
 .section-count {
   font-weight: 400;
 }
+/* A SYSTEM section that folds (0.25.0): its title is the button, the rule
+   still runs on after it, and a closed one says what's set in it after the
+   rule (order puts it past ::after). */
+.fold-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-sm);
+  min-height: 32px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  letter-spacing: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.fold-toggle:hover,
+.fold.open .fold-toggle {
+  color: var(--accent);
+  text-shadow: var(--glow-text-bright);
+}
+.fold-mark {
+  width: 1em;
+  color: var(--accent);
+}
+.fold-summary {
+  order: 1;
+  overflow: hidden;
+  max-width: 50%;
+  color: var(--text-dim);
+  font-weight: 400;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.fold-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-sm);
+}
+.fold-body[hidden] {
+  display: none;
+}
 .settings-group {
   display: flex;
   flex-direction: column;

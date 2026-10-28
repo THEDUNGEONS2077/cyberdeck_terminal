@@ -64,6 +64,20 @@ const shot = (name) => page.screenshot({ path: join(shots, `${name}.png`) });
 const expect = (ok, message) => {
   if (!ok) throw new Error(message);
 };
+/**
+ * Opens SYSTEM (S) on `p` and unfolds every section in it (each is closed
+ * when SYSTEM opens, 0.25.0), for a path that works with what's inside.
+ */
+async function openSystem(p = page) {
+  await p.keyboard.press('s');
+  const dialog = p.getByRole('dialog', { name: 'SYSTEM' });
+  await dialog.waitFor();
+  // The first closed one, until none is left (the set shrinks as each opens).
+  const closed = dialog.locator('.fold-toggle[aria-expanded="false"]');
+  while ((await closed.count()) > 0) await closed.first().click();
+  // Back to the top, as it opened (opening the last section scrolled down to it; a forced click mid-scroll misses).
+  await dialog.locator('.panel-body').evaluate((body) => body.scrollTo({ top: 0, behavior: 'instant' }));
+}
 /** The SYSTEM panel's reminder setting. */
 const reminder = () => page.getByLabel('REMIND TO EXPORT AFTER');
 /** Waits for the page's storage writes to land. */
@@ -802,7 +816,21 @@ try {
     await page.keyboard.press('f');
     await page.waitForTimeout(300);
     expect(!(await page.evaluate(() => !!document.fullscreenElement)), 'F went fullscreen behind the panel');
+    // Every section starts closed, saying what's set in it; its title opens it, and closes it again.
+    const system = page.getByRole('dialog', { name: 'SYSTEM' });
+    const toggles = system.locator('.fold-toggle');
+    expect((await toggles.count()) === 6, `SYSTEM has ${await toggles.count()} sections`);
+    expect((await system.locator('.fold-toggle[aria-expanded="true"]').count()) === 0, 'a SYSTEM section starts open');
+    expect(!(await system.getByRole('radiogroup', { name: 'DASHBOARD COLOURS' }).isVisible()), 'APPEARANCE shows while closed');
+    expect((await system.getByRole('region', { name: 'Appearance' }).locator('.fold-summary').innerText()) === 'MATRIX RAIN', 'closed APPEARANCE doesn’t say the wallpaper');
     await shot('03-system');
+    await audit('SYSTEM, every section closed');
+    const appearance = system.getByRole('button', { name: 'APPEARANCE' });
+    await appearance.click();
+    expect((await appearance.getAttribute('aria-expanded')) === 'true', 'APPEARANCE didn’t open');
+    await system.getByRole('radiogroup', { name: 'DASHBOARD COLOURS' }).waitFor();
+    await appearance.click();
+    await system.getByRole('radiogroup', { name: 'DASHBOARD COLOURS' }).waitFor({ state: 'hidden' });
     await page.keyboard.press('Escape');
     await page.getByRole('dialog').waitFor({ state: 'detached' });
   });
@@ -819,7 +847,7 @@ try {
   });
 
   await path('EXPORT BACKUP downloads a valid backup and records it', async () => {
-    await page.keyboard.press('s');
+    await openSystem();
     const [download] = await Promise.all([page.waitForEvent('download'), page.getByRole('button', { name: 'EXPORT BACKUP' }).click()]);
     expect(/^cyberdeck_terminal-backup-\d{4}-\d{2}-\d{2}-\d{4}\.json$/.test(download.suggestedFilename()), `file name ${download.suggestedFilename()}`);
     backupPath = join(shots, 'backup.json');
@@ -831,7 +859,7 @@ try {
     await page.locator('.toast', { hasText: 'BACKUP EXPORTED' }).waitFor();
     // LAST EXPORT updates the next time the panel opens.
     await page.keyboard.press('Escape');
-    await page.keyboard.press('s');
+    await openSystem();
     await page.locator('.setting', { hasText: 'LAST EXPORT' }).getByText('TODAY').waitFor();
   });
 
@@ -879,14 +907,14 @@ try {
     const before = await page.locator('.snapshot').count();
     await page.reload();
     await page.locator('.brand').waitFor();
-    await page.keyboard.press('s');
+    await openSystem();
     expect((await reminder().inputValue()) === '7', 'the layout was not kept');
     expect((await page.locator('.snapshot').count()) >= before, 'snapshots were lost');
     await page.keyboard.press('Escape');
   });
 
   await path('PROFILES: SAVE AS NEW opens a copy, each keeps its own layout, OPEN from SYSTEM and the finder, RENAME, DELETE (kept in RESTORE), all through a reload', async () => {
-    await page.keyboard.press('s');
+    await openSystem();
     const profiles = page.getByRole('region', { name: 'Profiles' });
     await profiles.getByText('● OPEN').waitFor();
     // SAVE AS NEW: NIGHT opens on the same layout; then only NIGHT's reminder changes.
@@ -914,7 +942,7 @@ try {
     await settled();
     await page.reload();
     await page.locator('.brand').waitFor();
-    await page.keyboard.press('s');
+    await openSystem();
     expect((await reminder().inputValue()) === '30', 'NIGHT’s layout was not kept through a reload');
     await profiles.locator('.profile-row', { hasText: 'NIGHT' }).getByText('● OPEN').waitFor();
     // RENAME MAIN to HOME, then DELETE it (asks first; its layout goes into RESTORE).
@@ -933,7 +961,7 @@ try {
   await path('GLOW: a level is saved with the layout (and as the start-up hint), the rain keeps drawing, and it survives a reload', async () => {
     const glow = () => page.getByRole('radiogroup', { name: 'GLOW' });
     const hint = () => page.evaluate(() => localStorage.getItem('cyberdeck_terminal:glow'));
-    await page.keyboard.press('s');
+    await openSystem();
     expect((await glow().getByRole('radio', { checked: true }).getAttribute('value')) === 'high', 'HIGH isn’t the default');
     // A click on the visible label, as a person would.
     await glow().locator('label', { hasText: 'MAX' }).click();
@@ -944,7 +972,7 @@ try {
     expect((await litPixels()) > 0.01, 'the rain stopped drawing after the glow changed');
     await page.reload();
     await page.locator('.brand').waitFor();
-    await page.keyboard.press('s');
+    await openSystem();
     expect((await glow().getByRole('radio', { checked: true }).getAttribute('value')) === 'max', 'MAX was not kept');
     // The arrow keys move through the levels, like any radio group.
     await glow().getByRole('radio', { name: 'MAX' }).focus();
@@ -959,7 +987,7 @@ try {
     const accent = () => page.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue('--accent').trim());
     const wallAccent = () => page.evaluate(() => getComputedStyle(document.querySelector('.wallpaper')).getPropertyValue('--accent').trim());
     const swatch = (group, name) => page.getByRole('radiogroup', { name: group }).locator('.swatch', { hasText: name });
-    await page.keyboard.press('s');
+    await openSystem();
     // APPEARANCE comes first in SYSTEM.
     expect((await page.locator('.settings-group').first().getAttribute('aria-label')) === 'Appearance', 'APPEARANCE isn’t first');
     await swatch('DASHBOARD COLOURS', 'BLOOD').click();
@@ -984,7 +1012,7 @@ try {
     expect(a.lit > 0.002, `the network is only ${(a.lit * 100).toFixed(2)}% lit`);
     expect(a.sig !== b.sig, 'the neural net doesn’t move');
     // VELOCITY: light in motion, in the same worker; it lights the screen and moves.
-    await page.keyboard.press('s');
+    await openSystem();
     await page.getByRole('radio', { name: 'VELOCITY' }).check({ force: true });
     await page.keyboard.press('Escape');
     await page.waitForFunction(() => document.querySelector('.wallpaper')?.getAttribute('data-wallpaper') === 'velocity');
@@ -997,7 +1025,7 @@ try {
     expect(v1.sig !== v2.sig, 'VELOCITY doesn’t move');
     await shot('14-velocity');
     // DATA FLOW: the circuit board, in the same worker; it lights the screen and its data runs.
-    await page.keyboard.press('s');
+    await openSystem();
     await page.getByRole('radio', { name: 'DATA FLOW' }).check({ force: true });
     await page.keyboard.press('Escape');
     await page.waitForFunction(() => document.querySelector('.wallpaper')?.getAttribute('data-wallpaper') === 'data-flow');
@@ -1010,7 +1038,7 @@ try {
     expect(f1.sig !== f2.sig, 'DATA FLOW doesn’t move');
     await shot('15-data-flow');
     // MEGACITY: the city drawn by the graphics card, in the same worker; it fills the screen and its lights move.
-    await page.keyboard.press('s');
+    await openSystem();
     await page.getByRole('radio', { name: 'MEGACITY' }).check({ force: true });
     await page.keyboard.press('Escape');
     await page.waitForFunction(() => document.querySelector('.wallpaper')?.getAttribute('data-wallpaper') === 'megacity');
@@ -1024,7 +1052,7 @@ try {
     expect(m1.sig !== m2.sig, 'MEGACITY doesn’t move');
     await shot('17-megacity');
     // HORIZON: the wireframe land and its glow, drawn by the graphics card in the same worker; it fills the screen and glides.
-    await page.keyboard.press('s');
+    await openSystem();
     await page.getByRole('radio', { name: 'HORIZON' }).check({ force: true });
     await page.getByRole('radiogroup', { name: 'WALLPAPER COLOURS' }).getByRole('radio', { name: 'SYNTH' }).check({ force: true });
     await page.keyboard.press('Escape');
@@ -1039,7 +1067,7 @@ try {
     expect(z1.sig !== z2.sig, 'HORIZON doesn’t move');
     await shot('18b-horizon');
     // SUNSET: the outrun sun over its grid; the sky drawn once, the grid gliding.
-    await page.keyboard.press('s');
+    await openSystem();
     await page.getByRole('radio', { name: 'SUNSET' }).check({ force: true });
     await page.getByRole('radiogroup', { name: 'WALLPAPER COLOURS' }).getByRole('radio', { name: 'OUTRUN' }).check({ force: true });
     await page.keyboard.press('Escape');
@@ -1054,7 +1082,7 @@ try {
     expect(u1.sig !== u2.sig, 'SUNSET doesn’t move');
     await shot('18c-sunset');
     // PRISM: glass blocks lit magenta and blue; the camera sways and the lights breathe.
-    await page.keyboard.press('s');
+    await openSystem();
     await page.getByRole('radio', { name: 'PRISM' }).check({ force: true });
     await page.getByRole('radiogroup', { name: 'WALLPAPER COLOURS' }).getByRole('radio', { name: 'NEON' }).check({ force: true });
     await page.keyboard.press('Escape');
@@ -1070,7 +1098,7 @@ try {
     await shot('18d-prism');
     // Accessibility in another palette (contrast especially), with SYSTEM open.
     await page.addScriptTag({ path: join(root, 'node_modules/axe-core/axe.min.js') });
-    await page.keyboard.press('s');
+    await openSystem();
     await page.getByRole('radiogroup', { name: 'DASHBOARD COLOURS' }).waitFor();
     await shot('13-appearance');
     await audit('SYSTEM in BLOOD, over DATA FLOW');
@@ -1086,7 +1114,7 @@ try {
     const zoom = () => page.evaluate(() => window.__cyberdeckRain.zoom());
     const shown = (id) => page.waitForFunction((want) => document.querySelector('.wallpaper')?.getAttribute('data-wallpaper') === want, id);
     const before = await rain();
-    await page.keyboard.press('s');
+    await openSystem();
     const stepper = page.getByRole('group', { name: 'ZOOM · MATRIX RAIN' });
     expect((await stepper.getByRole('button', { name: 'Reset the zoom to 100%' }).isDisabled()) === true, 'RESET is enabled at 100%');
     await stepper.getByRole('button', { name: 'Zoom the wallpaper in' }).click();
@@ -1101,7 +1129,7 @@ try {
     expect(zoomed.lit > 0.05, `zoomed, the rain is only ${(zoomed.lit * 100).toFixed(1)}% lit`);
     await page.keyboard.press('Escape');
     await shot('16-zoom-rain-125');
-    await page.keyboard.press('s');
+    await openSystem();
     // Another wallpaper keeps its own (100%), and the keys zoom it with the panel shut.
     await page.getByRole('radio', { name: 'DATA FLOW' }).check({ force: true });
     await shown('data-flow');
@@ -1116,7 +1144,7 @@ try {
     await page.keyboard.press('0');
     await page.waitForFunction(() => window.__cyberdeckRain.zoom() === 1);
     // Back to the rain: at its own zoom again; after a reload too (the hint starts it there at once).
-    await page.keyboard.press('s');
+    await openSystem();
     await page.getByRole('radio', { name: 'MATRIX RAIN' }).check({ force: true });
     await shown('matrix-rain');
     expect((await zoom()) === 1.25, `back on the rain, its zoom is ${await zoom()}`);
@@ -1128,7 +1156,7 @@ try {
     expect((await zoom()) === 1.25, `after a reload the rain's zoom is ${await zoom()}`);
     await page.locator('.wallpaper-canvas[data-ready]').waitFor({ state: 'attached', timeout: 5000 });
     // RESET: back to 100% for the paths after this one.
-    await page.keyboard.press('s');
+    await openSystem();
     await page.getByRole('group', { name: 'ZOOM · MATRIX RAIN' }).getByRole('button', { name: 'Reset the zoom to 100%' }).click();
     await page.waitForFunction(() => window.__cyberdeckRain.zoom() === 1);
     await settled();
@@ -1142,7 +1170,7 @@ try {
     const time = page.locator('.module[data-kind="time"]');
     const nav = page.locator('.deck-area');
     const [t0, n0, canvas0] = [await time.boundingBox(), await nav.boundingBox(), await rain()];
-    await page.keyboard.press('s');
+    await openSystem();
     // Headless Chromium is at 100%: the readout says so.
     await page.getByText('CHROME ZOOM · AT 100%').waitFor();
     // The preset's visible label (the radio itself is visually hidden).
@@ -1187,7 +1215,7 @@ try {
     await finderCommand('lock the layout', /LOCK THE LAYOUT/);
     await page.getByRole('toolbar', { name: 'Edit layout' }).waitFor({ state: 'detached' });
     // TEXT SIZE and MODULE SIZE.
-    await page.keyboard.press('s');
+    await openSystem();
     const textUp = page.getByRole('group', { name: 'TEXT SIZE' }).getByRole('button', { name: 'Make the text bigger' });
     await textUp.click();
     await textUp.click();
@@ -1212,7 +1240,7 @@ try {
     await page.keyboard.press('[');
     await page.waitForFunction(() => getComputedStyle(document.getElementById('root')).zoom === '1.25');
     // Back to the usual sizes for the paths after this one.
-    await page.keyboard.press('s');
+    await openSystem();
     await page.getByRole('button', { name: 'Reset the UI scale to 100%' }).click();
     await page.getByRole('button', { name: 'Reset the text size to 100%' }).click();
     await page.getByRole('button', { name: 'Reset the module size to 70%' }).click();
@@ -1226,7 +1254,7 @@ try {
   await path('no accessibility violations (axe: WCAG 2.2 A/AA and best practice), with and without SYSTEM', async () => {
     await page.addScriptTag({ path: join(root, 'node_modules/axe-core/axe.min.js') });
     await audit('the page');
-    await page.keyboard.press('s');
+    await openSystem();
     await page.getByRole('dialog').waitFor();
     await audit('SYSTEM');
     await page.keyboard.press('Escape');
@@ -1247,7 +1275,7 @@ try {
 
   await path('SYSTEM ▸ COPY DIAGNOSTICS copies the browser, screen, wallpaper and layout figures, and no address', async () => {
     await context.grantPermissions(['clipboard-read', 'clipboard-write'], { origin: new globalThis.URL(URL).origin });
-    await page.keyboard.press('s');
+    await openSystem();
     await page.getByRole('button', { name: 'COPY DIAGNOSTICS' }).click();
     await page.locator('.toast', { hasText: 'DIAGNOSTICS COPIED' }).waitFor();
     const text = await page.evaluate(() => navigator.clipboard.readText());
@@ -1278,7 +1306,7 @@ try {
       expect(Math.abs(a.css[0] - 1920 / 1.75) < 1 && Math.abs(a.css[1] - 1080 / 1.75) < 1, `at 175%, the canvas is ${a.css} CSS px`);
       expect(Math.abs(Number(a.root) - 1 / 1.75) < 0.001, `at 175%, #root's zoom is ${a.root}`);
       // APPLY: Chrome's zoom works on the UI and the wallpaper again (the wallpaper as before 0.17.1).
-      await p.keyboard.press('s');
+      await openSystem(p);
       await p.getByRole('radiogroup', { name: /CHROME ZOOM/ }).getByText('APPLY', { exact: true }).click();
       await p.waitForFunction(async () => (await window.__cyberdeckRain.pixels()).w === 3360, null, { timeout: 5000 });
       expect((await look()).root === '1', 'APPLY left the UI zoomed');
@@ -1308,7 +1336,7 @@ try {
       await p.waitForFunction(() => window.__cyberdeckRain.sharpness()?.verdict === 'safe', null, { timeout: 10000 });
       await p.waitForFunction(async () => (await window.__cyberdeckRain.pixels()).w === Math.round(Math.max(screen.width, innerWidth) * 2), null, { timeout: 5000 });
       // SYSTEM says so, and TRY AGAIN goes back to full sharpness (and watches again).
-      await p.keyboard.press('s');
+      await openSystem(p);
       await p.locator('.setting', { hasText: 'SHARPNESS' }).getByText(/STEPPED BACK FROM 2\.5×/).waitFor();
       await p.getByRole('button', { name: 'TRY AGAIN' }).click();
       expect((await p.evaluate(() => window.__cyberdeckRain.sharpness())).drawnDpr === 2.5, 'TRY AGAIN didn’t go back to 2.5×');

@@ -177,6 +177,8 @@ The motion is its own and slow: the camera sways a few degrees (53 s and 67 s cy
 - **Small and crisp.** Titles are 12 px, hosts 10 px, and nothing holding text is placed with a transform at rest.
 
 ## Profiles (0.21.0)
+**SYSTEM's sections fold** (0.25.0, the user: the settings had a lot going on; every section collapsible, closed to start). Each title (APPEARANCE, PROFILES, BOOKMARKS, BACKUP, RESTORE, KEYS) is a button with `▸` / `▾` in the accent; its lit rule runs on as before, and while closed the section says what's set in it after the rule, dim (`MATRIX RAIN`, `OPEN: MAIN`, `IMPORTED COPY`, `LAST EXPORT 3 DAYS AGO`). Open, the title lights in the accent. Every section is closed again each time SYSTEM opens; COPY DIAGNOSTICS stays at the foot, always shown. The phone app's settings fold the same way (fluid_motion 0.11.0).
+
 SYSTEM ▸ PROFILES, under APPEARANCE: one line per profile, as RESTORE lists snapshots. The open one is marked `● OPEN` in the accent; the others have OPEN, RENAME and DELETE (which asks first, as RESTORE does). RENAME edits the name in place (Enter saves, Esc cancels only the rename). SAVE AS NEW takes a name in a boxed field beside it. Names are upper case, like area titles. Switching is manual only (the user's call, 2026-10-27): nothing switches by time or place. Each switch says what happened in a toast (`PROFILE NIGHT · MAIN SAVED`).
 
 ## Edit mode

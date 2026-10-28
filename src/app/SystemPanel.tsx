@@ -20,8 +20,9 @@
  *              (what it draws at; TRY AGAIN after the guard stepped back);
  *   KEYS       the shortcuts;
  *   and at the foot, COPY DIAGNOSTICS (app/diagnostics.ts).
+ * Each section folds (Fold), closed when SYSTEM opens.
  */
-import { type ChangeEvent, type CSSProperties, type FormEvent, useId, useRef, useState, useSyncExternalStore } from 'react';
+import { type ChangeEvent, type CSSProperties, type FormEvent, type ReactNode, useId, useRef, useState, useSyncExternalStore } from 'react';
 
 import { BRIDGE_VERSION } from '@/bridge/client';
 import { BackupError, type ParsedBackup, formatStamp } from '@/lib/backup';
@@ -40,6 +41,7 @@ import { retrySharpness, sharpnessInfo } from '@/wallpaper/host';
 import { browserZoomNow, onBrowserZoom } from '@/scale';
 
 import { APP_INFO, downloadBackup, readBackupFile } from './backupFile';
+import { cx } from './cx';
 import { copyDiagnostics } from './diagnostics';
 import { Dialog } from './Dialog';
 import { useBookmarks, useLayout } from './hooks';
@@ -47,6 +49,36 @@ import { CopyAddress, DownloadBridgeButton, ImportBookmarksButton } from './Impo
 import { Prompted } from './Prompted';
 import { switchToProfile } from './profiles';
 import { Stepper } from './Stepper';
+
+/**
+ * A SYSTEM section that folds (0.25.0, the user: the settings had a lot
+ * going on; every section collapsible, closed to start). Its title is a
+ * button (▸ closed, ▾ open; aria-expanded), with `summary` after the lit
+ * rule while it's closed, so a closed section still says what's set in it.
+ * Its content stays mounted (hidden) so what it's doing (a preview, a
+ * confirm) isn't lost by closing it. Every section is closed again each
+ * time SYSTEM opens (the panel is made anew).
+ */
+function Fold({ label, title, summary, children }: { label: string; title: ReactNode; summary?: ReactNode; children: ReactNode }) {
+  const [open, setOpen] = useState(false);
+  const bodyId = useId();
+  return (
+    <section className={cx('settings-group fold', open && 'open')} aria-label={label}>
+      <h3 className="section-title">
+        <button type="button" className="fold-toggle" aria-expanded={open} aria-controls={bodyId} onClick={() => setOpen(!open)}>
+          <span className="fold-mark" aria-hidden="true">
+            {open ? '▾' : '▸'}
+          </span>
+          {title}
+        </button>
+        {!open && summary ? <span className="fold-summary">{summary}</span> : null}
+      </h3>
+      <div id={bodyId} className="fold-body" hidden={!open}>
+        {children}
+      </div>
+    </section>
+  );
+}
 
 /** The SYSTEM panel; `leaving` while it fades out. */
 export function SystemPanel({ leaving }: { leaving: boolean }) {
@@ -119,8 +151,7 @@ function BookmarksSection() {
   };
 
   return (
-    <section className="settings-group" aria-label="Bookmarks">
-      <h3 className="section-title">BOOKMARKS</h3>
+    <Fold label="Bookmarks" title="BOOKMARKS" summary={source}>
       <div className="setting">
         <span>SOURCE</span>
         <span className={status === 'live' ? 'accent' : 'bright'}>{source}</span>
@@ -157,7 +188,7 @@ function BookmarksSection() {
           </button>
         )}
       </div>
-    </section>
+    </Fold>
   );
 }
 
@@ -200,8 +231,7 @@ function BackupSection() {
   };
 
   return (
-    <section className="settings-group" aria-label="Backup">
-      <h3 className="section-title">BACKUP</h3>
+    <Fold label="Backup" title="BACKUP" summary={`LAST EXPORT ${exportAge(meta, now)}`}>
       <div className="setting">
         <span>LAST EXPORT</span>
         <span className={meta.lastExportAt === null ? 'accent' : 'bright'}>{exportAge(meta, now)}</span>
@@ -254,7 +284,7 @@ function BackupSection() {
           </div>
         </div>
       )}
-    </section>
+    </Fold>
   );
 }
 
@@ -310,10 +340,15 @@ function ProfilesSection() {
   };
 
   return (
-    <section className="settings-group" aria-label="Profiles">
-      <h3 className="section-title">
-        PROFILES <span className="section-count">· {profiles.list.length}</span>
-      </h3>
+    <Fold
+      label="Profiles"
+      title={
+        <>
+          PROFILES <span className="section-count">· {profiles.list.length}</span>
+        </>
+      }
+      summary={`OPEN: ${open.name}`}
+    >
       <p className="small dim">EACH PROFILE IS A WHOLE LAYOUT: BOOKMARK AREAS, PANELS, MODULES, WALLPAPER, COLOURS AND SIZES. CHANGES SAVE TO THE OPEN ONE.</p>
       <ul className="snapshot-list">
         {profiles.list.map((p) => (
@@ -397,7 +432,7 @@ function ProfilesSection() {
         </button>
       </form>
       <p className="small dim">{full ? `${MAX_PROFILES} PROFILES IS THE MOST: DELETE ONE TO SAVE ANOTHER.` : `SAVE AS NEW COPIES THIS LAYOUT INTO A NEW PROFILE AND OPENS IT; ${open.name} KEEPS THE LAYOUT AS IT IS NOW.`}</p>
-    </section>
+    </Fold>
   );
 }
 
@@ -417,10 +452,14 @@ function RestoreSection() {
   };
 
   return (
-    <section className="settings-group" aria-label="Restore">
-      <h3 className="section-title">
-        RESTORE <span className="section-count">· {snapshots.length}</span>
-      </h3>
+    <Fold
+      label="Restore"
+      title={
+        <>
+          RESTORE <span className="section-count">· {snapshots.length}</span>
+        </>
+      }
+    >
       <p className="small dim">AUTOMATIC SNAPSHOTS IN THIS BROWSER: ON OPEN, AFTER CHANGES, AND BEFORE ANY IMPORT OR RESTORE.</p>
       {snapshots.length === 0 ? (
         <p className="dim">
@@ -452,7 +491,7 @@ function RestoreSection() {
           ))}
         </ul>
       )}
-    </section>
+    </Fold>
   );
 }
 
@@ -475,8 +514,7 @@ function AppearanceSection() {
   const setZoom = (next: number) => layoutStore().getState().setWallpaperZoom(current, next);
   const shownLabel = WALLPAPER_LIST.find((w) => w.id === current)?.label ?? current.toUpperCase();
   return (
-    <section className="settings-group" aria-label="Appearance">
-      <h3 className="section-title">APPEARANCE</h3>
+    <Fold label="Appearance" title="APPEARANCE" summary={shownLabel}>
       <PaletteChoice label="DASHBOARD COLOURS" name="palette" value={palette} onChange={(id) => layoutStore().getState().setPalette(id)} />
       <SizeSettings />
       <span className="setting-label" id={wallpaperId}>
@@ -520,7 +558,7 @@ function AppearanceSection() {
         />
       </div>
       <Sharpness current={current} />
-    </section>
+    </Fold>
   );
 }
 
@@ -642,8 +680,7 @@ function Sharpness({ current }: { current: string }) {
 /** KEYS: the shortcuts. */
 function KeysSection() {
   return (
-    <section className="settings-group" aria-label="Keys">
-      <h3 className="section-title">KEYS</h3>
+    <Fold label="Keys" title="KEYS">
       <dl className="keys">
         <div>
           <dt>F</dt>
@@ -674,6 +711,6 @@ function KeysSection() {
           <dd>CLOSE THIS PANEL.</dd>
         </div>
       </dl>
-    </section>
+    </Fold>
   );
 }
