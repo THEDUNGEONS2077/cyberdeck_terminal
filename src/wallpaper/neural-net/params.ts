@@ -112,15 +112,8 @@ export const MAX_FRAME_STEP = 0.1;
 export const MAX_DPR = SHARP_DPR;
 
 /**
- * Supersampling (0.23.2): with WebGL the net is drawn at this many times
- * the screen's own pixels each way, and the browser shrinks the canvas to
- * the screen, averaging each 2 × 2 block: thin links anti-aliased four
- * times over. The user still saw some jagged links on the web, mostly in
- * the lower half, where the red links are brightest; a line can't be
- * smoother at the screen's own resolution. It costs about 4× the pixels for
- * the lightest of the WebGL wallpapers (a few hundred quads).
+ * The largest canvas, either way (px), when supersampled (tuner.ts picks how
+ * sharp; this caps it so a big screen doesn't ask for a canvas the graphics
+ * card can't hold).
  */
-export const SUPERSAMPLE = 2;
-
-/** The most canvas px per CSS px with supersampling (a 2× screen stays at 4×, not more). */
-export const MAX_SUPERSAMPLED_DPR = 4;
+export const MAX_CANVAS = 8192;

@@ -36,6 +36,7 @@ import type { GlowLevel } from '@/lib/layout';
 
 import { type Wallpaper, type WallpaperInstance, type WallpaperOptions, type WallpaperPalette, zoomedSize } from '../types';
 import { type NeuralFrame, type NeuralGpu, drawGl, sendWeights, setUpGl } from './gl';
+import { SUPERSAMPLE_LEVELS, newTuner, restartWindow, tune } from './tuner';
 import {
   CLUSTERS,
   COLOR_STEPS,
@@ -49,7 +50,7 @@ import {
   LINK_WEIGHT,
   LINKS,
   MAX_DPR,
-  MAX_SUPERSAMPLED_DPR,
+  MAX_CANVAS,
   MAX_FRAME_STEP,
   MAX_LINK,
   NEURAL_GLOW,
@@ -60,7 +61,6 @@ import {
   PULSE_SPEED,
   PULSES_PER_SECOND,
   SCATTER,
-  SUPERSAMPLE,
 } from './params';
 
 /** A random number source returning 0 ≤ n < 1 (injectable for tests). */
@@ -298,6 +298,10 @@ function createNeuralNet(canvas: HTMLCanvasElement | OffscreenCanvas, options: W
   // The 2D canvas only where there's no WebGL 2 (a canvas has one kind of context).
   const ctx = gl ? null : target.getContext('2d');
   // Each frame's links' ends and sprites, grown as needed (no new arrays per frame).
+  // The host's last size (resize), kept so a change of sharpness can size the canvas again.
+  let lastSize: { cw: number; ch: number; ratio: number; zoom: number } | null = null;
+  // How sharp it draws (tuner.ts): found while it runs.
+  const tuner = newTuner(performance.now());
   let ends = new Float32Array(0);
   let sparks = new Float32Array(0);
   let palette = options.palette;
@@ -487,6 +491,11 @@ function createNeuralNet(canvas: HTMLCanvasElement | OffscreenCanvas, options: W
   const tick = (now: number) => {
     frame = 0;
     if (!running || still) return;
+    // How sharp to draw (tuner.ts): as sharp as stays smooth, judged from the frames' gaps.
+    if (last && gl && lastSize) {
+      const next = tune(tuner, now - last, now, topLevel());
+      if (next !== null) applySize();
+    }
     const dt = last ? Math.min((now - last) / 1000, MAX_FRAME_STEP) : 0;
     last = now;
     advance(now / 1000, dt);
@@ -503,29 +512,15 @@ function createNeuralNet(canvas: HTMLCanvasElement | OffscreenCanvas, options: W
   const instance: WallpaperInstance = {
     resize(cw, ch, ratio, zoom) {
       if (destroyed || (!ctx && !gl)) return;
-      // Zoomed: laid out for a screen 1/zoom as big, drawn zoom times as large (the canvas keeps its pixels).
-      const { w, h, dpr: screenDpr } = zoomedSize(cw, ch, ratio, zoom, MAX_DPR);
-      // With WebGL, supersampled (params.ts SUPERSAMPLE): the browser shrinks the canvas to the screen.
-      const nextDpr = gl ? Math.min(screenDpr * SUPERSAMPLE, Math.max(screenDpr, MAX_SUPERSAMPLED_DPR)) : screenDpr;
-      canvas.width = Math.round(w * nextDpr);
-      canvas.height = Math.round(h * nextDpr);
-      // The 2D drawing's sprites (the GPU works its sprites out per pixel).
-      if (ctx && (!art || nextDpr !== dpr)) art = sprites(palette, glow, nextDpr);
-      dpr = nextDpr;
-      if (!s || s.w !== w || s.h !== h) {
-        const start = performance.now();
-        s = scene(w, h, rng);
-        pulses.length = 0;
-        // The links' weights never change on a screen: sent once.
-        if (gl && gpu) sendWeights(gl, gpu, s.weight);
-        performance.measure('neural-scene', { start });
-      }
-      drawNow();
+      lastSize = { cw, ch, ratio, zoom };
+      applySize();
     },
     start() {
       running = true;
       if (still || frame || destroyed) return;
       last = 0;
+      // A fresh window of frames: those before the pause say nothing about now.
+      restartWindow(tuner, performance.now());
       frame = requestAnimationFrame(tick);
     },
     stop() {
@@ -560,6 +555,44 @@ function createNeuralNet(canvas: HTMLCanvasElement | OffscreenCanvas, options: W
       s = null;
       art = null;
     },
+  };
+
+  /** The highest sharpness level the last size allows: no canvas over MAX_CANVAS either way. */
+  const topLevel = () => {
+    if (!lastSize) return 0;
+    const { w, h, dpr: screenDpr } = zoomedSize(lastSize.cw, lastSize.ch, lastSize.ratio, lastSize.zoom, MAX_DPR);
+    let top = 0;
+    SUPERSAMPLE_LEVELS.forEach((k, i) => {
+      if (Math.max(w, h) * screenDpr * k <= MAX_CANVAS) top = i;
+    });
+    return top;
+  };
+
+  /** Sizes the canvas for the last size from the host and the tuner's level, and redraws. */
+  const applySize = () => {
+    if (!lastSize) return;
+    const { cw, ch, ratio, zoom } = lastSize;
+    // Zoomed: laid out for a screen 1/zoom as big, drawn zoom times as large (the canvas keeps its pixels).
+    const { w, h, dpr: screenDpr } = zoomedSize(cw, ch, ratio, zoom, MAX_DPR);
+    // With WebGL, supersampled at the tuner's level (tuner.ts): the browser shrinks the canvas to the screen.
+    const level = Math.min(tuner.level, topLevel());
+    const nextDpr = gl ? screenDpr * SUPERSAMPLE_LEVELS[level]! : screenDpr;
+    canvas.width = Math.round(w * nextDpr);
+    canvas.height = Math.round(h * nextDpr);
+    // The 2D drawing's sprites (the GPU works its sprites out per pixel).
+    if (ctx && (!art || nextDpr !== dpr)) art = sprites(palette, glow, nextDpr);
+    dpr = nextDpr;
+    if (!s || s.w !== w || s.h !== h) {
+      const start = performance.now();
+      s = scene(w, h, rng);
+      pulses.length = 0;
+      // The links' weights never change on a screen: sent once.
+      if (gl && gpu) sendWeights(gl, gpu, s.weight);
+      performance.measure('neural-scene', { start });
+    }
+    // A resized canvas hitches once: the tuner ignores the next few frames.
+    restartWindow(tuner, performance.now());
+    drawNow();
   };
 
   // The graphics card can drop the context (a driver reset): pause, then set everything up again.

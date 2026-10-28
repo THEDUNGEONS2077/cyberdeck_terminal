@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.23.3 (build 42)
+- **NEURAL NET finds its own sharpest setting.** It starts at twice your screen's resolution each way, steps up (3×, then 4×) every couple of seconds while frames stay smooth, and steps back one level, for good, the moment they don't. A single hiccup doesn't count. If even 2× strains a slower machine, it goes down to 1.5× or 1×. It finds its level again on each page load.
+
 ## 0.23.2 (build 41)
 - **Folder names are soft again,** like the tiles: pale text with a faint glow, lighting up in the accent colour only when you point at them.
 - **NEURAL NET is drawn at twice the resolution each way** on the dashboard, then shrunk to fit the screen, which smooths the links that still stepped, mostly in the lower half. It's the lightest of the graphics-card wallpapers, so it has room for the extra pixels. A sharp (2×) screen goes up to 4×, no more. The phone app is unchanged.
