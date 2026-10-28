@@ -364,11 +364,13 @@ ul {
   gap: var(--s-sm);
   height: var(--control);
   padding: 0 var(--s-md) 0 var(--s-xs);
-  border: var(--hairline) solid var(--line);
+  /* Lit frames (0.20.0): a lit edge and a halo, so the keys stand clear of the wallpaper. */
+  border: var(--hairline) solid var(--accent-35);
   border-radius: var(--radius);
   /* Over the rain: a solid surface keeps the label readable. */
   background: var(--surface);
-  color: var(--text);
+  box-shadow: var(--glow-halo);
+  color: var(--text-bright);
   font-size: var(--fs-meta);
   letter-spacing: 1px;
 }
@@ -403,9 +405,10 @@ kbd {
   flex-direction: column;
   gap: 6px;
   padding: var(--s-md) var(--s-md);
-  border: var(--hairline) solid var(--line);
+  border: var(--hairline) solid var(--accent-35);
   border-radius: var(--radius);
   background: var(--phosphor), var(--surface);
+  box-shadow: var(--glow-faint);
 }
 .masthead-scan {
   position: absolute;
@@ -904,7 +907,7 @@ kbd {
   gap: var(--s-lg);
   overflow: hidden;
   padding: var(--s-sm) var(--s-sm) var(--s-sm) var(--s-lg);
-  border: var(--hairline) solid var(--line);
+  border: var(--hairline) solid var(--accent-35);
   border-radius: var(--radius);
   background: var(--surface-raised);
   /* A lit left edge and a faint glow: news from the app. */
@@ -989,9 +992,10 @@ kbd {
   gap: 6px var(--s-md);
   min-height: calc(var(--control) + var(--s-sm));
   padding: 4px var(--s-md);
-  border: var(--hairline) solid var(--line);
+  border: var(--hairline) solid var(--accent-35);
   border-radius: var(--radius);
   background: var(--scanlines), var(--phosphor), var(--surface);
+  box-shadow: var(--glow-faint);
 }
 .deck-head::after {
   content: '';
@@ -1046,12 +1050,12 @@ kbd {
   position: relative;
 }
 .deck-title {
-  color: var(--text-bright);
+  color: var(--accent);
   white-space: nowrap;
   font-size: var(--fs-meta);
   font-weight: 700;
   letter-spacing: 1.5px;
-  text-shadow: var(--glow-text-faint);
+  text-shadow: var(--glow-text-bright);
 }
 .deck-source {
   display: inline-flex;
@@ -1126,11 +1130,17 @@ kbd {
   padding: 6px var(--s-sm);
   font-size: var(--fs-meta);
   line-height: var(--lh-meta);
-  border: var(--hairline) solid var(--line);
+  /* Lit frames (0.20.0): a lit edge and a halo round a solid black tile (the user: keep
+     the tiles' solid dark background; no lit stripe down the left at rest). */
+  border: var(--hairline) solid var(--line-lit);
   border-radius: var(--radius);
-  background: var(--surface);
+  background: var(--bg);
+  box-shadow: var(--glow-halo);
   color: var(--text-bright);
   text-decoration: none;
+}
+.tile .link-title {
+  text-shadow: var(--glow-text-faint);
 }
 .tile .link-host {
   grid-column: 2;
@@ -1242,12 +1252,14 @@ kbd {
   gap: 6px;
 }
 .folder.card {
-  border: var(--hairline) solid var(--line);
+  border: var(--hairline) solid var(--line-lit);
   border-radius: var(--radius);
-  background: var(--surface);
+  background: var(--bg);
+  box-shadow: var(--glow-halo);
 }
 .folder.card:not(.collapsed) {
-  border-color: var(--line-lit);
+  border-color: var(--accent-35);
+  box-shadow: var(--glow-faint);
 }
 .folder-head {
   display: flex;
@@ -1275,6 +1287,8 @@ kbd {
 }
 .folder-title {
   flex: 1;
+  color: var(--accent);
+  text-shadow: var(--glow-text);
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -1453,9 +1467,10 @@ a.text-btn {
   gap: var(--s-sm);
   min-height: 30px;
   padding: 0 var(--s-sm) 0 0;
-  border: var(--hairline) solid var(--line);
+  border: var(--hairline) solid var(--line-lit);
   border-radius: var(--radius);
   background: var(--scanlines), var(--surface);
+  box-shadow: var(--glow-halo);
 }
 .area-toggle {
   display: flex;
@@ -2026,9 +2041,10 @@ a.text-btn {
   width: min(var(--mw), calc(var(--view-w) - 16px));
   max-height: calc(var(--view-h) - 16px);
   padding: var(--s-sm);
-  border: var(--hairline) solid var(--line);
+  border: var(--hairline) solid var(--accent-35);
   border-radius: var(--radius);
   background: var(--scanlines), var(--phosphor), var(--surface);
+  box-shadow: var(--glow-faint);
 }
 /* What you click keeps WCAG 2.2's 24 px minimum target (the grip, ⋯, the small
    buttons, the fold's heading): only its text shrinks with the rest. */
@@ -2095,7 +2111,8 @@ a.text-btn {
   background: var(--lit-rule);
 }
 .module-title {
-  color: var(--text-bright);
+  color: var(--accent);
+  text-shadow: var(--glow-text-bright);
   font-size: var(--fs-small);
   font-weight: 700;
   letter-spacing: 1px;
@@ -2196,9 +2213,10 @@ a.text-btn {
   gap: var(--s-xs);
   min-height: calc(56px * var(--m));
   padding: var(--s-sm);
-  border: var(--hairline) solid var(--line);
+  border: var(--hairline) solid var(--line-lit);
   border-radius: var(--radius);
-  background: var(--surface);
+  background: var(--bg);
+  box-shadow: var(--glow-halo);
   color: var(--text-bright);
   font-size: var(--fs-meta);
   line-height: var(--lh-meta);

@@ -43,6 +43,8 @@
   --glow-inset: inset 0 0 6px 0 color-mix(in srgb, var(--accent) 35%, transparent);
   --glow: 0 0 6px 0 color-mix(in srgb, var(--accent) 35%, transparent);
   --glow-faint: 0 0 8px 0 color-mix(in srgb, var(--accent) 22%, transparent);
+  /* A lit frame's halo (0.20.0, "lit frames"): the softest glow, round tiles and folders on the wallpaper. */
+  --glow-halo: 0 0 6px 0 color-mix(in srgb, var(--accent) 10%, transparent);
   --glow-bright: 0 0 6px 0 color-mix(in srgb, var(--accent) 60%, transparent);
   --glow-text: 0 0 6px color-mix(in srgb, var(--accent) 35%, transparent);
   --glow-text-bright: 0 0 6px color-mix(in srgb, var(--accent) 60%, transparent);

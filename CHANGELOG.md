@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.20.0 (build 36)
+- **The dashboard stands out from the wallpaper now ("lit frames").**
+  - **Panels:** NAV's header bar, every module, the brand panel, the key hints and toasts have a lit edge and a soft glow. Their titles glow in the accent colour.
+  - **Tiles and folders:** NAV's tiles, folder cards and QUICK LAUNCH's tiles stay solid and dark, now black in every palette, with a lit edge and a faint halo. An open folder is lit like a panel.
+  - **As you asked:** no corner brackets added, and no lit stripe down the tiles' left side.
+  - **Cost:** none while it's open. It's still edges and glows drawn once, with no new animation and no background blur.
+
 ## 0.19.0 (build 35)
 - **NEURAL NET has no floating circles any more.** The soft, faint discs that drifted up behind the net are gone, at your request (on the phone too, in fluid_motion). The nodes, links, signals and glow are unchanged.
 - **A module's own sizes are simpler.**

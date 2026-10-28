@@ -199,4 +199,9 @@ The user keeps the dashboard zoomed (about 175%), and Chrome shares one zoom bet
 ## The UI over the wallpaper
 - **The HUD.** The brand panel (the desktop's `.masthead`: scanlines, corner brackets) sits top left, compact (since 0.8.1: the name at half the title size, 11 px; the panel about 30% smaller; the time on the left and the date on the right). The key hints (`[F] FULLSCREEN`, `[S] SYSTEM`) sit bottom right, and both are buttons.
 - **Panels** sit on solid `--surface` / `--surface-raised`, so text never sits directly on the rain.
+- **Lit frames** (0.20.0, C8; the user picked it from three mock-ups, with changes). Before, every panel was edged in `--line`, barely brighter than the background, so the dashboard sank into a busy wallpaper. Now:
+  - **Panels** (NAV's header, every module, the brand panel, the key hints, toasts) are edged in `--accent-35` with `--glow-faint` round them, and their titles (NAV, a module's, a folder's) are in the accent with a glow.
+  - **Tiles and folders** (NAV's tiles, folder cards, QUICK LAUNCH's tiles) stay solid and dark: `--bg`, black in all eight palettes ("keep the solid dark backgrounds for the tiles"). They're edged in `--line-lit` with the softest halo (`--glow-halo`); an open folder is lit like a panel.
+  - **Left out, at the user's word:** corner brackets on anything new (only the brand panel keeps its own) and a lit stripe down each tile's left edge at rest. The left stripe a tile has had on hover since 0.2 stays.
+  - **Turned down:** see-through glass panels (C) and a lifted "solid HUD" with shadows and filled key badges (B): the user liked only A. No background blur, ever: it would be redrawn on every wallpaper frame.
 - **Immersive mode** fades the whole UI layer out over `--slow` with the exit curve.
