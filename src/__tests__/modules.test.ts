@@ -221,7 +221,7 @@ describe('layout schema 4 (then on to the current one)', () => {
     };
     const { doc, migrated } = migrateLayout(v3);
     expect(migrated).toBe(true);
-    expect(doc).toEqual({ ...v3, prefs: { ...v3.prefs, switchTabs: [], uiScale: 1, textScale: 1, moduleScale: 0.7, cancelBrowserZoom: true }, schemaVersion: 6, modules: [] });
+    expect(doc).toEqual({ ...v3, prefs: { ...v3.prefs, switchTabs: [], uiScale: 1, textScale: 1, moduleScale: 0.7, cancelBrowserZoom: true }, schemaVersion: 7, modules: [] });
   });
 
   it('keeps good modules and drops bad ones one by one, never the layout', () => {

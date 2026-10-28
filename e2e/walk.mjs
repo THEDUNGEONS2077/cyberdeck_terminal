@@ -545,63 +545,59 @@ try {
     await clock.waitFor({ state: 'detached' });
   });
 
-  await path('TIMER: a stand-alone countdown with big digits; START, PAUSE, RESUME, RESET; done says so; it runs on through a reload', async () => {
+  await path('COUNTDOWN: big digits counting down to a date and time you choose, under your label; it keeps its date through a reload; a date reached is lit', async () => {
     await editBar().getByRole('button', { name: '+ MODULE' }).click();
     await page.getByRole('menu', { name: 'Add a module' }).waitFor();
-    await page.getByRole('menuitem', { name: 'TIMER' }).click();
-    const timer = mod('TIMER');
-    await timer.waitFor();
-    const digits = timer.locator('.clock-digits');
-    expect((await digits.innerText()) === '25:00', `a new TIMER reads ${await digits.innerText()}`);
-    // SETTINGS: a label, and 3 seconds long.
-    await settingsOf('TIMER');
-    const dialog = page.getByRole('dialog', { name: 'TIMER · SETTINGS' });
-    await dialog.getByLabel('LABEL').fill('tea');
-    await dialog.getByLabel('Minutes').fill('0');
-    await dialog.getByLabel('Seconds').fill('3');
-    await dialog.getByRole('button', { name: 'SET', exact: true }).click();
+    await page.getByRole('menuitem', { name: 'COUNTDOWN' }).click();
+    const countdown = mod('COUNTDOWN');
+    await countdown.waitFor();
+    // No date yet: it says where to choose one.
+    await countdown.locator('.countdown-empty').waitFor();
+    // SETTINGS: a label, and a date ten days on at 09:30 (local, as the date input gives it).
+    const pad = (n) => String(n).padStart(2, '0');
+    const dayKey = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+    const soon = new Date();
+    soon.setDate(soon.getDate() + 10);
+    await settingsOf('COUNTDOWN');
+    const dialog = page.getByRole('dialog', { name: 'COUNTDOWN · SETTINGS' });
+    await dialog.getByLabel('LABEL').fill('launch');
+    await dialog.getByLabel('DATE').fill(dayKey(soon));
+    await dialog.getByLabel('TIME').fill('09:30');
     await page.keyboard.press('Escape');
     await page.getByRole('dialog').waitFor({ state: 'detached' });
-    // The label over the digits.
-    await timer.locator('.timer-label', { hasText: 'TEA' }).waitFor();
-    expect((await digits.innerText()) === '00:03', `the 3-second TIMER reads ${await digits.innerText()}`);
-    await audit('TIMER, editing');
-    // Locked, it runs: START, PAUSE, RESUME, then it runs out and says so.
+    // The label over the digits; days, hours, minutes and seconds; and what it counts to.
+    await countdown.locator('.countdown-label', { hasText: 'LAUNCH' }).waitFor();
+    const parts = () => countdown.locator('.countdown-part > span:first-child').allInnerTexts();
+    const first = await parts();
+    expect(first.length === 4 && /^(09|10)$/.test(first[0]), `a countdown ten days on reads ${first.join(' ')}`);
+    expect((await countdown.locator('.countdown-unit').allInnerTexts()).join(' ') === 'DAYS HRS MIN SEC', 'the COUNTDOWN’s units are missing');
+    expect((await countdown.locator('.countdown-to').innerText()).includes('· 09:30'), 'the COUNTDOWN doesn’t say what it counts to');
+    await audit('COUNTDOWN, editing');
+    // Locked, the seconds go down; and after a reload it still counts to that date.
     await page.getByRole('button', { name: 'DONE' }).click();
     await page.waitForFunction(() => !document.querySelector('[role="toolbar"]'));
-    await timer.getByRole('button', { name: 'START' }).click();
-    await timer.getByRole('button', { name: 'PAUSE' }).click();
-    await timer.getByRole('button', { name: 'RESUME' }).click();
-    await page.locator('.toast', { hasText: 'TIMER DONE · TEA' }).waitFor({ timeout: 6000 });
-    await page.waitForTimeout(300);
-    expect((await digits.innerText()) === '00:00', `the finished TIMER reads ${await digits.innerText()}`);
-    expect(await timer.locator('.timer-module.due').count(), 'the finished TIMER isn’t lit');
-    await shot('20b-timer');
-    // RESET; then 30 seconds long (SETTINGS, in edit mode), and a reload while it runs: it's still running, a little further on.
-    await timer.getByRole('button', { name: 'RESET' }).click();
-    expect((await digits.innerText()) === '00:03', `the reset TIMER reads ${await digits.innerText()}`);
-    await page.getByRole('button', { name: 'EDIT', exact: true }).click();
-    await editBar().waitFor();
-    await settingsOf('TIMER');
-    await dialog.getByLabel('Seconds').fill('30');
-    await dialog.getByRole('button', { name: 'SET', exact: true }).click();
-    await page.keyboard.press('Escape');
-    await page.getByRole('dialog').waitFor({ state: 'detached' });
-    await page.getByRole('button', { name: 'DONE' }).click();
-    await page.waitForFunction(() => !document.querySelector('[role="toolbar"]'));
-    await timer.getByRole('button', { name: 'START' }).click();
+    const before = (await parts()).join(':');
+    await page.waitForFunction((b) => [...document.querySelectorAll('.countdown-part > span:first-child')].map((e) => e.textContent).join(':') !== b, before, { timeout: 4000 });
+    await shot('20b-countdown');
     await settled();
     await page.reload();
-    await mod('TIMER').waitFor();
-    await mod('TIMER').getByRole('button', { name: 'PAUSE' }).waitFor();
-    const after = await mod('TIMER').locator('.clock-digits').innerText();
-    expect(/^00:(2\d|30)$/.test(after), `after a reload the TIMER reads ${after}`);
-    // Out of the way again for the rest of the walk (back in edit mode, as the walk was).
+    await mod('COUNTDOWN').locator('.countdown-label', { hasText: 'LAUNCH' }).waitFor();
+    expect(/^(09|10)$/.test((await parts())[0]), 'after a reload the COUNTDOWN lost its date');
+    // A date already reached: zeros, lit.
     await page.getByRole('button', { name: 'EDIT', exact: true }).click();
     await editBar().waitFor();
-    await page.getByRole('button', { name: 'TIMER module options' }).click();
+    await settingsOf('COUNTDOWN');
+    const past = new Date();
+    past.setDate(past.getDate() - 2);
+    await dialog.getByLabel('DATE').fill(dayKey(past));
+    await page.keyboard.press('Escape');
+    await page.getByRole('dialog').waitFor({ state: 'detached' });
+    await countdown.locator('.countdown-module.due').waitFor();
+    expect((await parts()).join(':') === '00:00:00:00', `a reached COUNTDOWN reads ${(await parts()).join(':')}`);
+    // Out of the way again for the rest of the walk (in edit mode, as the walk was).
+    await page.getByRole('button', { name: 'COUNTDOWN module options' }).click();
     await page.getByRole('menuitem', { name: 'REMOVE' }).click();
-    await mod('TIMER').waitFor({ state: 'detached' });
+    await mod('COUNTDOWN').waitFor({ state: 'detached' });
   });
 
   await path('a bookmark’s ⋯ ▸ PIN TO QUICK LAUNCH makes it a tile', async () => {
@@ -829,7 +825,7 @@ try {
     backupPath = join(shots, 'backup.json');
     await download.saveAs(backupPath);
     const file = JSON.parse(readFileSync(backupPath, 'utf8'));
-    expect(file.format === 'cyberdeck_terminal-backup' && file.layout?.schemaVersion === 6, 'not a backup file');
+    expect(file.format === 'cyberdeck_terminal-backup' && file.layout?.schemaVersion === 7, 'not a backup file');
     expect(file.layout.modules?.length === 3, 'the backup has no modules');
     expect(file.layout.prefs.backupReminderDays === 14 && file.layout.prefs.rainGlow === 'high', 'unexpected layout in backup');
     await page.locator('.toast', { hasText: 'BACKUP EXPORTED' }).waitFor();

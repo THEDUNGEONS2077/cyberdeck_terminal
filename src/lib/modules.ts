@@ -1,12 +1,12 @@
 /**
  * src/lib/modules.ts: the dashboard's modules: panels you add, place and
  * size yourself, beside NAV and the brand panel (SEARCH, QUICK LAUNCH, TIME,
- * CLOCK, TIMER).
+ * CLOCK, COUNTDOWN).
  *
  * Layer: pure lib. The modules live in the layout document (since schema 4), so
  * they're saved, snapshotted, backed up and restored with everything else.
  * Each kind's settings have their own rules (lib/search.ts, lib/launch.ts,
- * lib/time.ts, lib/clock.ts, lib/timer.ts); here are the list's: adding one at a free spot, moving,
+ * lib/time.ts, lib/clock.ts, lib/countdown.ts); here are the list's: adding one at a free spot, moving,
  * resizing, removing, and checking a list read from storage or a file
  * (unknown kinds and malformed entries are dropped one by one, never the
  * whole layout).
@@ -21,16 +21,16 @@
  */
 import { type PanelPlace, type WidthLimits, clampPlace } from './arrange';
 import { type ClockSettings, defaultClock, normalizeClock } from './clock';
+import { type CountdownSettings, defaultCountdown, normalizeCountdown } from './countdown';
 import { type LaunchSettings, defaultLaunch, normalizeLaunch } from './launch';
 import { type SearchSettings, defaultSearch, normalizeSearch } from './search';
 import { type TimeSettings, defaultTime, normalizeTime } from './time';
-import { type TimerSettings, defaultTimer, normalizeTimer } from './timer';
 import { MODULE_OWN_STEPS, TEXT_SCALE_STEPS, nearestStep } from './scale';
 
 /** The kinds of module. */
-export type ModuleKind = 'search' | 'launch' | 'time' | 'clock' | 'timer';
+export type ModuleKind = 'search' | 'launch' | 'time' | 'clock' | 'countdown';
 /** Every kind, in the order the + MODULE menu lists them. */
-export const MODULE_KINDS: readonly ModuleKind[] = ['search', 'launch', 'time', 'clock', 'timer'];
+export const MODULE_KINDS: readonly ModuleKind[] = ['search', 'launch', 'time', 'clock', 'countdown'];
 
 /**
  * A module's own sizes (0.19.0, schema 6). Each one that's set (OWN) replaces
@@ -56,7 +56,7 @@ interface Module<K extends ModuleKind, S> {
 }
 
 /** A module on the dashboard. */
-export type ModuleInstance = Module<'search', SearchSettings> | Module<'launch', LaunchSettings> | Module<'time', TimeSettings> | Module<'clock', ClockSettings> | Module<'timer', TimerSettings>;
+export type ModuleInstance = Module<'search', SearchSettings> | Module<'launch', LaunchSettings> | Module<'time', TimeSettings> | Module<'clock', ClockSettings> | Module<'countdown', CountdownSettings>;
 
 /** The module of kind `K`. */
 export type ModuleOf<K extends ModuleKind> = Extract<ModuleInstance, { kind: K }>;
@@ -69,7 +69,7 @@ export const MAX_MODULES = 12;
 /** How narrow and how wide a module can be (px). */
 export const MODULE_WIDTH: WidthLimits = { min: 240, max: 1200 };
 /** Each kind's width when it's added (px): narrow enough to sit beside NAV on a 1920 px screen (NAV is at most 1120 wide, centred). */
-export const MODULE_DEFAULT_W: Record<ModuleKind, number> = { search: 380, launch: 380, time: 320, clock: 420, timer: 380 };
+export const MODULE_DEFAULT_W: Record<ModuleKind, number> = { search: 380, launch: 380, time: 320, clock: 420, countdown: 420 };
 
 /**
  * The spots a new module tries, in turn: down the right-hand side (top
@@ -107,8 +107,8 @@ export function newModule(kind: ModuleKind, id: string, modules: readonly Module
       return { id, kind, place, settings: defaultTime() };
     case 'clock':
       return { id, kind, place, settings: defaultClock() };
-    case 'timer':
-      return { id, kind, place, settings: defaultTimer() };
+    case 'countdown':
+      return { id, kind, place, settings: defaultCountdown() };
   }
 }
 
@@ -215,8 +215,8 @@ export function normalizeModules(v: unknown): ModuleInstance[] {
     else if (m.kind === 'launch') out.push({ id, kind: 'launch', place: place('launch'), settings: normalizeLaunch(m.settings), ...own });
     else if (m.kind === 'time') out.push({ id, kind: 'time', place: place('time'), settings: normalizeTime(m.settings), ...own });
     else if (m.kind === 'clock') out.push({ id, kind: 'clock', place: place('clock'), settings: normalizeClock(m.settings), ...own });
-    // TIMER (0.24.0, no schema bump: a new kind is additive; an older build drops the entry it doesn't know, one by one).
-    else if (m.kind === 'timer') out.push({ id, kind: 'timer', place: place('timer'), settings: normalizeTimer(m.settings), ...own });
+    // COUNTDOWN (0.25.0, schema 7: it replaces 0.24.0's TIMER, which migrations.ts turns into one; an older build drops the entry it doesn't know, one by one).
+    else if (m.kind === 'countdown') out.push({ id, kind: 'countdown', place: place('countdown'), settings: normalizeCountdown(m.settings), ...own });
   }
   return out;
 }

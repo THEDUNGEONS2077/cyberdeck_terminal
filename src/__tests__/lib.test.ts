@@ -21,7 +21,7 @@ describe('layout', () => {
       prefs: { backupReminderDays: 14, rainGlow: 'high' as const, palette: 'phosphor' as const, wallpaperPalette: 'phosphor' as const, wallpaperZoom: {}, switchTabs: [], uiScale: 1, textScale: 1, moduleScale: 0.7, cancelBrowserZoom: true },
       wallpaper: 'matrix-rain',
       modules: [],
-      schemaVersion: 6 as const,
+      schemaVersion: 7 as const,
     };
     expect(sameLayout(a, b)).toBe(true);
     expect(canonicalJson({ b: 1, a: { d: 2, c: 3 } })).toBe('{"a":{"c":3,"d":2},"b":1}');

@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.25.0 (build 44)
+- **TIMER is now COUNTDOWN** (EDIT ▸ + MODULE ▸ COUNTDOWN): big digits counting down to a date you choose.
+  - **SETTINGS:** a label (LAUNCH, HOLIDAY…), the date, and a time on that day (00:00, the day's start, unless you choose one).
+  - **The digits:** days, hours, minutes and seconds, each over its unit, with the date it counts to underneath. They fill the module's width, like CLOCK, however many days are left.
+  - **When it's reached,** the digits light up and a notice says so, even if the tab is in the background.
+  - **Battery:** it ticks once a second only while on screen and still counting.
+  - **A TIMER you'd placed becomes a COUNTDOWN** in the same spot and size, with its label kept (layout schema 7). Choose its date in its SETTINGS.
+
 ## 0.24.0 (build 43)
 - **New TIMER module** (EDIT ▸ + MODULE ▸ TIMER): a stand-alone countdown with big digits.
   - **START, PAUSE / RESUME, RESET.** When it runs out, the digits light up and a notice says so, even if the tab is in the background.

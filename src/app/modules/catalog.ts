@@ -19,10 +19,10 @@ import type { ModuleInstance, ModuleKind } from '@/lib/modules';
 import { engineOf } from '@/lib/search';
 
 import * as clock from './ClockModule';
+import * as countdown from './CountdownModule';
 import * as launch from './LaunchModule';
 import * as search from './SearchModule';
 import * as time from './TimeModule';
-import * as timer from './TimerModule';
 
 /** What a module's panel and SETTINGS are given: the module (each narrows it to its own kind). */
 export interface ModuleProps {
@@ -85,15 +85,15 @@ export const CATALOG: Record<ModuleKind, KindInfo> = {
     Panel: clock.Panel,
     Settings: clock.Settings,
   },
-  timer: {
-    label: 'TIMER',
+  countdown: {
+    label: 'COUNTDOWN',
     // From TIME's and CLOCK's family (◔ ◷): the font has it (⧗ wasn't drawn).
     glyph: '◴',
-    about: 'A countdown with big digits; it keeps running through a reload',
+    about: 'Big digits counting down to a date and time you choose, with your label',
     // No note: the label is shown over the digits already.
     note: () => '',
     bare: false,
-    Panel: timer.Panel,
-    Settings: timer.Settings,
+    Panel: countdown.Panel,
+    Settings: countdown.Settings,
   },
 };

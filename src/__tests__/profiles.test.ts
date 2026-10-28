@@ -177,7 +177,7 @@ describe('backup files with profiles', () => {
     const parsed = parseBackup(JSON.stringify(file));
     expect(parsed.profile).toBe('MAIN');
     expect(parsed.profiles.map((p) => p.name)).toEqual(['OLD']);
-    expect(parsed.profiles[0]!.layout.schemaVersion).toBe(6);
+    expect(parsed.profiles[0]!.layout.schemaVersion).toBe(7);
     expect(parsed.profiles[0]!.layout.modules[0]!.sizes).toEqual({ scale: 1 });
   });
 

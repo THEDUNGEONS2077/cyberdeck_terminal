@@ -90,7 +90,7 @@ describe('layout schemas 5 and 6', () => {
     const v4 = { ...defaultLayout(), schemaVersion: 4, prefs: { ...defaultLayout().prefs, uiScale: 1.5 }, modules: [time] };
     const { doc, migrated } = migrateLayout(v4);
     expect(migrated).toBe(true);
-    expect(doc).toEqual({ ...v4, schemaVersion: 6 });
+    expect(doc).toEqual({ ...v4, schemaVersion: 7 });
     expect('sizes' in doc.modules[0]!).toBe(false);
   });
 
@@ -114,7 +114,7 @@ describe('layout schemas 5 and 6', () => {
   it('migrates a real version-5 layout at UI SCALE 100%: the module drawn as big as before, its text kept', () => {
     const { doc, migrated } = migrateLayout(v5(1));
     expect(migrated).toBe(true);
-    expect(doc.schemaVersion).toBe(6);
+    expect(doc.schemaVersion).toBe(7);
     // 0.7 × 1.75 / 1 = 1.225 → 1.25; 1; 0.9 × 3 = 2.7 → 2 (the largest SIZE); none.
     expect(doc.modules.map((m) => m.sizes)).toEqual([{ scale: 1.25, textScale: 1.35 }, { scale: 1 }, { scale: 2 }, { textScale: 0.9 }]);
   });

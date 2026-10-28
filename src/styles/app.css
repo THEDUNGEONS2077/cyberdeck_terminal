@@ -2468,24 +2468,43 @@ a.text-btn {
     width: calc(var(--view-w) - 32px);
   }
 }
-/* TIMER module (0.24.0): CLOCK's big digits (.clock-module), a label over them, and its buttons under. */
-.timer-label {
+/* COUNTDOWN module (0.25.0): CLOCK's big digits (.clock-module), a label
+   over them and the date under. Its four parts (days, hours, minutes,
+   seconds), each over its unit, fill the module's width: --chars is how many
+   digits there are (the panel sets it: days can run past 99); a monospace
+   digit is about 0.6em, and the three gaps between parts 0.45em each, so the
+   digits fit the width at 100cqi over that many em, times TEXT SIZE, but
+   never past it. */
+.countdown-label {
   color: var(--text);
 }
-.timer-actions {
+.countdown-digits {
+  --fit: calc(100cqi / (var(--chars) * 0.6 + 1.35));
   display: flex;
-  gap: var(--s-sm);
-  margin-top: var(--s-xs);
+  gap: 0.45em;
+  font-size: min(calc(var(--fit) * 0.875 * var(--text-scale)), var(--fit));
 }
-/* Run out: the digits in the accent (as TIME's due rows). */
-.timer-module.due .clock-digits {
-  color: var(--accent);
-}
-.timer-length {
+.countdown-part {
   display: flex;
+  flex-direction: column;
   align-items: center;
-  gap: var(--s-xs);
+  gap: 0.12em;
 }
-.module-input.boxed.timer-part {
-  width: 64px;
+/* The unit under each part: the date's size, not the digits'. */
+.countdown-unit {
+  color: var(--text-dim);
+  font-size: calc(3.5cqi * var(--text-scale));
+  font-weight: 400;
+  letter-spacing: 2px;
+  text-shadow: none;
+}
+.countdown-to {
+  color: var(--text-dim);
+}
+.countdown-empty {
+  text-align: center;
+}
+/* Reached: the digits in the accent (as TIME's due rows). */
+.countdown-module.due .countdown-digits > .countdown-part > span:first-child {
+  color: var(--accent);
 }

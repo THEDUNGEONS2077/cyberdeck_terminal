@@ -14,6 +14,7 @@
 import { type Arrangement, type Area, type PanelPlace, type Panels, MAX_AREAS, cleanTitle, clampPlace, defaultPanels, emptyArrangement } from './arrange';
 import { sanitizeTree } from './bookmarks';
 import { type BookmarksLayout, type GlowLevel, type LayoutDocument, GLOW_LEVELS, LAYOUT_SCHEMA_VERSION, MAX_OPEN_FOLDERS, defaultBookmarks, defaultPrefs, normalizeZooms } from './layout';
+import { fromTimer } from './countdown';
 import { normalizeModules } from './modules';
 import { DEFAULT_MODULE_SCALE, DEFAULT_TEXT_SCALE, DEFAULT_UI_SCALE, MODULE_OWN_STEPS, MODULE_SCALE_STEPS, TEXT_SCALE_STEPS, UI_SCALE_STEPS, nearestStep } from './scale';
 import { normalizeSwitchTabs } from './switching';
@@ -39,6 +40,9 @@ function isRecord(v: unknown): v is Record<string, unknown> {
  *          (a missing `sizes`), and no layout has a CLOCK yet.
  *   5 → 6: a module's own UI SCALE and MODULE SIZE become one SIZE
  *          (ownScale), drawn as big as before; its TEXT SIZE is kept.
+ *   6 → 7: 0.24.0's TIMER module becomes a COUNTDOWN (lib/countdown.ts
+ *          fromTimer): same place, sizes and label; one that was running
+ *          counts down to when it would have ended, any other has no date.
  */
 const STEPS: Record<number, (doc: Record<string, unknown>) => Record<string, unknown>> = {
   1: (doc) => ({ ...doc, bookmarks: { imported: null, importedAt: null, open: [] } }),
@@ -48,6 +52,10 @@ const STEPS: Record<number, (doc: Record<string, unknown>) => Record<string, unk
   5: (doc) => {
     const prefs = isRecord(doc.prefs) ? doc.prefs : {};
     const modules = Array.isArray(doc.modules) ? doc.modules.map((m) => (isRecord(m) && isRecord(m.sizes) ? { ...m, sizes: ownScale(m.sizes, prefs) } : m)) : doc.modules;
+    return { ...doc, modules };
+  },
+  6: (doc) => {
+    const modules = Array.isArray(doc.modules) ? doc.modules.map((m) => (isRecord(m) && m.kind === 'timer' ? { ...m, kind: 'countdown', settings: fromTimer(m.settings) } : m)) : doc.modules;
     return { ...doc, modules };
   },
 };

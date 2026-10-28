@@ -58,7 +58,7 @@ Press **EDIT** in NAV's header to unlock the layout:
 - Drag to reorder, or pull a bookmark out of a folder. Every item's **⋯** menu does the same from the keyboard.
 - Drop anything on **HIDDEN** to hide it (it stays in Chrome).
 - Drag the **⠿** grips to move NAV or the brand panel, and NAV's right edge to resize it.
-- **+ MODULE** adds a panel you place and size yourself: **SEARCH** (a search box for the engine you choose), **QUICK LAUNCH** (tiles, keys 1–9), **TIME** (the clock, countdowns, a timer and a stopwatch), **CLOCK** (a big clock that grows with its width) or **TIMER** (a countdown with big digits that keeps running through a reload). Each has its own **⋯ ▸ SETTINGS**, including its own sizes. The brand panel can be removed and added back the same way.
+- **+ MODULE** adds a panel you place and size yourself: **SEARCH** (a search box for the engine you choose), **QUICK LAUNCH** (tiles, keys 1–9), **TIME** (the clock, countdowns, a timer and a stopwatch), **CLOCK** (a big clock that grows with its width) or **COUNTDOWN** (big digits counting down to a date and time you choose, under your label). Each has its own **⋯ ▸ SETTINGS**, including its own sizes. The brand panel can be removed and added back the same way.
 - **CHROME ORDER** goes back to Chrome's own order. **UNDO** (Ctrl+Z) steps back. **REVERT** returns to how it was when you started.
 
 Press **DONE** (or Esc) to lock it again. Changes save as you go.
