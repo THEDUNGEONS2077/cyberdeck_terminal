@@ -133,18 +133,21 @@ try {
     await page.getByRole('link', { name: /Starred elsewhere/ }).waitFor();
     // SYSTEM ▸ BOOKMARKS (closed when SYSTEM opens, 0.25.0) says what the bridge reads.
     await page.keyboard.press('s');
-    await page.getByRole('button', { name: 'BOOKMARKS' }).click();
+    await page.getByRole('dialog', { name: 'SYSTEM' }).getByRole('button', { name: 'BOOKMARKS', exact: true }).click();
     await page.locator('.setting', { hasText: 'CHROME HAS' }).getByText(/BAR \d+ · OTHER 1 · MOBILE 0/).waitFor();
     await page.keyboard.press('Escape');
+    // Closed for good (an S during its fade-out would reopen this same panel, BOOKMARKS still open).
+    await page.getByRole('dialog').waitFor({ state: 'detached' });
   });
 
   await path('SYSTEM shows the live source and the bridge version', async () => {
     await page.keyboard.press('s');
     // Closed, BOOKMARKS says its source beside its title; open, in full.
     await page.locator('.fold-summary', { hasText: 'LIVE · BRIDGE v1.3.0' }).waitFor();
-    await page.getByRole('button', { name: 'BOOKMARKS' }).click();
+    await page.getByRole('dialog', { name: 'SYSTEM' }).getByRole('button', { name: 'BOOKMARKS', exact: true }).click();
     await page.locator('.setting', { hasText: 'SOURCE' }).getByText('LIVE · BRIDGE v1.3.0').waitFor();
     await page.keyboard.press('Escape');
+    await page.getByRole('dialog').waitFor({ state: 'detached' });
   });
 
   await path('the deck is titled NAV, and links show their site icons (from Chrome, via the bridge)', async () => {
