@@ -155,10 +155,12 @@ Reference: `wallhaven-zmzddj.jpg` (the user's, 2026-10-29, 1920×1080): blue sou
 |---|---|---|
 | The code | Lines of C in indented blocks, several blocks across the screen, overlapping between depths | `code.ts`: lanes of blocks, each indented like a function body (deeper after a line ending `:`, back out now and then), each line words joined by operators. In the MATRIX RAIN's glyphs only: mirrored half-width katakana (twice as often), digits and letters, its symbols as the operators (`=`, `->`, `==`, `+=`, `:`, `.`, `*`, `|`, quotes) |
 | Depths | Far back small, dim, slightly soft; nearer brighter; the big code in front bold, saturated blue, glowing, a little soft; a few huge blurred lines | Five depths: 9, 11, 15, 24 and 38 px. The far one dim and softened (0.5 px), the 11 and 15 px sharp, the 24 px in focus (bold, a tight bloom and a wide haze, 0.8 px soft), the 38 px out of focus (5 px) and faint |
-| Colour | Deep navy, median about rgb(2, 15, 31); code in saturated blues, red almost nil | `--bg` lifted 30% toward `--cool` in the middle, less at the corners; each depth's tone pulled toward `--cool` (AZURE gives the reference's) |
+| Colour | Deep navy, median about rgb(2, 15, 31); code in saturated blues, red almost nil | True black (`--bg`, the user's choice, 0.27.1); each depth's tone pulled toward `--cool` (AZURE gives the reference's blues) |
 | Brightness | Median 15 (green channel), 90th percentile about (13, 64, 124), 16% of pixels clearly blue | First pass: median (5, 21, 48), 90th (40, 91, 155), 28% clearly blue: a little brighter and denser, for the user's tweaks |
 
-The motion is its own: every depth scrolls up, nearer ones faster (3 to 21 px a second), so they slide past each other with depth; and about every 1.4 s a line in focus lights up over 1.6 s, as if being run. AZURE suits it; every palette makes its own.
+**The user's tweaks** (0.27.1): a true black background in every palette (`--bg`; not the reference's navy), about a third dimmer, twice as fast, denser (more lanes, longer lines, smaller gaps). Clearly blue pixels now 14.5%, against the reference's 16%.
+
+The motion is its own: every depth scrolls up, nearer ones faster (6 to 42 px a second since 0.27.1), so they slide past each other with depth; and about every 1.4 s a line in focus lights up over 1.6 s, as if being run. AZURE suits it; every palette makes its own.
 
 ## The bookmarks deck
 - **Header bar:** titled **NAV**, in the desktop's centre-header look (scanlines, phosphor, a lit rule underneath).

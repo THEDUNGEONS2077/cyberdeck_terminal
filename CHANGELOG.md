@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.27.1 (build 47)
+- **QUANTUM KERNEL, your first tweaks:**
+  - **True black background** in every palette, in place of the reference's navy.
+  - **Dimmer:** every depth is about a third less bright, and so is its glow and the line that lights up.
+  - **Faster:** every depth scrolls twice as fast.
+  - **Denser:** more lanes of code, longer lines and shorter gaps between blocks.
+
 ## 0.27.0 (build 46)
 - **New wallpaper: QUANTUM KERNEL,** from your reference: layers of code at five depths on deep navy, written in MATRIX RAIN's glyphs.
   - **The depths:** small, dim code far back; sharper code nearer; big, bold, glowing code in focus; a few huge lines blurred up front.

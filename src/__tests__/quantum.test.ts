@@ -6,6 +6,7 @@
  */
 import { describe, expect, it } from 'vitest';
 
+import { PALETTES } from '@/lib/palettes';
 import { BASE_GLYPHS, KATAKANA } from '@/wallpaper/matrix-rain/glyphAtlas';
 import { statement, writeCode } from '@/wallpaper/quantum-kernel/code';
 import { kernelTones } from '@/wallpaper/quantum-kernel/engine';
@@ -40,9 +41,9 @@ describe('QUANTUM KERNEL', () => {
     // Each lane starts its lines within its own share of the width (indent at most 4 × 2 in).
     const laneW = cols / spec.lanes;
     for (const l of lines) expect(l.col).toBeLessThan(cols - laneW + laneW * 0.25 + 8 + laneW);
-    // Not every row is code: blocks have gaps between them.
-    const usedRows = new Set(lines.map((l) => l.row));
-    expect(usedRows.size).toBeLessThan(rows);
+    // In one lane, not every row is code: blocks have gaps between them (lanes side by side may fill each other's).
+    const one = writeCode(seeded(9), cols, rows, { ...spec, lanes: 1 }, letters);
+    expect(new Set(one.map((l) => l.row)).size).toBeLessThan(rows);
   });
 
   it('indents after a line that opens a block, as code does', () => {
@@ -64,11 +65,13 @@ describe('QUANTUM KERNEL', () => {
 
   it('takes its colours from the palette (AZURE gives the reference’s blues)', () => {
     const t = kernelTones({ bg: '#000000', line: '#0b3a7a', dim: '#3d84d0', text: '#55a2ee', accent: '#3ca0ff', bright: '#cfe4ff', cool: '#0b3c99' });
-    // Deep navy, darker at the corners; the code blue, never grey.
-    expect(t.navy).toMatch(/^rgb\(\d+, \d+, \d+\)$/);
+    // The code blue, never grey.
     const blue = (c: string) => c.match(/\d+/g)!.map(Number);
     const [r, , b] = blue(t.focus);
     expect(b).toBeGreaterThan(r! * 2);
-    expect(blue(t.corner)[2]).toBeLessThan(blue(t.navy)[2]!);
+  });
+
+  it('draws on true black in every palette (its background is --bg, black in all eight: the user, 0.27.1)', () => {
+    for (const p of PALETTES) expect(p.colors.bg).toBe('#000000');
   });
 });

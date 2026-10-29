@@ -1,15 +1,16 @@
 /**
  * src/wallpaper/quantum-kernel/engine.ts: the QUANTUM KERNEL wallpaper
  * (0.27.0): layers of code at different depths, scrolling up past each
- * other on deep navy, in the MATRIX RAIN's glyphs; now and then a line in
- * focus lights up as if being run.
+ * other on black, in the MATRIX RAIN's glyphs; now and then a line in
+ * focus lights up as if being run. The background is true black in every
+ * palette (the user, 0.27.1).
  *
  * Layer: wallpaper (canvas; no React, no stores, no DOM: it runs in the
  * wallpaper's worker, wallpaper/worker.ts, on an OffscreenCanvas).
  *
  * Drawing text is the slow part, so each depth's code (code.ts, a loop of
  * rows) is drawn once into a sheet of its own, its glow and its blur baked
- * in (ctx.filter, once). A frame is then only copies: the navy (drawn once),
+ * in (ctx.filter, once). A frame is then only copies: black,
  * each sheet twice (its loop's end meets its start), and the lit line, a
  * copy of its own patch added over it. Blurred depths are drawn into
  * smaller sheets (DepthSpec.resolution): out of focus, they lose nothing.
@@ -24,7 +25,7 @@ import type { GlowLevel } from '@/lib/layout';
 import { BASE_GLYPHS, FONT_STACK, KATAKANA, canDraw } from '../matrix-rain/glyphAtlas';
 import { type Wallpaper, type WallpaperInstance, type WallpaperOptions, type WallpaperPalette, zoomedSize } from '../types';
 import { type CodeLine, type Rng, writeCode } from './code';
-import { DEPTHS, type DepthSpec, GLYPH_WIDTH, KERNEL_GLOW, MAX_DPR, MAX_FRAME_STEP, MIN_FRAME_MS, NAVY, RUN_EVERY, RUN_SECONDS, RUN_STRENGTH, VIGNETTE } from './params';
+import { DEPTHS, type DepthSpec, GLYPH_WIDTH, KERNEL_GLOW, MAX_DPR, MAX_FRAME_STEP, MIN_FRAME_MS, RUN_EVERY, RUN_SECONDS, RUN_STRENGTH } from './params';
 
 /** `#rrggbb` → [r, g, b]. */
 function rgb(hex: string): [number, number, number] {
@@ -38,12 +39,10 @@ function mix(a: string, b: string, k: number): string {
   return `rgb(${x.map((c, i) => Math.round(c + (y[i]! - c) * k)).join(', ')})`;
 }
 
-/** Each depth's colour, and the navy, from the palette (AZURE gives the reference's blues). */
-export function kernelTones(p: WallpaperPalette): { navy: string; corner: string; far: string; text: string; focus: string; accent: string } {
+/** Each depth's colour from the palette (AZURE gives the reference's blues). The background is true black in every palette (the user, 0.27.1). */
+export function kernelTones(p: WallpaperPalette): { far: string; text: string; focus: string; accent: string } {
   return {
-    navy: mix(p.bg, p.cool, NAVY),
-    corner: mix(p.bg, p.cool, NAVY * (1 - VIGNETTE)),
-    // The reference's blues are deep and saturated: each tone is pulled toward --cool, the far one dimmed toward the navy.
+    // The reference's blues are deep and saturated: each tone is pulled toward --cool, the far one dimmed toward the black.
     far: mix(mix(p.bg, p.dim, 0.8), p.cool, 0.3),
     text: mix(p.text, p.cool, 0.35),
     focus: mix(p.accent, p.cool, 0.25),
@@ -80,7 +79,6 @@ function createQuantumKernel(canvas: HTMLCanvasElement | OffscreenCanvas, option
   let still = options.still;
   let size = { w: 0, h: 0, dpr: 1 };
   let depths: Depth[] = [];
-  let back: OffscreenCanvas | null = null;
   let letters: string[] = [...BASE_GLYPHS];
   let kana = new Set<string>();
   let ready = false;
@@ -92,18 +90,6 @@ function createQuantumKernel(canvas: HTMLCanvasElement | OffscreenCanvas, option
   // The line in focus being run: its depth's line index, and how far through (s); and the wait for the next.
   let run: { line: number; t: number } | null = null;
   let runWait = RUN_EVERY * 0.5;
-
-  /** The navy behind the code, lighter in the middle, darker at the corners: drawn once a size. */
-  const paintBack = () => {
-    const t = kernelTones(palette);
-    back = new OffscreenCanvas(Math.max(1, Math.round(size.w * size.dpr)), Math.max(1, Math.round(size.h * size.dpr)));
-    const b = back.getContext('2d')!;
-    const g = b.createRadialGradient(back.width * 0.5, back.height * 0.45, 0, back.width * 0.5, back.height * 0.45, Math.hypot(back.width, back.height) * 0.6);
-    g.addColorStop(0, t.navy);
-    g.addColorStop(1, t.corner);
-    b.fillStyle = g;
-    b.fillRect(0, 0, back.width, back.height);
-  };
 
   /**
    * Draws depth `d`'s loop into its sheet: its lines sharp on a scratch
@@ -195,7 +181,6 @@ function createQuantumKernel(canvas: HTMLCanvasElement | OffscreenCanvas, option
 
   /** Draws every sheet again (a new palette or glow); the code and the scrolling stay. */
   const repaint = () => {
-    paintBack();
     for (const d of depths) paintDepth(d);
   };
 
@@ -254,10 +239,12 @@ function createQuantumKernel(canvas: HTMLCanvasElement | OffscreenCanvas, option
     ctx.globalCompositeOperation = 'source-over';
   };
 
-  /** One frame: the navy, the depths back to front, the line being run. */
+  /** One frame: true black, the depths back to front, the line being run. */
   const draw = () => {
-    if (!ctx || !back) return;
-    ctx.drawImage(back, 0, 0, canvas.width, canvas.height);
+    if (!ctx) return;
+    // --bg: true black in every palette (a unit test keeps it so).
+    ctx.fillStyle = palette.bg;
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
     for (const d of depths) {
       drawDepth(d);
       if (d.spec.tone === 'focus') drawRun();
@@ -335,7 +322,6 @@ function createQuantumKernel(canvas: HTMLCanvasElement | OffscreenCanvas, option
       destroyed = true;
       instance.stop();
       depths = [];
-      back = null;
     },
   };
 
