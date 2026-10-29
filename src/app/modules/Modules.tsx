@@ -34,7 +34,7 @@
  */
 import { type CSSProperties, memo, useId, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 
-import { type DashboardSizes, type ModuleInstance, type ModuleSizes, moduleScaleOf, moduleTextOf, removeModule, setSizes } from '@/lib/modules';
+import { type DashboardSizes, type ModuleInstance, type ModuleSizes, moduleScaleOf, moduleTextOf, removeModule, setSizes, setTitle } from '@/lib/modules';
 import { MODULE_OWN_STEPS, TEXT_SCALE_STEPS, nearestStep, percentLabel } from '@/lib/scale';
 import { editStore } from '@/store/edit';
 import { uiStore } from '@/store/ui';
@@ -49,6 +49,7 @@ import { Prompted } from '../Prompted';
 import { Stepper } from '../Stepper';
 import { usePresence } from '../usePresence';
 import { CATALOG } from './catalog';
+import { Choice } from './Choice';
 
 /** The width at and below which the dashboard stacks (app.css "Narrow windows"). */
 const NARROW = '(max-width: 600px)';
@@ -128,8 +129,10 @@ const ModulePanel = memo(function ModulePanel({ module, stacked }: { module: Mod
   const [menu, setMenu] = useState<HTMLElement | null>(null);
   const info = CATALOG[module.kind];
   const note = info.note(module);
-  // A bare module shows its header only while it's being arranged (its grip and ⋯ live there).
-  const head = !info.bare || editing;
+  // Its title: its own SHOW TITLE, else its kind's usual (a bare kind shows none). While arranging, the header
+  // always shows: its grip and ⋯ live there.
+  const titled = module.title ?? !info.bare;
+  const head = titled || editing;
 
   const closeMenu = () => {
     const anchor = menu;
@@ -140,7 +143,7 @@ const ModulePanel = memo(function ModulePanel({ module, stacked }: { module: Mod
   return (
     <section
       ref={box}
-      className={cx('module', editing && 'editing', stacked && 'stacked', info.bare && 'bare')}
+      className={cx('module', editing && 'editing', stacked && 'stacked', info.bare && !titled && 'bare')}
       data-module={module.id}
       data-kind={module.kind}
       data-placed={stacked ? undefined : ''}
@@ -197,6 +200,7 @@ export function ModuleSettingsDialog() {
   return (
     <Dialog title={`${info.label} · SETTINGS`} onClose={close} leaving={leaving}>
       <div className="panel-body">
+        <TitleSetting module={shown} />
         <ModuleSizeSettings module={shown} />
         <info.Settings module={shown} />
         <p className="small dim">CHANGES SAVE AS YOU MAKE THEM · UNDO IN THE EDIT BAR TAKES THEM BACK.</p>
@@ -246,6 +250,18 @@ function OwnSize(props: { label: string; name: string; own: number | undefined; 
           <output className="stepper-value">{percentLabel(props.dashboard)}</output>
         )}
       </div>
+    </div>
+  );
+}
+
+/** SHOW TITLE (0.27.0): the module's `> NAME` bar outside edit mode, SHOW or HIDE. Its kind's usual is stored as nothing. One undoable step. */
+function TitleSetting({ module }: { module: ModuleInstance }) {
+  const usual = !CATALOG[module.kind].bare;
+  const shown = module.title ?? usual;
+  const set = (on: boolean) => editStore.getState().apply((s) => ({ ...s, modules: setTitle(s.modules, module.id, on === usual ? undefined : on) }));
+  return (
+    <div className="settings-group">
+      <Choice label="TITLE (OUTSIDE EDIT)" name={`title-${module.id}`} on={shown} onLabel="SHOW" offLabel="HIDE" set={set} />
     </div>
   );
 }

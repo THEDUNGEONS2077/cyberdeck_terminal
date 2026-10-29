@@ -34,6 +34,7 @@ export const WALLPAPER_LIST: readonly WallpaperInfo[] = [
   { id: 'horizon', label: 'HORIZON', safeDpr: 2 },
   { id: 'sunset', label: 'SUNSET', safeDpr: 2 },
   { id: 'prism', label: 'PRISM', safeDpr: 2 },
+  { id: 'quantum-kernel', label: 'QUANTUM KERNEL', safeDpr: 2 },
 ];
 
 /** Wallpaper `id`'s safe pixel cap (2 for an unknown one). */

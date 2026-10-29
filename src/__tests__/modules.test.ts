@@ -22,6 +22,7 @@ import {
   placeModule,
   removeModule,
   setSettings,
+  setTitle,
 } from '@/lib/modules';
 import { ENGINES, defaultSearch, isTemplate, normalizeSearch, searchUrl } from '@/lib/search';
 import { addCountdown, clampTimer, clockText, countdownText, dateKey, daysUntil, normalizeTime, parseDate, sortCountdowns } from '@/lib/time';
@@ -252,3 +253,17 @@ describe('layout schema 4 (then on to the current one)', () => {
     expect(summarizeLayout({ ...defaultLayout(), modules: [newModule('time', 'mt', [])] })).toBe('1 MODULE · WALLPAPER MATRIX-RAIN · REMIND 14D');
   });
 });
+
+describe('SHOW TITLE (0.27.0)', () => {
+  it('is stored only when set, kept through a save and a read, and dropped when back to the usual', () => {
+    const time = newModule('time', 'mtime', []);
+    expect('title' in time).toBe(false);
+    const hidden = setTitle([time], 'mtime', false);
+    expect(hidden[0]!.title).toBe(false);
+    expect(normalizeModules(JSON.parse(JSON.stringify(hidden)))).toEqual(hidden);
+    expect('title' in setTitle(hidden, 'mtime', undefined)[0]!).toBe(false);
+    // Anything but true or false is the usual.
+    expect('title' in normalizeModules([{ ...time, title: 'yes' }])[0]!).toBe(false);
+  });
+});
+

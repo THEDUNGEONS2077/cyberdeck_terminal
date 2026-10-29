@@ -148,6 +148,18 @@ Reference: `wallhaven-lymvol.png` (the user's, 2026-10-28, 2560×1440): glass bl
 
 The motion is its own and slow: the camera sways a few degrees (53 s and 67 s cycles), and each light breathes (±22%, 9–17 s). NEON (magenta over electric blue) suits it; every palette makes its own PRISM.
 
+## Quantum kernel's look
+Reference: `wallhaven-zmzddj.jpg` (the user's, 2026-10-29, 1920×1080): blue source code at several depths on deep navy. The user: "have it look like the types of symbols in the matrix rain, different layers of code at different depths, keep the structure from the reference". Built here first, for the phone after.
+
+| Property | Reference | How it's matched |
+|---|---|---|
+| The code | Lines of C in indented blocks, several blocks across the screen, overlapping between depths | `code.ts`: lanes of blocks, each indented like a function body (deeper after a line ending `:`, back out now and then), each line words joined by operators. In the MATRIX RAIN's glyphs only: mirrored half-width katakana (twice as often), digits and letters, its symbols as the operators (`=`, `->`, `==`, `+=`, `:`, `.`, `*`, `|`, quotes) |
+| Depths | Far back small, dim, slightly soft; nearer brighter; the big code in front bold, saturated blue, glowing, a little soft; a few huge blurred lines | Five depths: 9, 11, 15, 24 and 38 px. The far one dim and softened (0.5 px), the 11 and 15 px sharp, the 24 px in focus (bold, a tight bloom and a wide haze, 0.8 px soft), the 38 px out of focus (5 px) and faint |
+| Colour | Deep navy, median about rgb(2, 15, 31); code in saturated blues, red almost nil | `--bg` lifted 30% toward `--cool` in the middle, less at the corners; each depth's tone pulled toward `--cool` (AZURE gives the reference's) |
+| Brightness | Median 15 (green channel), 90th percentile about (13, 64, 124), 16% of pixels clearly blue | First pass: median (5, 21, 48), 90th (40, 91, 155), 28% clearly blue: a little brighter and denser, for the user's tweaks |
+
+The motion is its own: every depth scrolls up, nearer ones faster (3 to 21 px a second), so they slide past each other with depth; and about every 1.4 s a line in focus lights up over 1.6 s, as if being run. AZURE suits it; every palette makes its own.
+
 ## The bookmarks deck
 - **Header bar:** titled **NAV**, in the desktop's centre-header look (scanlines, phosphor, a lit rule underneath).
   - A soft band of light sweeps across it once when NAV appears, and again each time the layout is locked (the brand panel's refresh band, turned sideways). It never loops.
@@ -189,6 +201,7 @@ SYSTEM ▸ PROFILES, under APPEARANCE: one line per profile, as RESTORE lists sn
 
 ## Modules
 - **A module is a panel like NAV's:** a solid frame with scanlines and phosphor, a header with `> TITLE` and a short dimmed note on the right, and a lit rule under it.
+- **SHOW TITLE** (0.27.0, the user: "allow me to toggle the modules >title on and off"): each module's SETTINGS has TITLE (OUTSIDE EDIT), SHOW | HIDE, first in the dialog. Hidden, the module is its body alone once you're done editing; while editing, the header always shows (its grip and ⋯ live there). Each kind starts as before: SEARCH, QUICK LAUNCH and CLOCK hidden (their thin ring frame, `bare`), TIME and COUNTDOWN shown. Stored only when it differs from the kind's usual (`module.title`), so no schema bump.
 - **A 9 px floor** (0.14.0): the small sizes (`--fs-meta`, `--fs-small`, `--fs-micro`) never go below 9 px in a module; 70% of them was 7–8 px, too small to read.
 - **Drawn at 70%** (user request, 2026-10-24; SYSTEM ▸ MODULE SIZE changes it since 0.17.0): `.module` sets the type, spacing and control tokens again, scaled (`--m`, from `--module-scale`), and draws its stored width as `--mw`. No `zoom` or transform of its own, so its grips measure what's drawn. What you click keeps WCAG 2.2's 24 px target (buttons, grip, ⋯, the fold heading). The brand panel and NAV keep their sizes.
 - **CLOCK** (0.18.0): a big clock and the date under it, nothing else. Its digits fill the module's width, so its resize edge sets the clock's size. 24- or 12-hour time, seconds and the date are SETTINGS.

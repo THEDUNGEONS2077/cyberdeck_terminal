@@ -269,6 +269,14 @@ ul {
 .wallpaper[data-wallpaper='prism'] .wallpaper-floor {
   display: none;
 }
+/* QUANTUM KERNEL: its deep navy (the code draws over it once its font is in). */
+.wallpaper[data-wallpaper='quantum-kernel'] {
+  background: radial-gradient(ellipse at 50% 45%, color-mix(in srgb, var(--cool) 16%, var(--bg)), color-mix(in srgb, var(--cool) 7%, var(--bg)));
+}
+.wallpaper[data-wallpaper='quantum-kernel'] .wallpaper-haze,
+.wallpaper[data-wallpaper='quantum-kernel'] .wallpaper-floor {
+  display: none;
+}
 /* The reference's dark lower edge: the rain fades to black at the bottom. Over the
    whole height, along t³ (a stop every 10%): nothing at the top, easing in, black at the
    bottom edge, with no point where the fade starts (0.17.6: the bottom 16% alone, its

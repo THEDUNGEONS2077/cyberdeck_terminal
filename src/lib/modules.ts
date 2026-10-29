@@ -53,6 +53,13 @@ interface Module<K extends ModuleKind, S> {
   settings: S;
   /** Its own sizes; missing (the usual case) follows the dashboard's. */
   sizes?: ModuleSizes;
+  /**
+   * SHOW TITLE (0.27.0): its `> NAME` bar outside edit mode, when it isn't
+   * its kind's usual (app/modules/catalog.ts `bare`: SEARCH, QUICK LAUNCH and
+   * CLOCK show none; the others do). Missing: the kind's usual. No schema
+   * bump: it's additive, and an older build drops it, showing the usual.
+   */
+  title?: boolean;
 }
 
 /** A module on the dashboard. */
@@ -145,6 +152,16 @@ export function setSizes(modules: readonly ModuleInstance[], id: string, sizes: 
   });
 }
 
+/** Shows (true) or hides module `id`'s title outside edit mode; `undefined` goes back to its kind's usual. */
+export function setTitle(modules: readonly ModuleInstance[], id: string, title: boolean | undefined): ModuleInstance[] {
+  return modules.map((m) => {
+    if (m.id !== id) return m;
+    const next = { ...m, title };
+    if (title === undefined) delete next.title;
+    return next;
+  });
+}
+
 /** The dashboard's sizes a module's own replace (SYSTEM ▸ APPEARANCE; the layout's prefs). */
 export interface DashboardSizes {
   textScale: number;
@@ -210,7 +227,7 @@ export function normalizeModules(v: unknown): ModuleInstance[] {
     const place = (kind: ModuleKind) => normalizeModulePlace(m.place, kind, out);
     // Its own sizes, only when it has any (most modules follow the dashboard).
     const sizes = normalizeSizes(m.sizes);
-    const own = sizes ? { sizes } : {};
+    const own = { ...(sizes ? { sizes } : {}), ...(typeof m.title === 'boolean' ? { title: m.title } : {}) };
     if (m.kind === 'search') out.push({ id, kind: 'search', place: place('search'), settings: normalizeSearch(m.settings), ...own });
     else if (m.kind === 'launch') out.push({ id, kind: 'launch', place: place('launch'), settings: normalizeLaunch(m.settings), ...own });
     else if (m.kind === 'time') out.push({ id, kind: 'time', place: place('time'), settings: normalizeTime(m.settings), ...own });

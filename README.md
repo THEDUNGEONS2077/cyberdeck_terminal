@@ -32,7 +32,8 @@ Bookmarks open in a new tab, so the dashboard stays put. With the bridge, links 
   - HORIZON: a glowing wireframe land running to a hot pink horizon, gliding toward you;
   - SUNSET: the striped outrun sun over a glowing grid that glides toward you, under the stars;
   - PRISM: a field of smoky glass blocks lit magenta and blue from inside.
-- **Wallpaper colours:** the same eight palettes, chosen on their own: any dashboard colours with any wallpaper and any wallpaper colours. BLOOD suits the neural net and VELOCITY, NEON suits MEGACITY and PRISM, SYNTH suits HORIZON and OUTRUN suits SUNSET.
+  - QUANTUM KERNEL: layers of code at different depths, in the rain's glyphs, scrolling past each other; now and then a line lights up as it runs.
+- **Wallpaper colours:** the same eight palettes, chosen on their own: any dashboard colours with any wallpaper and any wallpaper colours. BLOOD suits the neural net and VELOCITY, NEON suits MEGACITY and PRISM, AZURE suits QUANTUM KERNEL, SYNTH suits HORIZON and OUTRUN suits SUNSET.
 - **Glow:** from LOW (the original look) to MAX. HIGH is the default.
 - **Zoom:** 50% to 200% for the wallpaper shown (**−** / **+**, or the keys), in a browser's zoom steps. Each wallpaper keeps its own zoom and opens at it from then on. Zoomed in, the wallpaper is laid out as if the screen were smaller and drawn larger, so it's as sharp as at 100%.
 

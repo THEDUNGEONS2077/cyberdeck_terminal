@@ -549,7 +549,7 @@ try {
     expect(!(await ownVar('--m')) && !(await ownVar('--text-scale')), 'CLOCK kept its own sizes after DASHBOARD');
     // 12-hour, without seconds.
     await dialog.getByRole('radio', { name: '12-HOUR' }).check({ force: true });
-    await dialog.getByRole('radio', { name: 'HIDE' }).first().check({ force: true });
+    await dialog.getByRole('radiogroup', { name: 'SECONDS' }).getByRole('radio', { name: 'HIDE' }).check({ force: true });
     await page.keyboard.press('Escape');
     await page.getByRole('dialog').waitFor({ state: 'detached' });
     expect(/^\d{1,2}:\d\d(AM|PM)$/.test((await digits.innerText()).replace(/\s/g, '')), `12-hour CLOCK reads ${await digits.innerText()}`);
@@ -608,6 +608,17 @@ try {
     await page.getByRole('dialog').waitFor({ state: 'detached' });
     await countdown.locator('.countdown-module.due').waitFor();
     expect((await parts()).join(':') === '00:00:00:00', `a reached COUNTDOWN reads ${(await parts()).join(':')}`);
+    // SHOW TITLE: COUNTDOWN shows its > COUNTDOWN bar by default; HIDE takes it off outside edit mode (still there while editing).
+    await settingsOf('COUNTDOWN');
+    await dialog.getByRole('radiogroup', { name: 'TITLE (OUTSIDE EDIT)' }).getByRole('radio', { name: 'HIDE' }).check({ force: true });
+    await page.keyboard.press('Escape');
+    await page.getByRole('dialog').waitFor({ state: 'detached' });
+    await countdown.locator('.module-head').waitFor();
+    await page.getByRole('button', { name: 'DONE' }).click();
+    await page.waitForFunction(() => !document.querySelector('[role="toolbar"]'));
+    expect((await countdown.locator('.module-head').count()) === 0, 'COUNTDOWN still shows its title with SHOW TITLE off');
+    await page.getByRole('button', { name: 'EDIT', exact: true }).click();
+    await editBar().waitFor();
     // Out of the way again for the rest of the walk (in edit mode, as the walk was).
     await page.getByRole('button', { name: 'COUNTDOWN module options' }).click();
     await page.getByRole('menuitem', { name: 'REMOVE' }).click();
@@ -1096,6 +1107,21 @@ try {
     expect(q1.w === 1920 && q1.h === 1080, `PRISM's canvas is ${q1.w}×${q1.h}`);
     expect(q1.sig !== q2.sig, 'PRISM doesn’t move');
     await shot('18d-prism');
+    // QUANTUM KERNEL: layers of code at different depths, in the rain's glyphs, scrolling up past each other.
+    await openSystem();
+    await page.getByRole('radio', { name: 'QUANTUM KERNEL' }).check({ force: true });
+    await page.getByRole('radiogroup', { name: 'WALLPAPER COLOURS' }).getByRole('radio', { name: 'AZURE' }).check({ force: true });
+    await page.keyboard.press('Escape');
+    await page.waitForFunction(() => document.querySelector('.wallpaper')?.getAttribute('data-wallpaper') === 'quantum-kernel');
+    await page.locator('.wallpaper-canvas[data-ready]').waitFor({ state: 'attached', timeout: 10000 });
+    expect((await page.evaluate(() => window.__cyberdeckRain.mode())) === 'worker', 'QUANTUM KERNEL isn’t in the worker');
+    const k1 = await rain();
+    await page.waitForTimeout(800);
+    const k2 = await rain();
+    expect(k1.lit > 0.15, `QUANTUM KERNEL is only ${(k1.lit * 100).toFixed(1)}% lit`);
+    expect(k1.w === 1920 && k1.h === 1080, `QUANTUM KERNEL's canvas is ${k1.w}×${k1.h}`);
+    expect(k1.sig !== k2.sig, 'QUANTUM KERNEL doesn’t move');
+    await shot('18e-quantum-kernel');
     // Accessibility in another palette (contrast especially), with SYSTEM open.
     await page.addScriptTag({ path: join(root, 'node_modules/axe-core/axe.min.js') });
     await openSystem();

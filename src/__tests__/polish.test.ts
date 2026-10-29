@@ -47,6 +47,7 @@ describe('sharpness', () => {
       ['horizon', 2],
       ['sunset', 2],
       ['prism', 2],
+      ['quantum-kernel', 2],
     ]);
     expect(safeDprOf('unknown')).toBe(2);
   });

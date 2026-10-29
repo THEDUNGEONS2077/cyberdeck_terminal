@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.27.0 (build 46)
+- **New wallpaper: QUANTUM KERNEL,** from your reference: layers of code at five depths on deep navy, written in MATRIX RAIN's glyphs.
+  - **The depths:** small, dim code far back; sharper code nearer; big, bold, glowing code in focus; a few huge lines blurred up front.
+  - **The motion:** each depth scrolls up, the nearer ones faster, so they slide past each other. Now and then a line in focus lights up as if it's being run.
+  - **Colours:** AZURE gives the reference's blues.
+  - **Light to run:** each depth is drawn once, glow and blur included, and a frame only moves those pictures.
+- **Module titles can be hidden or shown,** each module on its own: ⋯ ▸ SETTINGS ▸ TITLE (OUTSIDE EDIT), SHOW or HIDE. While you edit, the title bar always shows, since its grip and ⋯ live there. SEARCH, QUICK LAUNCH and CLOCK start hidden as before, and the others start shown.
+
 ## 0.26.0 (build 45)
 - **DATA FLOW never comes out in one colour.** At least a fifth of every board's traces are now in the palette's second colour (violet in ICE). By chance, about 1 board in 14 had been almost all one colour. A board that falls short turns its smallest warm buses over until it doesn't, so the rest of the board is laid out exactly as before. The phone app follows the same rule (its 0.12.0).
 

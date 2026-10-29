@@ -13,13 +13,12 @@
  * it reads the time once a second (once a minute without seconds), and only
  * while the page can be seen (app/modules/useNow.ts).
  */
-import { useId } from 'react';
-
 import { type ClockSettings, clockFace } from '@/lib/clock';
 import { setSettings } from '@/lib/modules';
 import { editStore } from '@/store/edit';
 
 import type { ModuleProps } from './catalog';
+import { Choice } from './Choice';
 import { useNow, useSeen } from './useNow';
 
 // Made once (a formatter per call, every second, was a cost the brand clock already learnt).
@@ -40,26 +39,6 @@ export function Panel({ module }: ModuleProps) {
         {suffix && <span className="clock-suffix">{suffix}</span>}
       </time>
       {settings.date && <span className="clock-date dim">{DATE.format(now).replace(/,/g, '').toUpperCase()}</span>}
-    </div>
-  );
-}
-
-/** One on/off choice, as two radio buttons (keyboard-friendly, as the other settings are). */
-function Choice(props: { label: string; name: string; on: boolean; onLabel: string; offLabel: string; set: (on: boolean) => void }) {
-  const id = useId();
-  return (
-    <div className="setting">
-      <span id={id}>{props.label}</span>
-      <div className="segmented" role="radiogroup" aria-labelledby={id}>
-        <label>
-          <input className="sr-only" type="radio" name={props.name} checked={props.on} onChange={() => props.set(true)} />
-          <span>{props.onLabel}</span>
-        </label>
-        <label>
-          <input className="sr-only" type="radio" name={props.name} checked={!props.on} onChange={() => props.set(false)} />
-          <span>{props.offLabel}</span>
-        </label>
-      </div>
     </div>
   );
 }
