@@ -55,6 +55,13 @@ export const LOOSE_TURN = 0.12;
 
 /** Share of buses and loose traces in the palette's cool hue (the rest warm). */
 export const COOL_SHARE = 0.3;
+/**
+ * The least share of a board's traces (by length) in the cool hue (0.26.0):
+ * a few big buses decide most of a board, so by chance about 1 board in 14
+ * came out almost one colour; a board short of it turns its smallest warm
+ * buses and loose traces cool until it isn't (balanceHues).
+ */
+export const MIN_COOL_SHARE = 0.2;
 
 /** Trace widths (CSS px): signal traces, and the odd heavy power trace (its share). */
 export const TRACE_WIDTH = [0.9, 1.5] as const;

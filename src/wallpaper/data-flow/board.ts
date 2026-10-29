@@ -25,6 +25,7 @@
 import {
   BUS,
   COOL_SHARE,
+  MIN_COOL_SHARE,
   COVERAGE,
   LOOSE_BUS,
   LOOSE_BUS_SHARE,
@@ -427,7 +428,36 @@ export function buildBoard(w: number, h: number, rng: Rng): Board {
     addTrace(route.pts, power ? POWER_WIDTH : between(rng, TRACE_WIDTH), rng() < COOL_SHARE, rng() < 0.3 ? 'pad' : 'via', route.end === 'edge' ? 'edge' : rng() < 0.3 ? 'pad' : 'via', -1, -1);
   }
 
+  balanceHues(traces);
   return { w, h, cols, rows, chips, traces, buses };
+}
+
+/**
+ * Makes sure at least MIN_COOL_SHARE of the traces' length is cool: if not,
+ * the warm buses and loose traces (a bus turns as one) turn cool, smallest
+ * first (so as little changes as needed), until it is. No random numbers:
+ * every other draw, and so the rest of the board, is as before.
+ */
+function balanceHues(traces: Trace[]): void {
+  const length = (t: Trace) => t.len[t.len.length - 1] ?? 0;
+  const total = traces.reduce((s, t) => s + length(t), 0);
+  let cool = traces.reduce((s, t) => s + (t.cool ? length(t) : 0), 0);
+  if (total <= 0 || cool >= MIN_COOL_SHARE * total) return;
+  // The warm groups: each bus whole, each loose trace alone (in the order first met).
+  const groups = new Map<string, Trace[]>();
+  traces.forEach((t, i) => {
+    if (t.cool) return;
+    const key = t.bus >= 0 ? `b${t.bus}` : `t${i}`;
+    groups.set(key, [...(groups.get(key) ?? []), t]);
+  });
+  const sized = [...groups.values()].map((g) => ({ g, len: g.reduce((s, t) => s + length(t), 0) }));
+  // Smallest first; equal ones keep the order they were met in (a stable sort).
+  sized.sort((a, b) => a.len - b.len);
+  for (const { g, len } of sized) {
+    if (cool >= MIN_COOL_SHARE * total) break;
+    for (const t of g) t.cool = true;
+    cool += len;
+  }
 }
 
 /** The point `d` grid units along trace `t` (clamped to its ends), into `out` ([x, y], grid units). */

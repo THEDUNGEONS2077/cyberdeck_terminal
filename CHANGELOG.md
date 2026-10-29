@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.26.0 (build 45)
+- **DATA FLOW never comes out in one colour.** At least a fifth of every board's traces are now in the palette's second colour (violet in ICE). By chance, about 1 board in 14 had been almost all one colour. A board that falls short turns its smallest warm buses over until it doesn't, so the rest of the board is laid out exactly as before. The phone app follows the same rule (its 0.12.0).
+
 ## 0.25.0 (build 44)
 - **TIMER is now COUNTDOWN** (EDIT ▸ + MODULE ▸ COUNTDOWN): big digits counting down to a date you choose.
   - **SETTINGS:** a label (LAUNCH, HOLIDAY…), the date, and a time on that day (00:00, the day's start, unless you choose one).

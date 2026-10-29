@@ -15,7 +15,7 @@ import { migrateLayout } from '@/lib/migrations';
 import { contrast, DEFAULT_PALETTE, findPalette, PALETTE_IDS, PALETTE_TOKENS, PALETTES } from '@/lib/palettes';
 import { type Board, buildBoard, DIRS, pointAt, traceLength } from '@/wallpaper/data-flow/board';
 import { flowTones } from '@/wallpaper/data-flow/engine';
-import { COVERAGE, MAIN_CHIP, PITCH } from '@/wallpaper/data-flow/params';
+import { COVERAGE, MAIN_CHIP, MIN_COOL_SHARE, PITCH } from '@/wallpaper/data-flow/params';
 import { diagonal, linkNodes, rgb, shade } from '@/wallpaper/neural-net/engine';
 import { tones } from '@/wallpaper/velocity/engine';
 import { zoomedSize } from '@/wallpaper/types';
@@ -190,6 +190,17 @@ describe('data flow', () => {
 
   it('lays out the same board for the same seed', () => {
     expect(JSON.stringify(buildBoard(1920, 1080, seeded(7)))).toBe(JSON.stringify(desk));
+  });
+
+  it('never comes out in one colour: at least a fifth of every board is cool (0.26.0)', () => {
+    const share = (b: Board) => {
+      const total = b.traces.reduce((n, t) => n + traceLength(t), 0);
+      return b.traces.reduce((n, t) => n + (t.cool ? traceLength(t) : 0), 0) / total;
+    };
+    const shares = Array.from({ length: 40 }, (_, i) => share(buildBoard(384, 832, seeded(100 + i))));
+    expect(Math.min(...shares)).toBeGreaterThanOrEqual(MIN_COOL_SHARE - 1e-9);
+    // Most boards already were: the rule only lifts the few short of it, never paints a board over.
+    expect(shares.filter((x) => x > 0.6).length).toBeLessThan(10);
   });
 
   it('puts the main chip a little right of the middle, and keeps chips apart', () => {
