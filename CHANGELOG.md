@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.27.2 (build 48)
+- **QUANTUM KERNEL fills the whole width:** the empty strip down the right side is gone.
+  - **Why it was there:** each depth's lanes of code began at the left of their share of the screen, and its lines are shorter than that share, so every depth left its spare room on the right.
+  - **Now:** each depth's lanes repeat across the screen from a random starting point of their own, so code runs off both edges alike and the gaps between lanes never line up into a strip. Speed, colour, brightness and density are unchanged.
+
 ## 0.27.1 (build 47)
 - **QUANTUM KERNEL, your first tweaks:**
   - **True black background** in every palette, in place of the reference's navy.

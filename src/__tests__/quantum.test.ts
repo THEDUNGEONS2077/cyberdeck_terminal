@@ -10,7 +10,7 @@ import { PALETTES } from '@/lib/palettes';
 import { BASE_GLYPHS, KATAKANA } from '@/wallpaper/matrix-rain/glyphAtlas';
 import { statement, writeCode } from '@/wallpaper/quantum-kernel/code';
 import { kernelTones } from '@/wallpaper/quantum-kernel/engine';
-import { DEPTHS } from '@/wallpaper/quantum-kernel/params';
+import { DEPTHS, GLYPH_WIDTH } from '@/wallpaper/quantum-kernel/params';
 
 /** A seeded random source (Park–Miller), so the tests see the same code each run. */
 const seeded = (seed: number) => () => ((seed = (seed * 16807) % 2147483647) - 1) / 2147483646;
@@ -46,9 +46,31 @@ describe('QUANTUM KERNEL', () => {
     expect(new Set(one.map((l) => l.row)).size).toBeLessThan(rows);
   });
 
+  it('spreads its code evenly across the width (no empty strip down the right: the user, 0.27.2)', () => {
+    // A 1920 px screen at each depth: the glyphs in the left and right thirds, over many seeds (one alone may lean by chance; the old layout always leaned right-empty).
+    for (const spec of DEPTHS) {
+      const cols = Math.ceil(1920 / (spec.font * GLYPH_WIDTH));
+      let left = 0;
+      let right = 0;
+      // Big seeds: Park–Miller's first draw from a small one is near 0, so small seeds would all share one phase.
+      for (let k = 1; k <= 40; k++) {
+        for (const l of writeCode(seeded(k * 1000003), cols, 200, spec, letters)) {
+          for (let i = 0; i < l.text.length; i++) {
+            const c = l.col + i;
+            if (l.text[i] === ' ' || c >= cols) continue;
+            if (c < cols / 3) left++;
+            else if (c >= (2 * cols) / 3) right++;
+          }
+        }
+      }
+      expect(Math.min(left, right) / Math.max(left, right), `font ${spec.font}: left ${left}, right ${right}`).toBeGreaterThan(0.75);
+    }
+  });
+
   it('indents after a line that opens a block, as code does', () => {
     const lines = writeCode(seeded(3), 200, 400, DEPTHS[2]!, letters);
-    const opened = lines.filter((l, i) => l.text.endsWith(':') && lines[i + 1]?.row === l.row + 1);
+    // Lines on the screen (one cut off at its left edge has lost its indent with its first glyphs).
+    const opened = lines.filter((l, i) => l.col > 0 && l.text.endsWith(':') && lines[i + 1]?.row === l.row + 1);
     expect(opened.length).toBeGreaterThan(3);
     for (const l of opened) {
       const next = lines[lines.indexOf(l) + 1]!;

@@ -49,24 +49,36 @@ export function statement(rng: Rng, letters: readonly string[], length: number):
 
 /**
  * A layer's code: `cols` × `rows` cells (rows loop), its lanes each running
- * blocks then gaps down the whole loop. A block starts near its lane's left
- * edge, its first line at indent 0; a line ending in `:` (an opening one)
- * indents the next by two, and now and then a line steps back out. Lines
- * may run past their lane, as in the reference.
+ * blocks then gaps down the whole loop. The lanes repeat across the screen
+ * from a random point, so code runs off both edges alike. A block starts
+ * near its lane's start, its first line at indent 0; a line
+ * ending in `:` (an opening one) indents the next by two, and now and then a
+ * line steps back out. Lines may run past their lane, as in the reference.
  */
 export function writeCode(rng: Rng, cols: number, rows: number, spec: Pick<DepthSpec, 'lanes' | 'block' | 'gap' | 'length'>, letters: readonly string[]): CodeLine[] {
   const lines: CodeLine[] = [];
   const laneW = cols / spec.lanes;
-  for (let lane = 0; lane < spec.lanes; lane++) {
+  // Where the lanes start: one every lane's width, from a random point (its
+  // own for each depth), with one more lane in front so the pattern reaches
+  // the left edge too. Code is then cut off at both edges alike, and the
+  // gaps between lanes fall in different places at each depth, so none of
+  // them lines up into an empty strip (the user, 0.27.2: lanes used to start
+  // at their slot's left edge, which left the right side bare).
+  const phase = rng();
+  for (let lane = -1; lane < spec.lanes; lane++) {
     // Each lane starts part way into a gap, so the lanes' blocks don't line up.
     let row = Math.floor(rng() * (spec.gap[1] + 1));
     while (row < rows) {
-      const left = Math.floor(lane * laneW + rng() * laneW * 0.25);
+      // A quarter of a lane's jitter round its start, so blocks don't line up either.
+      const left = Math.floor((lane + phase) * laneW + (rng() - 0.5) * laneW * 0.25);
       const n = pick(rng, spec.block);
       let indent = 0;
       for (let i = 0; i < n && row < rows; i++, row++) {
         const text = statement(rng, letters, pick(rng, spec.length));
-        lines.push({ row, col: left + indent * 2, text });
+        // A line starting left of the screen keeps only what's on it (columns stay ≥ 0).
+        const col = left + indent * 2;
+        const shown = col < 0 ? text.slice(-col) : text;
+        if (shown.trim()) lines.push({ row, col: Math.max(0, col), text: shown });
         if (text.endsWith(':')) indent = Math.min(indent + 1, 4);
         else if (indent > 0 && rng() < 0.25) indent--;
       }
