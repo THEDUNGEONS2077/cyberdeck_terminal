@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.28.0 (build 49)
+- **New wallpaper: SUMMIT,** from your reference: a low-poly mountain range at dusk, crimson light on the faces turned to a low sun, navy shadows, snow on the far peaks, under a sky of faceted cloud bands warming to peach at the horizon.
+  - **Clouds in front:** the reference's foreground is replaced by a sea of clouds, three banks of rounded billows lit along their crests.
+  - **It moves as you asked:** every range and bank of cloud glides right to left and loops forever, each at its own speed: the sky slowest, the far peaks slow, the clouds in front fastest.
+  - **Light to run:** each layer is drawn once; a frame only slides the pictures along.
+- **New palette: ALPENGLOW** (crimson, navy and peach), made for SUMMIT. Like the others, it works for the dashboard and for every wallpaper.
+
 ## 0.27.2 (build 48)
 - **QUANTUM KERNEL fills the whole width:** the empty strip down the right side is gone.
   - **Why it was there:** each depth's lanes of code began at the left of their share of the screen, and its lines are shorter than that share, so every depth left its spare room on the right.

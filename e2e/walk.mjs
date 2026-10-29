@@ -1122,6 +1122,21 @@ try {
     expect(k1.w === 1920 && k1.h === 1080, `QUANTUM KERNEL's canvas is ${k1.w}×${k1.h}`);
     expect(k1.sig !== k2.sig, 'QUANTUM KERNEL doesn’t move');
     await shot('18e-quantum-kernel');
+    // SUMMIT: a low-poly range at dusk above a sea of clouds, every layer looping right to left at its own speed.
+    await openSystem();
+    await page.getByRole('radio', { name: 'SUMMIT' }).check({ force: true });
+    await page.getByRole('radiogroup', { name: 'WALLPAPER COLOURS' }).getByRole('radio', { name: 'ALPENGLOW' }).check({ force: true });
+    await page.keyboard.press('Escape');
+    await page.waitForFunction(() => document.querySelector('.wallpaper')?.getAttribute('data-wallpaper') === 'summit');
+    await page.locator('.wallpaper-canvas[data-ready]').waitFor({ state: 'attached', timeout: 10000 });
+    expect((await page.evaluate(() => window.__cyberdeckRain.mode())) === 'worker', 'SUMMIT isn’t in the worker');
+    const summit1 = await rain();
+    await page.waitForTimeout(800);
+    const summit2 = await rain();
+    expect(summit1.lit > 0.15, `SUMMIT is only ${(summit1.lit * 100).toFixed(1)}% lit`);
+    expect(summit1.w === 1920 && summit1.h === 1080, `SUMMIT's canvas is ${summit1.w}×${summit1.h}`);
+    expect(summit1.sig !== summit2.sig, 'SUMMIT doesn’t move');
+    await shot('18f-summit');
     // Accessibility in another palette (contrast especially), with SYSTEM open.
     await page.addScriptTag({ path: join(root, 'node_modules/axe-core/axe.min.js') });
     await openSystem();

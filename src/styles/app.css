@@ -277,6 +277,14 @@ ul {
 .wallpaper[data-wallpaper='quantum-kernel'] .wallpaper-floor {
   display: none;
 }
+/* SUMMIT: true black until its layers are drawn (they cover the whole screen, opaque). */
+.wallpaper[data-wallpaper='summit'] {
+  background: var(--bg);
+}
+.wallpaper[data-wallpaper='summit'] .wallpaper-haze,
+.wallpaper[data-wallpaper='summit'] .wallpaper-floor {
+  display: none;
+}
 /* The reference's dark lower edge: the rain fades to black at the bottom. Over the
    whole height, along t³ (a stop every 10%): nothing at the top, easing in, black at the
    bottom edge, with no point where the fade starts (0.17.6: the bottom 16% alone, its

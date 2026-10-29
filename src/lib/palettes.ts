@@ -37,7 +37,7 @@ export interface PaletteColors {
 }
 
 /** The palettes' ids. Stored in layouts: never change one once released. */
-export type PaletteId = 'phosphor' | 'amber' | 'ice' | 'neon' | 'blood' | 'azure' | 'synth' | 'outrun';
+export type PaletteId = 'phosphor' | 'amber' | 'ice' | 'neon' | 'blood' | 'azure' | 'synth' | 'outrun' | 'alpenglow';
 
 /** A palette: its id, its name in SYSTEM, its colours. */
 export interface Palette {
@@ -193,6 +193,25 @@ export const PALETTES: readonly Palette[] = [
       accentDeep: '#a3204f',
       textBright: '#ffd75e',
       cool: '#3a8dff',
+    },
+  },
+  {
+    // Crimson light on peaks at dusk over navy shadow, a peach glow on the horizon: SUMMIT's reference (2026-10-29).
+    id: 'alpenglow',
+    label: 'ALPENGLOW',
+    colors: {
+      bg: '#000000',
+      surface: '#08070f',
+      surfaceRaised: '#100e1c',
+      line: '#2a2140',
+      lineLit: '#4a1d3c',
+      wash: '#24081c',
+      textDim: '#d0587a',
+      text: '#ee7a90',
+      accent: '#ff3a55',
+      accentDeep: '#a11e3c',
+      textBright: '#ffc6b4',
+      cool: '#3f56a8',
     },
   },
 ];

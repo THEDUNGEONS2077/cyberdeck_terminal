@@ -15,11 +15,12 @@ import { megacity } from './megacity/engine';
 import { neuralNet } from './neural-net/engine';
 import { prism } from './prism/engine';
 import { quantumKernel } from './quantum-kernel/engine';
+import { summit } from './summit/engine';
 import { velocity } from './velocity/engine';
 import type { Wallpaper } from './types';
 
 /** All wallpaper engines. */
-export const WALLPAPERS: readonly Wallpaper[] = [matrixRain, neuralNet, velocity, dataFlow, megacity, horizon, sunset, prism, quantumKernel];
+export const WALLPAPERS: readonly Wallpaper[] = [matrixRain, neuralNet, velocity, dataFlow, megacity, horizon, sunset, prism, quantumKernel, summit];
 
 /** The wallpaper with `id`; the default one if it's unknown (a layout from a newer build, say). */
 export function findWallpaper(id: string): Wallpaper {

@@ -21,7 +21,7 @@ The same wallpapers run on Android as live wallpapers: [fluid_motion](https://gi
 Bookmarks open in a new tab, so the dashboard stays put. With the bridge, links show their site icons, and NAV's header has **CHROME NEW TAB ↗** (Chrome's own New Tab page, with your bookmarks bar, to edit) and **BOOKMARK MANAGER ↗**.
 
 **Appearance** (SYSTEM ▸ APPEARANCE, at the top), all saved with your layout and its backups:
-- **Dashboard colours:** PHOSPHOR (the original green), AMBER, ICE, NEON, BLOOD, AZURE, SYNTH or OUTRUN.
+- **Dashboard colours:** PHOSPHOR (the original green), AMBER, ICE, NEON, BLOOD, AZURE, SYNTH, OUTRUN or ALPENGLOW.
 - **Sizes:** **UI SCALE** (50–300%, the whole dashboard; **[** and **]** on the keyboard), **TEXT SIZE** and **MODULE SIZE**. **CHROME ZOOM ▸ IGNORE** keeps the dashboard and the wallpaper at their own size whatever Chrome's zoom is, which Chrome shares with other pages on the same site.
 - **Wallpaper:**
   - MATRIX RAIN;
@@ -32,8 +32,9 @@ Bookmarks open in a new tab, so the dashboard stays put. With the bridge, links 
   - HORIZON: a glowing wireframe land running to a hot pink horizon, gliding toward you;
   - SUNSET: the striped outrun sun over a glowing grid that glides toward you, under the stars;
   - PRISM: a field of smoky glass blocks lit magenta and blue from inside.
-  - QUANTUM KERNEL: layers of code at different depths, in the rain's glyphs, scrolling past each other; now and then a line lights up as it runs.
-- **Wallpaper colours:** the same eight palettes, chosen on their own: any dashboard colours with any wallpaper and any wallpaper colours. BLOOD suits the neural net and VELOCITY, NEON suits MEGACITY and PRISM, AZURE suits QUANTUM KERNEL, SYNTH suits HORIZON and OUTRUN suits SUNSET.
+  - QUANTUM KERNEL: layers of code at different depths, in the rain's glyphs, scrolling past each other; now and then a line lights up as it runs;
+  - SUMMIT: a low-poly mountain range at dusk above a sea of clouds, every range and bank of cloud gliding right to left at its own speed, forever.
+- **Wallpaper colours:** the same nine palettes, chosen on their own: any dashboard colours with any wallpaper and any wallpaper colours. BLOOD suits the neural net and VELOCITY, NEON suits MEGACITY and PRISM, AZURE suits QUANTUM KERNEL, SYNTH suits HORIZON, OUTRUN suits SUNSET and ALPENGLOW suits SUMMIT.
 - **Glow:** from LOW (the original look) to MAX. HIGH is the default.
 - **Zoom:** 50% to 200% for the wallpaper shown (**−** / **+**, or the keys), in a browser's zoom steps. Each wallpaper keeps its own zoom and opens at it from then on. Zoomed in, the wallpaper is laid out as if the screen were smaller and drawn larger, so it's as sharp as at 100%.
 
