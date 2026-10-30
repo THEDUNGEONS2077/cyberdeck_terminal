@@ -1465,6 +1465,50 @@ try {
     }
   });
 
+  await path('a WebGL wallpaper whose graphics context is lost (a driver reset) gets it back and draws again: all six', async () => {
+    // On the page, where the test can reach the canvas's context (in the worker it can't).
+    const plain = await browser.newContext({ viewport: { width: 1280, height: 720 }, serviceWorkers: 'block' });
+    await plain.addInitScript(() => delete HTMLCanvasElement.prototype.transferControlToOffscreen);
+    try {
+      const p = await plain.newPage();
+      const pageErrors = [];
+      p.on('pageerror', (e) => pageErrors.push(e.message));
+      await p.goto(URL);
+      await p.locator('.brand').waitFor();
+      const probe = () => p.evaluate(() => window.__cyberdeckRain.pixels());
+      // WEBGL_lose_context does what a driver reset does; it's kept from before the loss (a lost context gives none).
+      const context = (how) =>
+        p.evaluate((how) => {
+          if (how === 'lose') window.__lose = document.querySelector('.wallpaper-canvas').getContext('webgl2')?.getExtension('WEBGL_lose_context');
+          if (!window.__lose) return false;
+          if (how === 'lose') window.__lose.loseContext();
+          else window.__lose.restoreContext();
+          return true;
+        }, how);
+      for (const name of ['NEURAL NET', 'MEGACITY', 'HORIZON', 'SUNSET', 'PRISM', 'QUANTUM KERNEL']) {
+        await openSystem(p);
+        await p.getByRole('radio', { name }).check({ force: true });
+        await p.keyboard.press('Escape');
+        await p.getByRole('dialog', { name: 'SYSTEM' }).waitFor({ state: 'detached' });
+        await p.waitForTimeout(1500);
+        const before = (await probe()).lit;
+        expect(await context('lose'), `${name}: no WebGL context to lose`);
+        await p.waitForTimeout(300);
+        expect((await probe()).lit === 0, `${name}: still drawing with its context lost`);
+        await context('restore');
+        await p.waitForTimeout(1500);
+        const a = await probe();
+        await p.waitForTimeout(500);
+        const b = await probe();
+        expect(a.lit > before * 0.5, `${name}: ${(a.lit * 100).toFixed(1)}% lit after its context came back (${(before * 100).toFixed(1)}% before)`);
+        expect(a.sig !== b.sig, `${name}: doesn’t move after its context came back`);
+      }
+      expect(!pageErrors.length, `page errors: ${pageErrors.join(' | ')}`);
+    } finally {
+      await plain.close();
+    }
+  });
+
   await path('the rain’s frames at 4× CPU slowdown, and what it costs the page (reported, not asserted)', async () => {
     const cdp = await context.newCDPSession(page);
     await cdp.send('Performance.enable');

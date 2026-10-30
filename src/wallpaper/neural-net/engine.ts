@@ -595,12 +595,14 @@ function createNeuralNet(canvas: HTMLCanvasElement | OffscreenCanvas, options: W
     drawNow();
   };
 
-  // The graphics card can drop the context (a driver reset): pause, then set everything up again.
-  target.addEventListener('contextlost', (e) => {
+  // The graphics card can drop the context (a driver reset): pause, then set everything up again. WebGL's events are
+  // webglcontextlost/-restored (until 1.0 these listened for the 2D canvas's contextlost, which never comes, so a lost
+  // context was never asked back and the wallpaper stayed dark until a reload).
+  target.addEventListener('webglcontextlost', (e) => {
     e.preventDefault();
     lost = true;
   });
-  target.addEventListener('contextrestored', () => {
+  target.addEventListener('webglcontextrestored', () => {
     lost = false;
     gpu = gl ? setUpGl(gl) : null;
     if (gl && gpu && s) sendWeights(gl, gpu, s.weight);
