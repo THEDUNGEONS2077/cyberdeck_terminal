@@ -48,7 +48,9 @@ describe('SUMMIT', () => {
     for (const spec of LAYERS) {
       const shape = layLayer(seeded(3000017), spec, H, PERIOD);
       for (const f of shape.facets) for (const y of f.y) expect(y).toBeLessThanOrEqual(spec.bottom * H + 1e-6);
-      if (spec.kind !== 'sky') expect(shape.top).toBeGreaterThanOrEqual(spec.top[0] * H - spec.facet * H);
+      // A range's ridges carry sub-peaks a facet or so above them; a cloud bank's puffs heap up to about half a billow above it.
+      if (spec.kind === 'rock') expect(shape.top).toBeGreaterThanOrEqual(spec.top[0] * H - 2 * spec.facet * H);
+      if (spec.kind === 'cloud') expect(shape.top).toBeGreaterThanOrEqual((spec.top[0] - spec.spacing[1] * spec.slope * 0.5) * H - spec.facet * H);
       for (const f of shape.facets) {
         expect(f.light).toBeGreaterThanOrEqual(0);
         expect(f.light).toBeLessThanOrEqual(1);

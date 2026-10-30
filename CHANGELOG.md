@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.28.2 (build 51)
+- **SUMMIT, your tweaks:**
+  - **Mountains:** taller and grander; each peak its own height and steepness, a few rising high above the rest; jagged ridges with sub-peaks and notches; more snow showing on the tall peaks.
+  - **Clouds:** lower on the screen, puffier (round billows heaped with smaller puffs), softer and whiter.
+  - It still runs as smoothly: the parts of each layer that are always hidden behind the ones in front are no longer drawn.
+
 ## 0.28.1 (build 50)
 - **SUMMIT's clouds are grey in every palette,** as you asked: dark grey underneath to pale grey on the crests, whatever the wallpaper colours. The mountains and the sky still take the palette's colours.
 

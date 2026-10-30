@@ -37,7 +37,12 @@ interface Layer {
   scale: number;
   /** How far left it has scrolled (CSS px, within the loop). */
   offset: number;
+  /** Where the layers in front of it cover the whole width from (CSS px from the top): its strip stops a little below, as nothing under there is ever seen. */
+  hidden: number;
 }
+
+/** How far a strip runs on past where the layers in front cover it (CSS px), so no edge of it shows. */
+const HIDDEN_MARGIN = 6;
 
 /** Creates the SUMMIT engine on a canvas (the `create` of the Wallpaper). */
 function createSummit(canvas: HTMLCanvasElement | OffscreenCanvas, options: WallpaperOptions, rng: Rng = Math.random): WallpaperInstance {
@@ -70,12 +75,16 @@ function createSummit(canvas: HTMLCanvasElement | OffscreenCanvas, options: Wall
     const s = l.spec;
     const tones = summitTones(palette);
     const scale = size.dpr * s.resolution;
-    const y0 = Math.max(0, Math.floor(l.shape.top));
-    const y1 = Math.min(size.h, Math.ceil(l.shape.bottom));
-    const strip = new OffscreenCanvas(Math.max(1, Math.round((period + OVERLAP) * scale)), Math.max(1, Math.round((y1 - y0) * scale)));
-    const x = strip.getContext('2d')!;
+    // A softened layer (clouds) is drawn with a margin round it, blurred, then cut to size, so the blur reaches across its loop's seam and its bottom edge.
+    const m = s.soften > 0 ? Math.ceil(s.soften * 3) + 1 : 0;
+    const y0 = Math.max(0, Math.floor(l.shape.top) - m);
+    const y1 = Math.min(size.h, Math.ceil(l.shape.bottom), Math.ceil(l.hidden + HIDDEN_MARGIN + m));
+    const wPx = Math.max(1, Math.round((period + OVERLAP) * scale));
+    const hPx = Math.max(1, Math.round((y1 - y0) * scale));
+    const canvasOf = m > 0 ? new OffscreenCanvas(wPx + Math.round(2 * m * scale), hPx + Math.round(m * scale)) : new OffscreenCanvas(wPx, hPx);
+    const x = canvasOf.getContext('2d')!;
     x.scale(scale, scale);
-    x.translate(0, -y0);
+    x.translate(m, -y0);
     x.lineJoin = 'round';
     x.lineWidth = 1 / scale;
     for (const shift of [-period, 0, period]) {
@@ -85,8 +94,8 @@ function createSummit(canvas: HTMLCanvasElement | OffscreenCanvas, options: Wall
       const o = l.shape.outline;
       x.moveTo(o[0]!.x + shift, o[0]!.y);
       for (const p of o) x.lineTo(p.x + shift, p.y);
-      x.lineTo(o[o.length - 1]!.x + shift, y1 + 2);
-      x.lineTo(o[0]!.x + shift, y1 + 2);
+      x.lineTo(o[o.length - 1]!.x + shift, y1 + m + 2);
+      x.lineTo(o[0]!.x + shift, y1 + m + 2);
       x.closePath();
       x.fill();
     }
@@ -97,7 +106,7 @@ function createSummit(canvas: HTMLCanvasElement | OffscreenCanvas, options: Wall
       for (const shift of [-period, 0, period]) {
         const left = Math.min(f.x[0], f.x[1], f.x[2]) + shift;
         const right = Math.max(f.x[0], f.x[1], f.x[2]) + shift;
-        if (right < -2 || left > period + OVERLAP + 2) continue;
+        if (right < -m - 2 || left > period + OVERLAP + m + 2) continue;
         x.beginPath();
         x.moveTo(f.x[0] + shift, f.y[0]);
         x.lineTo(f.x[1] + shift, f.y[1]);
@@ -106,6 +115,13 @@ function createSummit(canvas: HTMLCanvasElement | OffscreenCanvas, options: Wall
         x.fill();
         x.stroke();
       }
+    }
+    let strip = canvasOf;
+    if (m > 0) {
+      strip = new OffscreenCanvas(wPx, hPx);
+      const out = strip.getContext('2d')!;
+      out.filter = `blur(${s.soften * scale}px)`;
+      out.drawImage(canvasOf, -Math.round(m * scale), 0);
     }
     l.strip = strip;
     l.y0 = y0;
@@ -136,7 +152,17 @@ function createSummit(canvas: HTMLCanvasElement | OffscreenCanvas, options: Wall
   /** Lays every layer out for the size and draws its strip. */
   const build = () => {
     period = Math.round(size.w * PERIOD);
-    layers = LAYERS.map((spec) => ({ spec, shape: layLayer(rng, spec, size.h, period), strip: null, y0: 0, scale: 1, offset: rng() * period }));
+    layers = LAYERS.map((spec) => ({ spec, shape: layLayer(rng, spec, size.h, period), strip: null, y0: 0, scale: 1, offset: rng() * period, hidden: Infinity }));
+    // Each layer is opaque from its skyline down past the screen or the next one's skyline, so everything below
+    // the lowest point of a nearer layer's skyline is covered: the strips behind stop there (less to fill each frame).
+    let covered = Infinity;
+    for (let i = layers.length - 1; i >= 0; i--) {
+      const l = layers[i]!;
+      l.hidden = covered;
+      let low = 0;
+      for (const p of l.shape.outline) low = Math.max(low, p.y);
+      covered = Math.min(covered, low);
+    }
     repaint();
   };
 

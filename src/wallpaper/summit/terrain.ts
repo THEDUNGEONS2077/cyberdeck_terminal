@@ -66,10 +66,13 @@ function spaced(rng: Rng, spacing: readonly [number, number], period: number): n
 
 /**
  * A layer's skyline, y (CSS px from the top) at any x, looping every
- * `period`: a range is the highest of its peaks' flanks (straight, steep:
- * the reference's alpine peaks); a bank of clouds the highest of its
- * billows (rounded: parabolas, so neighbours meet in a soft dip and no
- * edge is vertical); the sky is flat, just above the screen.
+ * `period`: the sky is flat, just above the screen. A range is the
+ * highest of its peaks' straight flanks, each peak its own height and
+ * steepness (a few grand, most lower: the user, 0.28.2), with smaller,
+ * steeper peaks along its ridges for sub-peaks and notches. A bank of
+ * clouds is the highest of its round billows, each overlapping its
+ * neighbours (so they meet in a cusp, never a vertical edge), some heaped
+ * with a smaller puff.
  */
 export function skyline(rng: Rng, spec: LayerSpec, h: number, period: number): (x: number) => number {
   const bottom = spec.bottom * h;
@@ -77,30 +80,54 @@ export function skyline(rng: Rng, spec: LayerSpec, h: number, period: number): (
   const spacing = [spec.spacing[0] * h, spec.spacing[1] * h] as const;
   const centres = spaced(rng, spacing, period);
   if (spec.kind === 'rock') {
-    const peaks = centres.map((c) => ({ c, y: between(rng, spec.top) * h }));
-    return (x) => {
+    // The main peaks: heights skewed so most are lower and a few rise grand; steepness varied.
+    const peaks = centres.map((c) => ({ c, y: (spec.top[0] + (spec.top[1] - spec.top[0]) * rng() ** PEAK_SKEW) * h, s: spec.slope * (0.7 + rng() * 0.8) }));
+    const ridge = (x: number) => {
       let y = bottom;
-      for (const p of peaks) y = Math.min(y, p.y + spec.slope * loopDistance(x, p.c, period));
+      for (const p of peaks) y = Math.min(y, p.y + p.s * loopDistance(x, p.c, period));
+      return y;
+    };
+    // Along the ridges, smaller peaks a little above them and steeper: the jagged sub-peaks and notches.
+    const jag = spaced(rng, [spec.facet * h * 3, spec.facet * h * 7], period).map((c) => ({ c, y: ridge(c) - between(rng, [0.2, 1]) * spec.facet * h * JAG, s: spec.slope * 1.9 }));
+    return (x) => {
+      let y = ridge(x);
+      for (const p of jag) y = Math.min(y, p.y + p.s * loopDistance(x, p.c, period));
       return y;
     };
   }
-  // A billow per centre, about as wide as the gap to its neighbours; `slope` sets how tall for its width.
-  const billows = centres.map((c) => {
-    const r = between(rng, spacing) * 0.6;
-    return { c, r, y: between(rng, spec.top) * h, rise: r * spec.slope };
+  // Round billows, each just wide enough to overlap both neighbours (so they
+  // meet in a deep cusp: puffs, not a wavy band); `slope` how tall a billow
+  // is for its width (1 a half circle).
+  const billows: { c: number; r: number; y: number }[] = centres.map((c, i) => {
+    const n = centres.length;
+    const gap = Math.max(loopDistance(c, centres[(i + n - 1) % n]!, period), loopDistance(c, centres[(i + 1) % n]!, period));
+    return { c, r: gap * between(rng, [0.6, 0.72]), y: between(rng, spec.top) * h };
   });
+  // Cumulus: some billows heaped with a smaller puff, a little off their middle, rising above them.
+  for (const b of [...billows]) {
+    if (rng() < 0.8) billows.push({ c: b.c + (rng() - 0.5) * b.r * 0.8, r: b.r * between(rng, [0.5, 0.7]), y: b.y - b.r * spec.slope * between(rng, [0.3, 0.55]) });
+  }
   return (x) => {
     let y = bottom;
-    for (const b of billows) y = Math.min(y, b.y + b.rise * (loopDistance(x, b.c, period) / b.r) ** 2);
+    for (const b of billows) {
+      const d = loopDistance(x, b.c, period) / b.r;
+      if (d < 1) y = Math.min(y, b.y + b.r * spec.slope * (1 - Math.sqrt(1 - d * d)));
+    }
     return y;
   };
 }
 
+/** How a range's peak heights are skewed: a draw raised to this before it's spread over the range's heights, so most peaks are lower and a few grand. */
+const PEAK_SKEW = 0.55;
+
+/** How far a ridge's small peaks rise above it (facets). */
+const JAG = 2.6;
+
 /** How much of a cloud bank's height its light takes to fade from crest to shadow. */
-const CLOUD_BODY = 0.55;
+const CLOUD_BODY = 0.9;
 
 /** How far down the sky's band it is warmest (the horizon behind the far peaks). */
-const SKY_WARM = 0.62;
+const SKY_WARM = 0.52;
 
 /** Stretches the facets' light so its 10th and 90th percentiles become `from` and `to`. */
 function stretchLight(facets: Facet[], from: number, to: number): void {
@@ -183,7 +210,8 @@ export function layLayer(rng: Rng, spec: LayerSpec, h: number, period: number): 
           const mx = (p.x + q.x + r.x) / 3;
           const crest = line(mx);
           const t = Math.min(1, Math.max(0, (cy - crest) / Math.max(1, (bottom - crest) * CLOUD_BODY)));
-          light = Math.min(1, Math.max(0, (1 - t) ** 1.4 * 0.95 + (rng() - 0.5) * 0.1));
+          // Soft (the user, 0.28.2): a gentle fall and little difference between neighbours.
+          light = Math.min(1, Math.max(0, 0.12 + (1 - t) ** 1.2 * 0.85 + (rng() - 0.5) * 0.04));
         } else if (spec.kind === 'sky') {
           // The sky: lighter toward the horizon (its warmest at the far peaks, SKY_WARM of the way down), each facet a little off its neighbours (the reference's bands).
           light = Math.min(1, Math.max(0, cy / (bottom * SKY_WARM) + (rng() - 0.5) * 0.16));
@@ -263,10 +291,10 @@ export interface SummitTones {
 const WHITE: Rgb = [255, 255, 255];
 
 /** The clouds' greys, shadow to crest, as shares of the way from black to white. */
-const CLOUD_GREYS = [0.09, 0.17, 0.3, 0.5, 0.7] as const;
+const CLOUD_GREYS = [0.16, 0.28, 0.46, 0.68, 0.88] as const;
 
 /** The grey distant clouds fade toward (share of the way from black to white). */
-const CLOUD_HAZE_GREY = 0.24;
+const CLOUD_HAZE_GREY = 0.36;
 
 /** The tones for `p`. */
 export function summitTones(p: WallpaperPalette): SummitTones {
@@ -299,7 +327,7 @@ export function facetColour(t: SummitTones, spec: LayerSpec, f: Facet): string {
   else if (f.snow) c = ramp(t.snow, f.light);
   else if (spec.kind === 'cloud') {
     // Clouds darken toward their bottoms: the front sea is in its own shadow, as the reference's foreground.
-    c = mix(ramp(t.cloud, f.light), t.cloud[0]!, f.depth ** 1.5 * 0.5);
+    c = mix(ramp(t.cloud, f.light), t.cloud[0]!, f.depth ** 1.5 * 0.3);
   } else {
     // A range darkens a little toward its foot (its valleys are in shadow).
     c = mix(ramp(t.rock, f.light ** SHADOW_CURVE), t.rock[0]!, f.depth * 0.3);

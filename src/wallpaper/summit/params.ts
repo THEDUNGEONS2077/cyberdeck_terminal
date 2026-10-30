@@ -42,22 +42,28 @@ export interface LayerSpec {
   speed: number;
   /** Its strip's pixels per screen pixel (soft, big-faceted layers lose nothing at less). */
   resolution: number;
+  /** A blur over the whole layer (CSS px; 0 none): the clouds are soft (the user, 0.28.2). */
+  soften: number;
 }
 
-/** The layers, back to front. */
+/**
+ * The layers, back to front. The user's tweaks (0.28.2): taller, grander
+ * peaks with more variety and jagged ridges; the clouds lower, puffier,
+ * softer and whiter.
+ */
 export const LAYERS: readonly LayerSpec[] = [
   // The sky: long faceted cloud bands, slate above, warming to peach at the horizon.
-  { kind: 'sky', top: [0, 0], bottom: 0.66, spacing: [0, 0], slope: 0, facet: 0.075, stretch: 3.2, rough: 0.45, haze: 0, snow: 0, speed: 3, resolution: 0.5 },
-  // The far range: tall, jagged, snow on its peaks, hazed toward the sky.
-  { kind: 'rock', top: [0.17, 0.33], bottom: 0.6, spacing: [0.1, 0.3], slope: 1.25, facet: 0.03, stretch: 1.3, rough: 0.35, haze: 0.38, snow: 0.38, speed: 6, resolution: 1 },
+  { kind: 'sky', top: [0, 0], bottom: 0.8, spacing: [0, 0], slope: 0, facet: 0.075, stretch: 3.2, rough: 0.45, haze: 0, snow: 0, speed: 3, resolution: 0.5, soften: 0 },
+  // The far range: tall, grand, jagged, snow on its peaks, hazed toward the sky.
+  { kind: 'rock', top: [0.05, 0.27], bottom: 0.8, spacing: [0.16, 0.42], slope: 1.3, facet: 0.024, stretch: 1.2, rough: 0.35, haze: 0.36, snow: 0.34, speed: 6, resolution: 1, soften: 0 },
   // The middle range: navy, crimson only where its ridges face the sun.
-  { kind: 'rock', top: [0.33, 0.47], bottom: 0.72, spacing: [0.22, 0.5], slope: 0.75, facet: 0.045, stretch: 1.4, rough: 0.35, haze: 0.16, snow: 0, speed: 11, resolution: 1 },
+  { kind: 'rock', top: [0.34, 0.5], bottom: 0.76, spacing: [0.28, 0.62], slope: 0.85, facet: 0.036, stretch: 1.3, rough: 0.35, haze: 0.16, snow: 0, speed: 11, resolution: 1, soften: 0 },
   // The near slopes: the reference's long crimson sweeps, in big facets.
-  { kind: 'rock', top: [0.43, 0.58], bottom: 0.82, spacing: [0.5, 1], slope: 0.42, facet: 0.07, stretch: 1.6, rough: 0.3, haze: 0, snow: 0, speed: 18, resolution: 1 },
-  // The sea of clouds, where the reference's foreground was: three banks of billows, flat facets in the sky's colours, lit along their crests, nearer ones bigger and faster.
-  { kind: 'cloud', top: [0.56, 0.63], bottom: 0.84, spacing: [0.12, 0.24], slope: 0.45, facet: 0.03, stretch: 2, rough: 0.5, haze: 0.18, snow: 0, speed: 24, resolution: 1 },
-  { kind: 'cloud', top: [0.64, 0.73], bottom: 0.95, spacing: [0.2, 0.36], slope: 0.42, facet: 0.04, stretch: 2, rough: 0.5, haze: 0.06, snow: 0, speed: 32, resolution: 1 },
-  { kind: 'cloud', top: [0.75, 0.86], bottom: 1.04, spacing: [0.3, 0.55], slope: 0.38, facet: 0.055, stretch: 2, rough: 0.5, haze: 0, snow: 0, speed: 44, resolution: 1 },
+  { kind: 'rock', top: [0.48, 0.62], bottom: 0.9, spacing: [0.55, 1.1], slope: 0.5, facet: 0.055, stretch: 1.5, rough: 0.3, haze: 0, snow: 0, speed: 18, resolution: 1, soften: 0 },
+  // The sea of clouds, where the reference's foreground was: three banks of round billows heaped with smaller puffs, grey, soft, lit along their tops; nearer ones bigger and faster.
+  { kind: 'cloud', top: [0.66, 0.73], bottom: 0.92, spacing: [0.1, 0.18], slope: 0.85, facet: 0.024, stretch: 1.3, rough: 0.35, haze: 0.18, snow: 0, speed: 24, resolution: 1, soften: 0.8 },
+  { kind: 'cloud', top: [0.75, 0.82], bottom: 0.99, spacing: [0.14, 0.26], slope: 0.82, facet: 0.032, stretch: 1.3, rough: 0.35, haze: 0.06, snow: 0, speed: 32, resolution: 1, soften: 1 },
+  { kind: 'cloud', top: [0.84, 0.91], bottom: 1.06, spacing: [0.2, 0.36], slope: 0.8, facet: 0.042, stretch: 1.3, rough: 0.35, haze: 0, snow: 0, speed: 44, resolution: 1, soften: 1.2 },
 ];
 
 /** Each layer's loop is this many screen widths long (one wider than the screen hides the repeat). */
