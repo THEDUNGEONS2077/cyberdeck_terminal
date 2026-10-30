@@ -1,6 +1,6 @@
 # cyberdeck_terminal
 
-A terminal-style start page for Chrome. An animated wallpaper fills the whole screen (a matrix rain to start with, six more to choose from), and the dashboard sits on top: your bookmarks as NAV, and modules you place yourself. Your layout stays in your browser: nothing is sent anywhere.
+A terminal-style start page for Chrome. An animated wallpaper fills the whole screen (a matrix rain to start with, nine more to choose from), and the dashboard sits on top: your bookmarks as NAV, and modules you place yourself. Your layout stays in your browser: nothing is sent anywhere.
 
 **Live:** https://thedungeons2077.github.io/cyberdeck_terminal/
 
@@ -77,4 +77,5 @@ Press **DONE** (or Esc) to lock it again. Changes save as you go.
 ## Development
 See [CLAUDE.md](CLAUDE.md) for the commands, and [ARCHITECTURE.md](ARCHITECTURE.md) for how it fits together.
 
-Fonts: JetBrains Mono (SIL Open Font License, `src/assets/fonts/OFL.txt`).
+## License
+[MIT](LICENSE). The font, JetBrains Mono, is under the SIL Open Font License (`src/assets/fonts/OFL.txt`).

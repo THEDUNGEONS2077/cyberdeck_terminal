@@ -2,6 +2,7 @@
   "name": "cyberdeck_terminal",
   "private": true,
   "version": "0.28.2",
+  "license": "MIT",
   "type": "module",
   "scripts": {
     "dev": "vite --host 127.0.0.1",
@@ -41,5 +42,8 @@
     "typescript-eslint": "^8.71.1",
     "vite": "^8.3.4",
     "vitest": "^5.0.3"
+  },
+  "overrides": {
+    "compression": "^1.8.2"
   }
 }

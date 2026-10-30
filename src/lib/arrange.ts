@@ -61,9 +61,6 @@ export interface Panels {
   brandOff?: true;
 }
 
-/** The movable panels. */
-export type PanelId = 'nav' | 'brand';
-
 /** Longest area title kept. */
 export const MAX_AREA_TITLE = 40;
 /** Most areas. */
