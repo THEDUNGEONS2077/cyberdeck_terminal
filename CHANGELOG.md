@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.28.1 (build 50)
+- **SUMMIT's clouds are grey in every palette,** as you asked: dark grey underneath to pale grey on the crests, whatever the wallpaper colours. The mountains and the sky still take the palette's colours.
+
 ## 0.28.0 (build 49)
 - **New wallpaper: SUMMIT,** from your reference: a low-poly mountain range at dusk, crimson light on the faces turned to a low sun, navy shadows, snow on the far peaks, under a sky of faceted cloud bands warming to peach at the horizon.
   - **Clouds in front:** the reference's foreground is replaced by a sea of clouds, three banks of rounded billows lit along their crests.

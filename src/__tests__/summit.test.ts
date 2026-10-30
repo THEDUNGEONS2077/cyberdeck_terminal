@@ -65,6 +65,21 @@ describe('SUMMIT', () => {
     });
   });
 
+  it('draws its clouds in greys in every palette (the user, 0.28.1)', () => {
+    const clouds = LAYERS.filter((s) => s.kind === 'cloud');
+    for (const id of ['phosphor', 'amber', 'ice', 'neon', 'blood', 'azure', 'synth', 'outrun', 'alpenglow']) {
+      const t = summitTones(palette(id));
+      for (const spec of clouds) {
+        for (const light of [0, 0.3, 0.6, 1]) {
+          for (const depth of [0, 0.5, 1]) {
+            const [r, g, b] = rgb(rgbHex(facetColour(t, spec, { x: [0, 0, 0], y: [0, 0, 0], light, snow: false, depth })));
+            expect(Math.max(r, g, b) - Math.min(r, g, b), `${id}: rgb(${r}, ${g}, ${b})`).toBeLessThanOrEqual(1);
+          }
+        }
+      }
+    }
+  });
+
   it('takes its colours from the palette: in ALPENGLOW, crimson in the sun and navy in shadow', () => {
     const t = summitTones(palette('alpenglow'));
     const rock = LAYERS.find((s) => s.kind === 'rock' && s.haze === 0)!;

@@ -251,12 +251,22 @@ export interface SummitTones {
   /** A range's faces, shadow to full sun, and its snow, shadow to sun. */
   rock: Rgb[];
   snow: Rgb[];
-  /** The clouds, shadow to sun. */
+  /** The clouds, shadow to sun: greys in every palette (the user, 0.28.1), and the grey far clouds fade toward. */
   cloud: Rgb[];
+  cloudHaze: Rgb;
   /** What distance fades toward (the sky low down), and the horizon's glow. */
   haze: Rgb;
   glow: Rgb;
 }
+
+/** White, for the clouds' greys (mixed with the palette's black background, so they carry no hue). */
+const WHITE: Rgb = [255, 255, 255];
+
+/** The clouds' greys, shadow to crest, as shares of the way from black to white. */
+const CLOUD_GREYS = [0.09, 0.17, 0.3, 0.5, 0.7] as const;
+
+/** The grey distant clouds fade toward (share of the way from black to white). */
+const CLOUD_HAZE_GREY = 0.24;
 
 /** The tones for `p`. */
 export function summitTones(p: WallpaperPalette): SummitTones {
@@ -274,9 +284,9 @@ export function summitTones(p: WallpaperPalette): SummitTones {
     sky: [mix(bg, cool, 0.32), mix(mix(cool, dim, 0.35), bg, 0.42), mix(mix(cool, accent, 0.45), bg, 0.25), mix(accent, bright, 0.42)],
     rock: [mix(navy, bg, 0.35), navy, indigo, crimson, peach],
     snow: [mix(cool, bright, 0.35), mix(bright, cool, 0.2), mix(bright, accent, 0.15)],
-    // The clouds: indigo beneath, mauve sides, pink where the sky's light catches their tops, a pale peach crest.
-    // The clouds in the sky's own colours (the strongest cue that they're cloud): indigo below, mauve, pink, a peach crest.
-    cloud: [mix(bg, cool, 0.3), mix(mix(cool, dim, 0.35), bg, 0.4), mix(mix(cool, accent, 0.5), bg, 0.18), mix(accent, bright, 0.38), mix(bright, accent, 0.3)],
+    // The clouds are grey in every palette (the user, 0.28.1: "always just gray based shades"): the black background mixed toward white, dark beneath to pale on the crests.
+    cloud: CLOUD_GREYS.map((k) => mix(bg, WHITE, k)),
+    cloudHaze: mix(bg, WHITE, CLOUD_HAZE_GREY),
     haze: mix(mix(cool, dim, 0.4), bg, 0.3),
     glow: mix(accent, bright, 0.45),
   };
@@ -294,13 +304,13 @@ export function facetColour(t: SummitTones, spec: LayerSpec, f: Facet): string {
     // A range darkens a little toward its foot (its valleys are in shadow).
     c = mix(ramp(t.rock, f.light ** SHADOW_CURVE), t.rock[0]!, f.depth * 0.3);
   }
-  if (spec.haze > 0) c = mix(c, t.haze, spec.haze);
+  if (spec.haze > 0) c = mix(c, spec.kind === 'cloud' ? t.cloudHaze : t.haze, spec.haze);
   return `rgb(${Math.round(c[0])}, ${Math.round(c[1])}, ${Math.round(c[2])})`;
 }
 
 /** A layer's base colour, under its facets (so no hairline shows between them): its shadow, hazed. */
 export function baseColour(t: SummitTones, spec: LayerSpec): string {
   let c = spec.kind === 'sky' ? t.sky[1]! : spec.kind === 'cloud' ? t.cloud[0]! : t.rock[1]!;
-  if (spec.haze > 0) c = mix(c, t.haze, spec.haze);
+  if (spec.haze > 0) c = mix(c, spec.kind === 'cloud' ? t.cloudHaze : t.haze, spec.haze);
   return `rgb(${Math.round(c[0])}, ${Math.round(c[1])}, ${Math.round(c[2])})`;
 }
