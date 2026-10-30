@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.0.0 (build 52)
+**cyberdeck_terminal 1.0:** ten wallpapers, nine palettes, your modules and profiles, and a layout that can't be lost. This release makes it sturdier and lighter:
+- **Nothing that breaks takes your layout with it.** If the dashboard ever fails to draw, a panel takes its place over the wallpaper: **RELOAD**, **EXPORT BACKUP**, or **RESTORE** one of the five newest snapshots. A module that fails shows a small card in its own frame instead (**RESET SETTINGS** or **REMOVE**), and everything else carries on.
+- **Wallpapers come back after a graphics reset.** NEURAL NET, MEGACITY, HORIZON, SUNSET, PRISM and QUANTUM KERNEL listened for the wrong event when the graphics card reset (a driver update, waking from sleep), so they stayed dark until you reloaded. They now pick up where they left off.
+- **QUANTUM KERNEL is far lighter:** the graphics card now lays its layers together in one pass, instead of the processor copying them every frame (about 240 times less work in the test browser). It looks the same: its layers are drawn exactly as before, and the picture matches to within a level or two.
+- **Open source** under the MIT license.
+- **Housekeeping:** a clean dependency audit, updated tools, the README's wallpaper count fixed, and new speed figures for every wallpaper.
+
 ## 0.28.2 (build 51)
 - **SUMMIT, your tweaks:**
   - **Mountains:** taller and grander; each peak its own height and steepness, a few rising high above the rest; jagged ridges with sub-peaks and notches; more snow showing on the tall peaks.
