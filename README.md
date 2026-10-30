@@ -68,6 +68,7 @@ Press **DONE** (or Esc) to lock it again. Changes save as you go.
 ## Your layout is recoverable
 - **Automatic snapshots** are kept in this browser: when the page opens, after changes, and before any import or restore. Restore any of them from **SYSTEM ▸ RESTORE**.
 - **Backup files:** **SYSTEM ▸ EXPORT BACKUP** saves a `.json` file wherever you like (every profile in it), and **IMPORT BACKUP…** brings one back after showing what it holds.
+- **If something breaks:** should the dashboard ever fail to draw, a panel takes its place over the wallpaper with **RELOAD**, **EXPORT BACKUP** and **RESTORE** for the newest snapshots, so a bad layout can never lock you out. A module that fails shows a small error card in its frame (**RESET SETTINGS** or **REMOVE**), and the rest of the dashboard carries on.
 
 ## Profiles
 **SYSTEM ▸ PROFILES** keeps whole layouts with names (bookmark areas, panels, modules, wallpaper, colours and sizes), up to 12. **SAVE AS NEW** copies the layout you're looking at into a new profile and opens it; **OPEN** switches (or type *open profile* in the finder); changes save to the open one. Switching and deleting both leave a snapshot in RESTORE.

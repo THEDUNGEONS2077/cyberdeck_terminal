@@ -783,6 +783,45 @@ try {
     expect((await mod('TIME').getByRole('button', { name: 'TIMER · STOPWATCH' }).getAttribute('aria-expanded')) === 'true', 'TIME’s fold didn’t stay open');
   });
 
+  await path('a module that fails to draw shows its own error card (the rest stands); RESET SETTINGS draws it again', async () => {
+    const id = await page.evaluate(() => window.__cyberdeck.layout().modules.find((m) => m.kind === 'launch').id);
+    await page.evaluate((target) => window.__cyberdeck.testCrash(target), id);
+    const card = mod('QUICK LAUNCH').getByRole('alert');
+    await card.getByText('THIS MODULE HIT AN ERROR').waitFor();
+    // Only that module: the others, NAV and the HUD are still there.
+    await mod('SEARCH').getByPlaceholder('SEARCH CUSTOM').waitFor();
+    expect(await page.locator('.deck').isVisible(), 'NAV went with the module');
+    await audit('a module’s error card');
+    // Fixed (the test switch off), RESET SETTINGS gives it another try: it draws again, with its defaults.
+    await page.evaluate(() => window.__cyberdeck.testCrash(null));
+    await card.getByRole('button', { name: 'RESET SETTINGS' }).click();
+    await mod('QUICK LAUNCH').getByRole('alert').waitFor({ state: 'detached' });
+    expect((await mod('QUICK LAUNCH').locator('.module-error').count()) === 0, 'QUICK LAUNCH still shows its error card');
+    await settled();
+  });
+
+  await path('the dashboard failing to draw shows the recovery panel over the wallpaper: RELOAD, EXPORT BACKUP, and RESTORE (which reloads into the snapshot)', async () => {
+    // The newest snapshot is the layout as it is, so restoring it changes nothing the later paths rely on.
+    await page.evaluate(() => window.__cyberdeck.flushSnapshot());
+    await page.evaluate(() => window.__cyberdeck.testCrash('app'));
+    await page.getByRole('heading', { name: /THE DASHBOARD HIT AN ERROR/ }).waitFor();
+    expect((await page.locator('.deck').count()) === 0, 'NAV is still drawn');
+    expect(await page.getByRole('button', { name: 'RELOAD' }).evaluate((b) => b === document.activeElement), 'the keyboard isn’t on RELOAD');
+    // The wallpaper runs apart from the dashboard, so it keeps going behind the panel.
+    const a = (await rain()).sig;
+    await page.waitForTimeout(400);
+    expect(a !== (await rain()).sig, 'the wallpaper stopped');
+    await audit('the recovery panel');
+    await shot('05c-recovery');
+    const [download] = await Promise.all([page.waitForEvent('download'), page.getByRole('button', { name: 'EXPORT BACKUP' }).click()]);
+    expect(/^cyberdeck_terminal-backup-.*\.json$/.test(download.suggestedFilename()), `file name ${download.suggestedFilename()}`);
+    await page.getByRole('status').getByText('BACKUP EXPORTED').waitFor();
+    await Promise.all([page.waitForEvent('load'), page.getByRole('button', { name: /^Restore the snapshot from/ }).first().click()]);
+    await page.locator('.brand').waitFor();
+    expect((await page.getByRole('heading', { name: /THE DASHBOARD HIT AN ERROR/ }).count()) === 0, 'still the recovery panel after the restore');
+    expect((await page.evaluate(() => window.__cyberdeck.layout().modules.length)) === 3, 'the modules were lost');
+  });
+
   await path('the rain moves', async () => {
     const a = (await rain()).sig;
     await page.waitForTimeout(500);

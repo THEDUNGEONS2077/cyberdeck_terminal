@@ -54,6 +54,13 @@ A first visit: rain about 0.37 s, dashboard about 0.43 s (the test server's HTTP
 
 `app:start`, `app:booted` and `app:ui` performance marks time the app's stages; the wallpaper's `rain-atlas` and `rain-prewarm` measures come from its worker into the page's timeline.
 
+## Recovery (1.0)
+Nothing that fails to draw takes the layout with it (`app/Recovery.tsx`).
+- **CrashGuard** (a class component: React catches errors only there) shows a fallback in place of its part once the part throws while drawing, until its `resetKey` changes. React logs the error itself; the guard keeps the component trace for the details.
+- **The whole page:** `start.tsx` wraps `App` in one. Its fallback, **CrashPanel**, sits over the wallpaper (which keeps running in its worker) with RELOAD, EXPORT BACKUP and RESTORE for the five newest snapshots. It reads the stores directly, not through the app's hooks (which may be what broke). RESTORE snapshots the layout as it is first (the layout store does that), then reloads into the restored one.
+- **Each module** has its own guard round its panel, and another round its SETTINGS: a failure shows a card in its frame (RESET SETTINGS, `lib/modules.ts` `resetSettings`, keeps its place, sizes and title; REMOVE), and the rest of the dashboard is untouched. The module's own object is the reset key, so a reset draws it again.
+- **Checked on the real page:** `window.__cyberdeck.testCrash(target)` ('app' or a module's id; null: none) makes `CrashTest` throw in that part, for e2e/walk.mjs only. Unit tests (`recovery.test.tsx`, jsdom) cover the guard and the panel's failure path.
+
 ## The page
 ```
 .wallpaper         fixed, z 0 (index.html): haze · canvas (screen-sized, drawn by the worker) · floor (the darkening toward the bottom)

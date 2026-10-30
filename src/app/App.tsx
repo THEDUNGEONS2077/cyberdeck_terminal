@@ -23,6 +23,7 @@ import { BookmarksDeck } from './Bookmarks';
 import { Finder } from './Finder';
 import { Hud, HudKeys } from './Hud';
 import { ModuleSettingsDialog, Modules } from './modules/Modules';
+import { CrashTest } from './Recovery';
 import { SystemPanel } from './SystemPanel';
 import { Toast } from './Toast';
 import { usePresence } from './usePresence';
@@ -103,6 +104,7 @@ export function App() {
     <>
       {/* The page's main landmark: everything that isn't the wallpaper. */}
       <main className="ui-layer" data-hidden={immersive || undefined} inert={immersive}>
+        <CrashTest target="app" />
         <Hud />
         <BookmarksDeck />
         <Modules />

@@ -34,7 +34,7 @@
  */
 import { type CSSProperties, memo, useId, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 
-import { type DashboardSizes, type ModuleInstance, type ModuleSizes, moduleScaleOf, moduleTextOf, removeModule, setSizes, setTitle } from '@/lib/modules';
+import { type DashboardSizes, type ModuleInstance, type ModuleSizes, moduleScaleOf, moduleTextOf, removeModule, resetSettings, setSizes, setTitle } from '@/lib/modules';
 import { MODULE_OWN_STEPS, TEXT_SCALE_STEPS, nearestStep, percentLabel } from '@/lib/scale';
 import { editStore } from '@/store/edit';
 import { uiStore } from '@/store/ui';
@@ -46,6 +46,7 @@ import { useEdit, useLayout, useUi } from '../hooks';
 import { MoveGrip, ResizeGrip, placeStyle } from '../panels';
 import { PopupMenu } from '../PopupMenu';
 import { Prompted } from '../Prompted';
+import { CrashGuard, CrashTest } from '../Recovery';
 import { Stepper } from '../Stepper';
 import { usePresence } from '../usePresence';
 import { CATALOG } from './catalog';
@@ -119,6 +120,34 @@ function remove(module: ModuleInstance): void {
   requestAnimationFrame(() => document.querySelector<HTMLElement>('.edit-bar [data-add-module]')?.focus());
 }
 
+/** Module `module`'s settings back to its kind's defaults (undoable), and says so. */
+function reset(module: ModuleInstance): void {
+  editStore.getState().apply((s) => ({ ...s, modules: resetSettings(s.modules, module.id) }));
+  uiStore.getState().announce(`${CATALOG[module.kind].label} SETTINGS RESET`);
+}
+
+/**
+ * In place of a module's panel when it failed to draw (1.0): the rest of
+ * the dashboard is untouched. RESET SETTINGS gives it another try with its
+ * kind's defaults; REMOVE takes it off (both undoable, and snapshotted).
+ */
+function ModuleError({ module }: { module: ModuleInstance }) {
+  return (
+    <div className="module-error" role="alert">
+      <p className="bright">THIS MODULE HIT AN ERROR</p>
+      <p className="small dim">THE REST OF THE DASHBOARD IS FINE. RESET ITS SETTINGS TO TRY AGAIN, OR REMOVE IT.</p>
+      <div className="button-row">
+        <button type="button" className="text-btn" onClick={() => reset(module)}>
+          RESET SETTINGS
+        </button>
+        <button type="button" className="text-btn danger" onClick={() => remove(module)}>
+          REMOVE
+        </button>
+      </div>
+    </div>
+  );
+}
+
 /** One module: its frame (header, grips, ⋯ menu) around its kind's panel. */
 const ModulePanel = memo(function ModulePanel({ module, stacked }: { module: ModuleInstance; stacked: boolean }) {
   const editing = useEdit((s) => s.editing);
@@ -165,7 +194,11 @@ const ModulePanel = memo(function ModulePanel({ module, stacked }: { module: Mod
         </header>
       )}
       <div className="module-body" inert={editing}>
-        <info.Panel module={module} />
+        {/* Its own guard: a module that fails to draw shows ModuleError, and nothing else goes with it. A change to it (RESET) tries again. */}
+        <CrashGuard name={`the ${info.label} module`} resetKey={module} fallback={() => <ModuleError module={module} />}>
+          <CrashTest target={module.id} />
+          <info.Panel module={module} />
+        </CrashGuard>
       </div>
       {editing && !stacked && <ResizeGrip id={module.id} label={`the ${info.label} module`} target={() => box.current} startDrag={start} />}
       {menu && (
@@ -202,7 +235,23 @@ export function ModuleSettingsDialog() {
       <div className="panel-body">
         <TitleSetting module={shown} />
         <ModuleSizeSettings module={shown} />
-        <info.Settings module={shown} />
+        {/* The kind's own settings, guarded too: if they fail to draw, RESET SETTINGS puts the defaults back. */}
+        <CrashGuard
+          name={`the ${info.label} settings`}
+          resetKey={shown}
+          fallback={() => (
+            <div className="module-error" role="alert">
+              <p className="bright">THESE SETTINGS HIT AN ERROR</p>
+              <div className="button-row">
+                <button type="button" className="text-btn" onClick={() => reset(shown)}>
+                  RESET SETTINGS
+                </button>
+              </div>
+            </div>
+          )}
+        >
+          <info.Settings module={shown} />
+        </CrashGuard>
         <p className="small dim">CHANGES SAVE AS YOU MAKE THEM · UNDO IN THE EDIT BAR TAKES THEM BACK.</p>
       </div>
     </Dialog>

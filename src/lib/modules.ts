@@ -141,6 +141,15 @@ export function setSettings<K extends ModuleKind>(modules: readonly ModuleInstan
   return modules.map((m) => (m.id === id && m.kind === kind ? ({ ...m, settings } as ModuleOf<K>) : m));
 }
 
+/**
+ * Module `id` back to its kind's default settings, its place, sizes and
+ * title kept: what a module that failed to draw offers (app/modules/Modules.tsx).
+ */
+export function resetSettings(modules: readonly ModuleInstance[], id: string): ModuleInstance[] {
+  // A fresh module of the same kind carries the defaults; the cast only tells TypeScript the kinds match.
+  return modules.map((m) => (m.id === id ? ({ ...m, settings: newModule(m.kind, m.id, []).settings } as ModuleInstance) : m));
+}
+
 /** Gives module `id` its own sizes; an empty set (every size following the dashboard) is stored as none. */
 export function setSizes(modules: readonly ModuleInstance[], id: string, sizes: ModuleSizes): ModuleInstance[] {
   const kept = normalizeSizes(sizes);

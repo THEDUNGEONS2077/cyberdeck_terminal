@@ -8,7 +8,10 @@
  *   - moduleSettings: the module whose SETTINGS dialog is open, if any;
  *   - toast: the message at the bottom, if any;
  *   - announcement: the last change to tell screen readers about (app/App.tsx
- *     reads it into a polite live region: a move, a hide, an undo…).
+ *     reads it into a polite live region: a move, a hide, an undo…);
+ *   - crashTest: for the browser tests only, the part asked to fail ('app' or
+ *     a module's id), so the recovery can be checked on the real page
+ *     (app/Recovery.tsx CrashTest; window.__cyberdeck.testCrash in start.tsx).
  */
 import { createStore } from 'zustand/vanilla';
 
@@ -47,6 +50,10 @@ export interface UiState {
   announcement: { key: number; text: string } | null;
   /** Tells screen readers about a change (nothing is shown on screen). */
   announce(text: string): void;
+  /** The part the browser tests asked to fail ('app' or a module's id), or null. */
+  crashTest: string | null;
+  /** Asks part `target` to fail on its next draw (null: nothing fails). For the browser tests only. */
+  setCrashTest(target: string | null): void;
 }
 
 let nextKey = 1;
@@ -69,6 +76,8 @@ export function createUiStore() {
     },
     announcement: null,
     announce: (text) => set({ announcement: { key: nextKey++, text } }),
+    crashTest: null,
+    setCrashTest: (crashTest) => set({ crashTest }),
   }));
 }
 

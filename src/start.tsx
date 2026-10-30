@@ -11,6 +11,7 @@ import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 
 import { App } from './app/App';
+import { CrashGuard, CrashPanel } from './app/Recovery';
 import { sanitizeTree } from './lib/bookmarks';
 import { createBookmarksStore } from './store/bookmarks';
 import { idbKV } from './store/idbKV';
@@ -53,11 +54,13 @@ if (booted.notice) uiStore.getState().showToast(booted.notice, { sticky: true })
 // Leaving the page: take a pending change snapshot now rather than lose it.
 window.addEventListener('pagehide', () => void store.getState().flushSnapshot());
 
-// A handle for the browser tests (e2e/walk.mjs, e2e/bridge.mjs): wait for storage, take a pending snapshot, read the layout.
+// A handle for the browser tests (e2e/walk.mjs, e2e/bridge.mjs): wait for storage, take a pending snapshot, read the layout,
+// and make a part fail on purpose ('app' or a module's id; null: none) to check the recovery (app/Recovery.tsx).
 (window as unknown as { __cyberdeck: object }).__cyberdeck = {
   settled: () => store.getState().settled(),
   layout: () => store.getState().layout,
   flushSnapshot: () => store.getState().flushSnapshot(),
+  testCrash: (target: string | null) => uiStore.getState().setCrashTest(target),
 };
 
 // The service worker (production builds only): opens instantly, works offline.
@@ -65,8 +68,11 @@ if (import.meta.env.PROD && 'serviceWorker' in navigator) {
   void navigator.serviceWorker.register(`${import.meta.env.BASE_URL}sw.js`).catch(() => {});
 }
 
+// If the dashboard ever fails to draw, the recovery panel takes its place: the layout is never lost (app/Recovery.tsx).
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <App />
+    <CrashGuard name="the dashboard" fallback={(error, details) => <CrashPanel error={error} details={details} />}>
+      <App />
+    </CrashGuard>
   </StrictMode>,
 );

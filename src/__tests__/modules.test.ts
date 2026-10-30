@@ -21,6 +21,7 @@ import {
   normalizeModules,
   placeModule,
   removeModule,
+  resetSettings,
   setSettings,
   setTitle,
 } from '@/lib/modules';
@@ -169,6 +170,17 @@ describe('modules', () => {
     // A moved module frees its spot.
     list = placeModule(list, 'msearch', { x: 0.1, y: 0.5 });
     expect(newModule('time', 'mt2', list).place.y).toBe(0.02);
+  });
+
+  it('resets a module’s settings to its kind’s defaults, keeping its place, sizes and title (a module that failed to draw, 1.0)', () => {
+    const search = { ...newModule('search', 'msearch', []), title: true, sizes: { scale: 1.2 } };
+    const changed = setSettings([search, newModule('time', 'mtime', [])], 'msearch', 'search', { ...defaultSearch(), engine: 'google' });
+    const reset = resetSettings(changed, 'msearch');
+    expect(reset[0]!.settings).toEqual(defaultSearch());
+    expect(reset[0]!.place).toEqual(search.place);
+    expect([reset[0]!.title, reset[0]!.sizes]).toEqual([true, { scale: 1.2 }]);
+    // The others are left as they were.
+    expect(reset[1]).toBe(changed[1]);
   });
 
   it('keeps a place on screen and a width within a module’s limits', () => {
