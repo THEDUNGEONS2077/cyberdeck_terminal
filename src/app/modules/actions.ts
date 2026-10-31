@@ -4,9 +4,10 @@
  * its key (1–9), pin a bookmark to QUICK LAUNCH (its ⋯ menu), and the
  * finder's module commands (FOCUS SEARCH, START / STOP TIMER).
  *
- * Layer: UI. Kept apart from the kinds' own files, which load lazily: the
- * finder, the shortcuts and the ⋯ menus need these straight away, and
- * they're small.
+ * Layer: UI. Kept apart from the kinds' own files (their panels and
+ * SETTINGS): the finder, the shortcuts and the ⋯ menus need only these,
+ * and they're small. The kinds load with the app too (catalog.ts says why
+ * not lazily).
  */
 import { type LaunchTile, addTile, cleanUrl, hasTile, launchTargets } from '@/lib/launch';
 import { addModule, modulesOf, newModule, newModuleId, setSettings } from '@/lib/modules';

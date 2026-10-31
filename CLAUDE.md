@@ -1,6 +1,6 @@
 # cyberdeck_terminal: notes for Claude Code
 
-Read [WORKING.md](WORKING.md) (how we work: the user's method, the speed and battery bar, the look they want), [ARCHITECTURE.md](ARCHITECTURE.md) (layers, storage, wallpapers) and [DESIGN.md](DESIGN.md) (tokens, each wallpaper's look) first.
+Read [WORKING.md](WORKING.md) (how we work: the user's method, the speed and battery bar, the look they want), [ARCHITECTURE.md](ARCHITECTURE.md) (every part and why: startup, the wallpaper host, the ten wallpapers, storage, the bridge, recovery, testing, the measurements) and [DESIGN.md](DESIGN.md) (the palettes, the design system, each wallpaper's look) first. [PLAYBOOK.md](PLAYBOOK.md) holds the lessons in a form other projects can reuse.
 
 ## What this is
 A terminal/cyberdeck start page: a **webpage** the user sets as Chrome's homepage and startup page. No install is required. The optional **bridge extension** (`bridge/`) provides live bookmarks (no web API can read them) and a New Tab override (Chrome won't take a URL for New Tab). Without it, an imported `bookmarks.html` copy stands in.
@@ -22,7 +22,7 @@ A terminal/cyberdeck start page: a **webpage** the user sets as Chrome's homepag
 - **No network code and no analytics.** The page is static files.
 - **Arranging:** everything goes through `lib/arrange.ts` and `lib/modules.ts` (pure, tested) and `editStore.apply` (undoable). Drags need a keyboard alternative (the ⋯ menu, or grip arrow keys).
 - **Modules** (`app/modules/`): a new kind gets a case in `lib/modules.ts`, its rules in a pure `lib/<kind>.ts`, an entry in `app/modules/catalog.ts`, and a file exporting `Panel` and `Settings` (loaded with the app: see catalog.ts for why not lazily). Nothing in a module may loop or tick while it can't be seen.
-- **Startup:** keep `src/main.tsx` tiny (styles + wallpaper only); the app loads as a separate chunk.
+- **Startup:** keep `src/main.tsx` tiny (the styles, the palette, the sizes and the wallpaper only); the app loads as a separate chunk.
 - **Links open in a new tab** (`target=_blank rel="noopener noreferrer"`): the user's choice, 2026-10-22.
 - **The bridge:**
   - Never change the `key` in `bridge/manifest.json`. It fixes the extension id (`BRIDGE_ID` in `src/bridge/client.ts`), and a unit test checks the two match.
@@ -30,7 +30,8 @@ A terminal/cyberdeck start page: a **webpage** the user sets as Chrome's homepag
   - Keep the bridge read-only, limited to the bookmarks bar, and limited to the callers in `externally_connectable`.
   - Its only host permission granted at install is the dashboard's (used to find an open dashboard on New Tab; Chrome grants it as the whole site, `thedungeons2077.github.io`). Any other site is only an `optional_host_permissions` entry, granted per site by your click in the bridge's own window (SWITCH TO OPEN TAB, `bridge/grant.html`) and given back when no link needs it. Don't widen the granted one, and don't add `tabs`.
 - **Servers:** start `serve` directly (not `npx serve`), on 127.0.0.1 only. Stop it by PID, and check with `ss -ltnp`. The e2e script already does this.
-- **Deploying is public.** Ask the user before every `npm run deploy`, and before creating the GitHub repo.
+- **Documentation is part of the change.** ARCHITECTURE.md (how it works; a measurement goes in § 17), DESIGN.md (the look; a new wallpaper's reference and how it's matched), PLAYBOOK.md (a lesson worth reusing), CHANGELOG.md (the user's words), and the file's own header comment, kept current in the same commit.
+- **Publishing is public.** Ask the user before every `npm run deploy`, every push, every tag or GitHub release, and before creating a repo.
 
 ## Commands
 ```bash
@@ -48,4 +49,5 @@ npm run deploy                      # all of the above, then publish to GitHub P
 1. Bump `version` in `package.json`.
 2. Add a `## x.y.z (build N)` section at the top of `CHANGELOG.md`, with N one more than before.
 3. Commit.
-4. Run `npm run deploy`, with the user's OK.
+4. Run `npm run deploy`, with the user's OK, then confirm the live site serves the new build.
+5. Push, with the user's OK. A milestone (as 1.0.0) also gets a tag and a GitHub release.

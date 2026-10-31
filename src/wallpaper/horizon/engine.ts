@@ -16,8 +16,8 @@
  *     fills the band up to the horizon (land.ts). The strips are drawn
  *     nearest first, so the depth test skips the hidden far ones before
  *     they're shaded.
- * Up to about 72 frames a second. The shaders are written to be fluid_motion's too, byte for byte,
- * when HORIZON is ported there. If WebGL 2 isn't there, a still 2D
+ * Up to about 72 frames a second. The shaders are fluid_motion's too, byte
+ * for byte (its hz_*, since its 0.8.0). If WebGL 2 isn't there, a still 2D
  * picture (the sky and its glow); if the graphics context is lost, it
  * waits and starts again.
  */

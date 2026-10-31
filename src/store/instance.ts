@@ -1,7 +1,7 @@
 /**
  * src/store/instance.ts: the app's layout and bookmarks stores, set once at startup.
  *
- * Layer: store. main.tsx loads storage (persist.ts boot), creates the store
+ * Layer: store. start.tsx loads storage (persist.ts boot), creates the store
  * and sets it here before rendering, so components can read it without
  * waiting. Tests create their own stores with createLayoutStore instead.
  */

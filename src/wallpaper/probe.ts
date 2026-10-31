@@ -3,7 +3,7 @@
  * (the host's window.__cyberdeckRain.pixels, in its worker or on the page).
  *
  * Layer: wallpaper (canvas; no DOM). Works on a 2D canvas or a WebGL 2 one
- * (ORBIT): whichever context the canvas has. A pixel counts as lit when it
+ * (MEGACITY, HORIZON and the other WebGL ones): whichever context the canvas has. A pixel counts as lit when it
  * shows (alpha above a faint residue) and isn't near-black.
  */
 

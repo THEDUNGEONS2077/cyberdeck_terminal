@@ -29,8 +29,10 @@
  * per cell, the last glyph drawn there and when. Then every cell still
  * visible is painted once, at the brightness the fades would have left it.
  * Same picture as drawing and fading for 18 s, at a fraction of the cost
- * (no full-screen fades at all). Both phases run in slices of
- * PREWARM_BUDGET_MS per frame so the page never stalls; `onReady` then lets
+ * (no full-screen fades at all). Both phases run in slices: in the worker,
+ * big ones (PREWARM_WORKER_BUDGET_MS); on the page, PREWARM_BUDGET_MS a
+ * frame, then PREWARM_FILL_BUDGET_MS once it shows, so the page never
+ * stalls. `onReady` then lets
  * the canvas fade in. A resize keeps what's drawn (copied across) and only
  * adds or removes columns.
  *
@@ -433,7 +435,7 @@ function createMatrixRain(canvas: HTMLCanvasElement | OffscreenCanvas, options: 
   };
 
   /**
-   * One slice of the pre-warm, up to PREWARM_BUDGET_MS, then the next frame:
+   * One slice of the pre-warm, up to its budget (warmBudget, then fillBudget), then the next frame:
    * first the simulation (recording), then painting what it recorded. When
    * both are done the first full frame is on the canvas: say so once, and
    * start animating if asked to.

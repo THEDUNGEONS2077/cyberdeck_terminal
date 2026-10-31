@@ -177,7 +177,7 @@ export default defineConfig({
   resolve: { alias: { '@': fileURLToPath(new URL('./src', import.meta.url)) } },
   // ES2022: the entry point awaits persistence before rendering (top-level await).
   build: { outDir: 'dist', sourcemap: false, target: 'es2022' },
-  // The wallpaper's worker (src/wallpaper/worker.ts) is a module worker, bundled on its own.
+  // The wallpaper's worker (src/wallpaper/worker.ts) is a module worker, bundled on its own (then inlined in the host's chunk: host.ts).
   worker: { format: 'es' },
   test: {
     globals: true,

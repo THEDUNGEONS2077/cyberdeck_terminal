@@ -1033,7 +1033,7 @@ try {
     await page.keyboard.press('Escape');
   });
 
-  await path('APPEARANCE: the dashboard and the wallpaper each take their own palette; the neural net, VELOCITY, DATA FLOW, MEGACITY, HORIZON, SUNSET and PRISM run in the worker; all survive a reload', async () => {
+  await path('APPEARANCE: the dashboard and the wallpaper each take their own palette; every wallpaper runs in the worker; all survive a reload', async () => {
     const accent = () => page.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue('--accent').trim());
     const wallAccent = () => page.evaluate(() => getComputedStyle(document.querySelector('.wallpaper')).getPropertyValue('--accent').trim());
     const swatch = (group, name) => page.getByRole('radiogroup', { name: group }).locator('.swatch', { hasText: name });

@@ -1,23 +1,24 @@
 /**
- * src/app/SystemPanel.tsx: the SYSTEM panel (S): backups, restoring a
- * snapshot, the wallpaper, and the keys.
+ * src/app/SystemPanel.tsx: the SYSTEM panel (S): the look, profiles, where
+ * the bookmarks come from, backups, restoring a snapshot, and the keys.
  *
  * Layer: UI. Everything that replaces the layout asks first and says what
  * will happen, and the current layout is always snapshotted before it's
  * replaced (store/layout.ts replaceLayout), so nothing here can lose a layout.
  *
- *   BOOKMARKS  where the bookmarks bar comes from (the bridge, live, or an
- *              imported copy), the bridge download (and update), importing;
+ * Its sections, in order:
+ *   APPEARANCE the dashboard's colours, its sizes (UI SCALE, TEXT SIZE,
+ *              MODULE SIZE, CHROME ZOOM), the wallpaper, the wallpaper's
+ *              colours, the glow, the zoom, and its SHARPNESS (what it
+ *              draws at; TRY AGAIN after the guard stepped back);
  *   PROFILES   whole layouts with names (lib/profiles.ts): the open one,
  *              OPEN another, RENAME, DELETE (asks first), SAVE AS NEW;
+ *   BOOKMARKS  where the bookmarks bar comes from (the bridge, live, or an
+ *              imported copy), the bridge download (and update), importing;
  *   BACKUP     export a file (every profile), import one (preview, then
  *              REPLACE; its other profiles are added beside yours), the
  *              reminder interval, and when the last export was;
  *   RESTORE    the automatic snapshots, newest first; RESTORE asks to confirm;
- *   APPEARANCE (first) the dashboard's colours, its sizes (UI SCALE, TEXT
- *              SIZE, MODULE SIZE, CHROME ZOOM), the wallpaper, the
- *              wallpaper's colours, the glow, the zoom, and its SHARPNESS
- *              (what it draws at; TRY AGAIN after the guard stepped back);
  *   KEYS       the shortcuts;
  *   and at the foot, COPY DIAGNOSTICS (app/diagnostics.ts).
  * Each section folds (Fold), closed when SYSTEM opens.

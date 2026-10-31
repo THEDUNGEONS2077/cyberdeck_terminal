@@ -6,8 +6,9 @@
  * The bar says the layout is unlocked and that changes save as they're
  * made, and holds:
  *   + AREA          a new area at the end, its name ready to type
- *   + MODULE        a module (SEARCH, QUICK LAUNCH, TIME) at a free spot,
- *                   or the brand panel back when it's been removed
+ *   + MODULE        a module (SEARCH, QUICK LAUNCH, TIME, CLOCK, COUNTDOWN)
+ *                   at a free spot, or the brand panel back when it's
+ *                   been removed
  *   CHROME ORDER    everything back where Chrome has it (asks first)
  *   RESET PANELS    NAV and the brand back to their usual places
  *   UNDO            one step back (also Ctrl+Z)

@@ -6,16 +6,16 @@
  * its CSS size) and tells the wallpaper when its size changes and when to
  * run. Wallpapers run in a worker (worker.ts) on an OffscreenCanvas, or on
  * the page if a worker can't start, so they may only use what both have:
- * no DOM. Adding a wallpaper = a folder implementing `Wallpaper` + one line
- * in registry.ts.
+ * no DOM. Adding a wallpaper = a folder implementing `Wallpaper`, its engine
+ * in registry.ts and its name card in catalog.ts.
  */
 import type { GlowLevel } from '@/lib/layout';
 
-/** The theme colours a wallpaper draws with, read from theme.css tokens at mount. */
+/** The colours a wallpaper draws with: the wallpaper's own palette (lib/palettes.ts), sent by the host. */
 export interface WallpaperPalette {
   /** --bg */
   bg: string;
-  /** --line: the darkest decoration green. */
+  /** --line: the darkest decoration colour. */
   line: string;
   /** --text-dim */
   dim: string;

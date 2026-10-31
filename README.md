@@ -31,7 +31,7 @@ Bookmarks open in a new tab, so the dashboard stays put. With the bridge, links 
   - MEGACITY: a city of towers in blue haze at night, seen from a rooftop ledge; windows go on and off, signs flicker, drones cross;
   - HORIZON: a glowing wireframe land running to a hot pink horizon, gliding toward you;
   - SUNSET: the striped outrun sun over a glowing grid that glides toward you, under the stars;
-  - PRISM: a field of smoky glass blocks lit magenta and blue from inside.
+  - PRISM: a field of smoky glass blocks lit magenta and blue from inside;
   - QUANTUM KERNEL: layers of code at different depths, in the rain's glyphs, scrolling past each other; now and then a line lights up as it runs;
   - SUMMIT: a low-poly mountain range at dusk above a sea of clouds, every range and bank of cloud gliding right to left at its own speed, forever.
 - **Wallpaper colours:** the same nine palettes, chosen on their own: any dashboard colours with any wallpaper and any wallpaper colours. BLOOD suits the neural net and VELOCITY, NEON suits MEGACITY and PRISM, AZURE suits QUANTUM KERNEL, SYNTH suits HORIZON, OUTRUN suits SUNSET and ALPENGLOW suits SUMMIT.
@@ -68,14 +68,19 @@ Press **DONE** (or Esc) to lock it again. Changes save as you go.
 ## Your layout is recoverable
 - **Automatic snapshots** are kept in this browser: when the page opens, after changes, and before any import or restore. Restore any of them from **SYSTEM ▸ RESTORE**.
 - **Backup files:** **SYSTEM ▸ EXPORT BACKUP** saves a `.json` file wherever you like (every profile in it), and **IMPORT BACKUP…** brings one back after showing what it holds.
+- **The reminder:** if you haven't exported for a while (14 days by default, adjustable), the page offers to export.
 - **If something breaks:** should the dashboard ever fail to draw, a panel takes its place over the wallpaper with **RELOAD**, **EXPORT BACKUP** and **RESTORE** for the newest snapshots, so a bad layout can never lock you out. A module that fails shows a small error card in its frame (**RESET SETTINGS** or **REMOVE**), and the rest of the dashboard carries on.
 
 ## Profiles
 **SYSTEM ▸ PROFILES** keeps whole layouts with names (bookmark areas, panels, modules, wallpaper, colours and sizes), up to 12. **SAVE AS NEW** copies the layout you're looking at into a new profile and opens it; **OPEN** switches (or type *open profile* in the finder); changes save to the open one. Switching and deleting both leave a snapshot in RESTORE.
-- **The reminder:** if you haven't exported for a while (14 days by default, adjustable), the page offers to export.
 
 ## Development
-See [CLAUDE.md](CLAUDE.md) for the commands, and [ARCHITECTURE.md](ARCHITECTURE.md) for how it fits together.
+- [CLAUDE.md](CLAUDE.md): the rules and the commands.
+- [ARCHITECTURE.md](ARCHITECTURE.md): how it fits together, part by part, with the measurements.
+- [DESIGN.md](DESIGN.md): the palettes, the design system, and each wallpaper against its reference.
+- [WORKING.md](WORKING.md): how the work is done with the user.
+- [PLAYBOOK.md](PLAYBOOK.md): the lessons, written to be reused in other projects.
+- [CHANGELOG.md](CHANGELOG.md): every release.
 
 ## License
 [MIT](LICENSE). The font, JetBrains Mono, is under the SIL Open Font License (`src/assets/fonts/OFL.txt`).

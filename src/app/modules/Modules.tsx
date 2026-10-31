@@ -10,8 +10,8 @@
  *
  * SEARCH and QUICK LAUNCH are bare (catalog.ts `bare`): no header outside
  * edit mode, the frame only a thin scanlined ring round the field or the
- * tiles. Every module is drawn at 70% of its own sizes (MODULE_SCALE; the
- * brand panel keeps its size).
+ * tiles. Every module is drawn at MODULE SIZE (prefs.moduleScale, 70% until
+ * chosen: MODULE_SCALE), or at its own SIZE; the brand panel keeps its size.
  *
  * Wide windows: each module sits at its place (app/panels.tsx), on top of
  * NAV where they overlap (added later, drawn later). Narrow windows: the

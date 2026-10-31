@@ -4,8 +4,9 @@
  * Layer: lib (pure data and maths). A palette is the handful of base
  * colours theme.css's tokens are built from; everything else (glows,
  * tints, rules, scanlines) is mixed from these in theme.css, so changing
- * the palette recolours the whole UI. Wallpapers read the same tokens, so
- * any wallpaper works with any palette (user's choice, 2026-10-23).
+ * the palette recolours the whole UI. Wallpapers take the same base colours
+ * (from a palette of their own, chosen apart: wallpaper/host.ts), so any
+ * wallpaper works with any palette (user's choice, 2026-10-23).
  *
  * The rule from the design system holds for every palette: every text
  * colour (dim, text, accent, bright) passes WCAG AA (4.5:1) on every

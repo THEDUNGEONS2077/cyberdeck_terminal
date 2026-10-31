@@ -2,11 +2,15 @@
  * src/styles/theme.css: the design tokens, as CSS custom properties.
  *
  * Ported from quest_log_desktop/src/styles/theme.css (itself the phone
- * app's theme): the green-on-black palette (every text color passes WCAG
- * AA on every background), JetBrains Mono, the 4 pt spacing grid, the one
- * effect (a soft green glow) and the motion tokens. The quest list's
- * layout tokens (caret, checkbox, panes) were left behind. Components and
- * the wallpaper engine use these names, never raw values.
+ * app's theme): the colour roles, JetBrains Mono, the 4 pt spacing grid,
+ * the one effect (a soft glow in the accent) and the motion tokens. The
+ * base colours below are PHOSPHOR's (the original green on black); each
+ * palette sets its own over them (src/lib/palettes.ts, src/palette.ts), and
+ * every other colour is mixed from them. In every palette, every text
+ * colour passes WCAG AA on every background (a unit test checks). The quest
+ * list's layout tokens (caret, checkbox, panes) were left behind.
+ * Components use these names, never raw values; the wallpapers take the
+ * same base colours from their own palette.
  */
 @font-face {
   font-family: 'JetBrains Mono';

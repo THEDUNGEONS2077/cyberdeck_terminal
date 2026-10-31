@@ -93,7 +93,7 @@ describe('QUANTUM KERNEL', () => {
     expect(b).toBeGreaterThan(r! * 2);
   });
 
-  it('draws on true black in every palette (its background is --bg, black in all eight: the user, 0.27.1)', () => {
+  it('draws on true black in every palette (its background is --bg, black in all nine palettes: the user, 0.27.1)', () => {
     for (const p of PALETTES) expect(p.colors.bg).toBe('#000000');
   });
 });

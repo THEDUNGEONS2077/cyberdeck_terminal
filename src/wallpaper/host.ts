@@ -6,7 +6,7 @@
  * light layers are plain HTML in index.html, and main.tsx starts the
  * wallpaper here before anything else loads (storage, React, the app), so
  * the rain begins as early as possible. React only tells the host when the
- * chosen wallpaper or its glow changes (app/App.tsx).
+ * chosen wallpaper, its glow, its palette or the zooms change (app/App.tsx).
  *
  * Where the wallpaper runs (optimization pass 2, 2026-10-22): in a worker
  * of its own (worker.ts), drawing on the canvas through an OffscreenCanvas.

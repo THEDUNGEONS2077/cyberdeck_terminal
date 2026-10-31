@@ -269,7 +269,7 @@ ul {
 .wallpaper[data-wallpaper='prism'] .wallpaper-floor {
   display: none;
 }
-/* QUANTUM KERNEL: true black in every palette (the user, 0.27.1: --bg, black in all eight; the code draws over it once its font is in). */
+/* QUANTUM KERNEL: true black in every palette (the user, 0.27.1: --bg, black in all nine palettes; the code draws over it once its font is in). */
 .wallpaper[data-wallpaper='quantum-kernel'] {
   background: var(--bg);
 }
