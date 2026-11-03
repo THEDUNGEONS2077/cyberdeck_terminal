@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
+  <!-- cyberdeck_terminal's tab icon: an accent prompt and block cursor on black, in a HUD frame. -->
+  <rect width="32" height="32" rx="3" fill="#000"/>
+  <rect x="1.5" y="1.5" width="29" height="29" rx="2" fill="none" stroke="#12301a"/>
+  <path d="M7 10l6 6-6 6" fill="none" stroke="#39ff14" stroke-width="3" stroke-linecap="square"/>
+  <rect x="16" y="19" width="9" height="4" fill="#39ff14"/>
+</svg>
