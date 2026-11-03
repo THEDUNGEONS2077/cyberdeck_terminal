@@ -1425,7 +1425,7 @@ try {
     }
   });
 
-  await path('Reduce Motion: one still frame of rain, already full', async () => {
+  await path('the OS’s Reduce Motion is ignored (Windows’ “best performance” turns it on): the rain opens full and keeps moving', async () => {
     const still = await browser.newContext({ viewport: { width: 1280, height: 720 }, reducedMotion: 'reduce', serviceWorkers: 'block' });
     try {
       const p = await still.newPage();
@@ -1436,8 +1436,8 @@ try {
       const a = await p.evaluate(() => window.__cyberdeckRain.pixels());
       await p.waitForTimeout(600);
       const b = await p.evaluate(() => window.__cyberdeckRain.pixels());
-      expect(a.lit > 0.02, `the still frame is only ${(a.lit * 100).toFixed(2)}% lit`);
-      expect(a.sig === b.sig, 'the rain moved under Reduce Motion');
+      expect(a.lit > 0.02, `the rain is only ${(a.lit * 100).toFixed(2)}% lit`);
+      expect(a.sig !== b.sig, 'the rain stood still under the OS’s Reduce Motion (it should be ignored)');
     } finally {
       await still.close();
     }

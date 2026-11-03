@@ -148,7 +148,7 @@ vite.config.ts    the build, the service worker, the bridge zip, the app's prelo
 - **The fallback.** If a canvas can't go to a worker, or the worker fails, the same wallpaper runs on the page, on a fresh canvas. Its engine (`registry.ts`) is loaded only then, so the page's own scripts don't carry it.
 - **A new wallpaper gets a fresh canvas**: a canvas handed to a worker, or one that drew 2D, can't be handed to another.
 - **Visibility.** It stops while the tab is hidden and starts again when it's shown.
-- **Reduce Motion** (the OS setting, unless the page overrides it with `data-reduce-motion`) gives a still frame.
+- **Reduce Motion** gives a still frame, but only through the page's own override (`data-reduce-motion="on"`). The OS setting is ignored since 1.0.1: index.html sets the override off, because Windows' "Adjust for best performance" switches animations off and Chrome passes that on as Reduce Motion, freezing the wallpaper (the user: "just have it be exactly as before").
 - **React tells the host only about changes** (`app/App.tsx`): the wallpaper, its glow, its palette, the zooms.
 
 ### 5.2 The contract
@@ -756,14 +756,14 @@ Nothing that fails to draw takes the layout with it (1.0, `app/Recovery.tsx`).
 - **The browser walk** (`e2e/walk.mjs`) runs headless Chromium at 1920×1080 against the built `dist/`.
   - **Its server:** the `serve` binary itself (not `npx serve`, whose child process would outlive it), on 127.0.0.1:8163 only, always stopped.
   - **Its paths** (`path(name, fn)`) run in order on one page, each building on the last. A path fails on any page error, with a `FAILED-*` screenshot (`WALK_DEBUG=1` prints Playwright's whole call log).
-  - **What they cover:** the CONNECT prompt and the import; the finder; arrow keys; every edit-mode action, with drags; the modules (each kind, their settings, sizes, keys, the timer); recovery (a module's card and the page's panel); immersive mode; SYSTEM (export, import, restore, profiles, glow, palettes, every wallpaper in its worker, zoom, UI SCALE); a narrow window; COPY DIAGNOSTICS; a simulated 175% Chrome zoom and a 2.5× screen (the guard stepping back); Reduce Motion; the page fallback; the six WebGL wallpapers losing and regaining their context; the rain at 4× slower CPU.
+  - **What they cover:** the CONNECT prompt and the import; the finder; arrow keys; every edit-mode action, with drags; the modules (each kind, their settings, sizes, keys, the timer); recovery (a module's card and the page's panel); immersive mode; SYSTEM (export, import, restore, profiles, glow, palettes, every wallpaper in its worker, zoom, UI SCALE); a narrow window; COPY DIAGNOSTICS; a simulated 175% Chrome zoom and a 2.5× screen (the guard stepping back); the OS's Reduce Motion ignored; the page fallback; the six WebGL wallpapers losing and regaining their context; the rain at 4× slower CPU.
   - **axe-core** (WCAG 2.2 A/AA and best practice) runs in edit mode, with modules, and with and without SYSTEM.
 - **The bridge test** (`e2e/bridge.mjs`) runs Playwright's full Chromium (the headless shell can't load extensions), with `bridge/` loaded unpacked in a throwaway profile. The dashboard is served at its real production address from `dist/` by Playwright's request routing: nothing goes to the network, and `externally_connectable` is tested exactly as shipped. Page service workers are blocked, since they'd bypass the routing.
 - **The canvas is read through the probe** (§5.5), since the page can't read a canvas it handed to a worker.
 - **Scratch tools, not kept in the repo** (made per change in a scratch folder):
   - Playwright scripts for screenshots;
   - frame timing on the built page;
-  - seeded still frames (`Math.random` seeded, on the page fallback, Reduce Motion), compared pixel by pixel in Python (`-I`);
+  - seeded still frames (`Math.random` seeded, on the page fallback, Reduce Motion: since 1.0.1 set the page's `data-reduce-motion` to `on` in an init script, as the OS setting is ignored), compared pixel by pixel in Python (`-I`);
   - traces of a startup.
 
   A/B comparisons run a copy of the old build from a scratch `git worktree` (`MOTION_DIST`, `PERF_DIST`).

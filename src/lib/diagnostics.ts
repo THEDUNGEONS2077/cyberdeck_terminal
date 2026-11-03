@@ -45,6 +45,7 @@ export interface DiagnosticsInput {
     palette: string;
     wallpaperPalette: string;
     glow: string;
+    /** The OS's Reduce Motion setting (the page ignores it since 1.0.1: index.html). */
     reduceMotion: boolean;
     links: number;
     areas: number;
@@ -101,7 +102,7 @@ export function diagnosticsText(d: DiagnosticsInput, at: Date): string {
     '--- LAYOUT ---',
     `bookmarks: ${d.source} · ${l.links} links · ${l.areas} areas · ${l.hidden} hidden · ${l.switchPlaces} switch-to-open-tab places`,
     `modules: ${l.modules.length ? l.modules.join(', ') : 'none'} · brand panel ${l.brandShown ? 'shown' : 'off'} · panels ${l.panelsMoved ? 'moved' : 'in place'}`,
-    `look: dashboard ${l.palette} · wallpaper ${l.wallpaperPalette} · glow ${l.glow} · reduce motion ${l.reduceMotion ? 'on' : 'off'}`,
+    `look: dashboard ${l.palette} · wallpaper ${l.wallpaperPalette} · glow ${l.glow} · OS reduce motion ${l.reduceMotion ? 'on (ignored)' : 'off'}`,
     '=== END ===',
   );
   return lines.join('\n');

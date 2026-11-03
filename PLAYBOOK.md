@@ -81,7 +81,7 @@ How this project is laid out is in [ARCHITECTURE.md](ARCHITECTURE.md); what it l
 
 **4.3 Size the canvas to the screen, not the window.** A window resize or fullscreen then touches nothing: the window shows more or less of a canvas that's already big enough. Resize only for a new screen size, zoom or pixel ratio, debounced (150 ms). *Where:* `host.ts` `wantedSize`, `measure`.
 
-**4.4 Stop when hidden; a still frame for Reduce Motion.** `visibilitychange` stops and starts the engine. Reduce Motion (the OS setting, or the page's own) gives one full still frame, not a blank.
+**4.4 Stop when hidden; a still frame for Reduce Motion.** `visibilitychange` stops and starts the engine. Reduce Motion gives one full still frame, not a blank. Keep it behind a page-level override (`data-reduce-motion` on `<html>`) that every rule and engine reads: when the user asked for the OS setting to be ignored (Windows' "best performance" turns it on in Chrome), one attribute in index.html did it (1.0.1).
 
 **4.5 Give the tests a probe into the worker.** The page can't read a canvas it gave away, so the worker answers probes: the share of lit pixels and a fingerprint, frame gaps and drawing time, whether it runs in a worker. Keep each frame's start and drawing time in a small ring (two typed arrays, no allocation), so stats are answered at once. *Where:* `window.__cyberdeckRain`, `worker.ts` `RING`, `wallpaper/probe.ts`.
 

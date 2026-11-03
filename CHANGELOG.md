@@ -1,5 +1,8 @@
 # Changelog
 
+## 1.0.1 (build 53)
+- **Windows' performance settings no longer change the dashboard.** With "Adjust for best performance" (System ▸ Advanced ▸ Performance), Windows turns animations off, and Chrome passed that on: the wallpaper froze into a still picture, and the glides, sweeps and toast clocks stopped. The dashboard now ignores that setting and looks and moves exactly as before, as you asked.
+
 ## 1.0.0 (build 52)
 **cyberdeck_terminal 1.0:** ten wallpapers, nine palettes, your modules and profiles, and a layout that can't be lost. This release makes it sturdier and lighter:
 - **Nothing that breaks takes your layout with it.** If the dashboard ever fails to draw, a panel takes its place over the wallpaper: **RELOAD**, **EXPORT BACKUP**, or **RESTORE** one of the five newest snapshots. A module that fails shows a small card in its own frame instead (**RESET SETTINGS** or **REMOVE**), and everything else carries on.

@@ -249,7 +249,11 @@ function paintLayers(): void {
 
 const motion = matchMedia('(prefers-reduced-motion: reduce)');
 
-/** Is Reduce Motion on (the OS setting, unless the page overrides it with data-reduce-motion)? */
+/**
+ * Is Reduce Motion on (the OS setting, unless the page overrides it with data-reduce-motion)?
+ * index.html sets the override off (1.0.1), so the OS setting is ignored: Windows' "best
+ * performance" turns it on, and the user wants the wallpaper moving as before.
+ */
 function reduceMotion(): boolean {
   const own = document.documentElement.dataset.reduceMotion;
   if (own === 'on') return true;

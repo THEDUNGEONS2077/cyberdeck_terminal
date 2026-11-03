@@ -90,7 +90,7 @@ A palette is twelve base colours, and everything else is mixed from them (§3.1)
 ### 3.4 Motion
 - **Durations:** `--fast` 120 ms (hover and focus), `--base` 200 ms, `--slow` 320 ms.
 - **Curves:** `--ease` (out-cubic) to arrive, `--ease-exit` (in-cubic) to leave, and `--ease-fold` (a soft start and a long settle, for folds and their carets: out-cubic would jump 15% of the way in the first frame; "as smooth as possible", 2026-10-17).
-- **Reduce Motion** (the OS setting, or `data-reduce-motion`) sets every duration to 0 and `--loops` to paused.
+- **Reduce Motion** (`data-reduce-motion="on"`) sets every duration to 0 and `--loops` to paused. The OS setting is ignored since 1.0.1: index.html sets the override off, because Windows' "best performance" turns it on (the user: "just have it be exactly as before").
 - **Hover and focus** ease colours, borders and box glows only: paint, never layout.
 - **Rearrangements glide** (FLIP, 220 ms, transforms only), new items fade in, and the UI fades in after the rain.
 - **One-shot accents, not loops.** NAV's header sweeps once when it appears and again each time the layout is locked. The only endless animations are the brand panel's scanline drift (1.8 s) and refresh band (every 7 s), kept as its look (a few ms of main-thread work a second, ARCHITECTURE.md § 17), and the edit bar's breathing `●`, in edit mode only. All three pause under Reduce Motion.
@@ -124,7 +124,7 @@ A palette is twelve base colours, and everything else is mixed from them (§3.1)
 - **Focus follows a moved item,** and changes are announced in a polite live region (`.sr-only`).
 - **Contrast:** un-openable links use `--text-dim`, never opacity, so text still passes AA.
 - **Toasts hold still** while the pointer or keyboard is on them (WCAG 2.2.1).
-- **Reduce Motion is honoured** by the page and the wallpaper (a still frame).
+- **The OS's Reduce Motion is ignored** (1.0.1, the user's call): Windows' "best performance" turns it on, and they want the motion kept. The rules behind it remain, behind the page's own override.
 - **The finder** is a combobox over a listbox (`aria-activedescendant`), so screen readers follow the choice.
 
 ### 3.7 Words

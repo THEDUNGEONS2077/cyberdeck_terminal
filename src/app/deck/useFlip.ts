@@ -53,7 +53,7 @@ function place(el: HTMLElement, root: HTMLElement, base: DOMRect): Point {
   return { x: (r.left - base.left) / z, y: (r.top - base.top) / z + root.scrollTop };
 }
 
-/** Is Reduce Motion on (the OS setting, unless the page overrides it)? */
+/** Is Reduce Motion on (the OS setting, unless the page overrides it: index.html sets it off since 1.0.1)? */
 function reduceMotion(): boolean {
   const own = document.documentElement.dataset.reduceMotion;
   if (own) return own === 'on';

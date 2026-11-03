@@ -108,7 +108,7 @@ The user's PC is fast (an Intel Core Ultra 7), so the web keeps full fidelity, b
   - every drag has a keyboard path;
   - changes are announced;
   - click targets keep 24 px;
-  - Reduce Motion is honoured.
+  - the OS's Reduce Motion is **ignored** (1.0.1: the user's laptop set to Windows' "best performance" turns animations off, which Chrome passes on as Reduce Motion, and they want the dashboard exactly as before). The page's own `data-reduce-motion` override stays, set off in index.html.
 - **Verification for each change:**
   - `npm run check` (typecheck, lint, unit tests) before every commit;
   - `npm run build && npm run e2e` (the browser walk, with screenshots) for anything on the page;

@@ -199,7 +199,8 @@ try {
     await page.emulateMedia({ reducedMotion: 'reduce' });
     await page.getByRole('button', { name: 'EDIT', exact: true }).click();
     await page.waitForTimeout(30);
-    expect((await glides()) === 0, 'items glided with Reduce Motion on');
+    // The OS's Reduce Motion is ignored (1.0.1): the glides still run.
+    expect((await glides()) >= 1, 'items didn’t glide with the OS’s Reduce Motion on (it should be ignored)');
     await page.getByRole('button', { name: 'DONE' }).click();
     await page.emulateMedia({ reducedMotion: 'no-preference' });
   });
